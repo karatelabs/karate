@@ -1149,4 +1149,106 @@ class StepMatchTest {
         assertFailed(sr);
     }
 
+    // ========== Optional nested-schema reference — schemas kept in JSON files ==========
+    // The round-bracket 'def' escape hatch only exists for a JSON literal typed at the step.
+    // For a schema kept in a re-usable .json file the equivalent is 'karate.readAsString()'
+    // piped through the 'json' keyword: readAsString hands back the raw text, and the 'json'
+    // keyword parses it without resolving embedded expressions, so a '##(subSchema)' survives
+    // to the match. This is the JSON twin of the 'text' then 'xml' idiom for XML schemas.
+
+    @Test
+    void testOptionalSchemaReferenceFromFileViaReadAsString() {
+        ScenarioRuntime sr = run("""
+            * def addressSchema = read('json/schema-address.json')
+            * json entitySchema = karate.readAsString('json/schema-entity.json')
+            * match { id: 'x', address: null } == entitySchema
+            * match { id: 'x' } == entitySchema
+            * match { id: 'x', address: { address1: 'a', city: 'c', postalCode: 'p' } } == entitySchema
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testOptionalSchemaReferenceFromFileIgnoresDefinitionOrder() {
+        // Because the reference survives to the match, the nested schema only has to be in
+        // scope when the match runs — not when the outer schema is loaded. Order of the two
+        // 'def' lines does not matter, and a Background can load them either way round.
+        ScenarioRuntime sr = runFeature("""
+            Feature:
+            Background:
+            * json entitySchema = karate.readAsString('json/schema-entity.json')
+            * def addressSchema = read('json/schema-address.json')
+            Scenario:
+            * match { id: 'x' } == entitySchema
+            * match { id: 'x', address: { address1: 'a', city: 'c', postalCode: 'p' } } == entitySchema
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testOptionalSchemaReferenceFromFileFailsLoudlyWhenNestedSchemaMissing() {
+        // The flip side of deferring: if the nested schema was never defined, the error
+        // surfaces at the match, naming the variable.
+        ScenarioRuntime sr = run("""
+            * json entitySchema = karate.readAsString('json/schema-entity.json')
+            * match { id: 'x', address: { address1: 'a', city: 'c', postalCode: 'p' } } == entitySchema
+            """);
+        assertFailedWith(sr, "addressSchema is not defined");
+    }
+
+    @Test
+    void testOptionalSchemaReferenceFromFileStillValidatesWhenPresent() {
+        // 'optional' is only about null / absent — a nested object that IS there must match,
+        // and the nested schema's own markers still apply.
+        ScenarioRuntime sr = run("""
+            * def addressSchema = read('json/schema-address.json')
+            * json entitySchema = karate.readAsString('json/schema-entity.json')
+            * match { id: 'x', address: { address1: 'a', city: 'c' } } == entitySchema
+            """);
+        // name the missing key, so this pins the nested schema doing the validating
+        assertFailedWith(sr, "postalCode");
+    }
+
+    @Test
+    void testOptionalSchemaReferenceFromFileViaPlainReadIsInlined() {
+        // GOTCHA: read() of a .json file is the data-building path — embedded expressions
+        // resolve, so '##(addressSchema)' inlines and 'address' ends up plain required.
+        ScenarioRuntime sr = run("""
+            * def addressSchema = read('json/schema-address.json')
+            * def entitySchema = read('json/schema-entity.json')
+            * match { id: 'x', address: null } == entitySchema
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testJsonKeywordDoesNotResolveEmbeddedExpressionsInParsedText() {
+        // The general rule behind the idiom above: text the user typed at the step is a
+        // template, a string parsed into JSON is not.
+        ScenarioRuntime sr = run("""
+            * def myVar = 'hello'
+            * json fromLiteral = { field: '#(myVar)' }
+            * match fromLiteral == { field: 'hello' }
+            * json fromText = karate.readAsString('json/embedded.json')
+            * assert fromText.field == '#(myVar)'
+            * assert fromText.nested.value == '#(myVar)'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testJsonKeywordDocString() {
+        // A doc string is the RHS, same as for the other typed keywords — and being text
+        // typed at the step, its embedded expressions do resolve.
+        ScenarioRuntime sr = run("""
+            * def myVar = 'hello'
+            * json foo =
+            \"\"\"
+            { field: '#(myVar)' }
+            \"\"\"
+            * match foo == { field: 'hello' }
+            """);
+        assertPassed(sr);
+    }
+
 }

@@ -1034,8 +1034,17 @@ public class StepExecutor {
         String text = step.getText();
         int eqIndex = StepUtils.findAssignmentOperator(text);
         String name = text.substring(0, eqIndex).trim();
-        String expr = text.substring(eqIndex + 1).trim();
+        // a doc string is the RHS, same as xml / yaml / csv / bytes / text: json foo = """..."""
+        String expr = step.getDocString() != null
+                ? step.getDocString()
+                : text.substring(eqIndex + 1).trim();
         // Use evalKarateExpression to handle XML literals like: json foo = <bar>baz</bar>
+        // It is also what resolves embedded expressions for a JSON literal RHS - and only for
+        // a literal. That split is deliberate and v1-exact: text the user typed at this step is
+        // a template, so '#(var)' is substituted, but a string parsed into JSON here (typically
+        // karate.readAsString() of a schema file) is left exactly as authored. Re-processing it
+        // would inline an '##(subSchema)' reference and silently turn an optional nested schema
+        // into a required one - see the match engine, which resolves both markers at match time.
         Object value = evalKarateExpression(expr);
         // Convert to JSON map/object
         if (value instanceof Node) {
@@ -1049,7 +1058,6 @@ public class StepExecutor {
             // POJO or other Java object - convert using Jackson
             value = Json.of(value).value();
         }
-        value = processEmbeddedExpressions(value);
         runtime.setVariable(name, value);
     }
 

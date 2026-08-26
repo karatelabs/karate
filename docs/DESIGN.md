@@ -91,6 +91,8 @@ The `{...}` / `[...]` branch is what lets `{ userId: #(userId) }` resolve embedd
 
 **Call-arg sites must use this entry point.** All four call-arg evaluation sites — `parseCallExpression` (read-based feature call), the JS-function branches in `executeCall` and `executeCallWithResult`, and `executeFeatureCall` — route their arg through `evalKarateExpression` so inline JSON with embedded `#(...)` resolves uniformly. Reaching for `runtime.eval(wrapJsonLikeExpression(...))` directly in a new call-related path is a regression bait — it bypasses the JSON+embedded branch and produces `ReferenceError: # is not defined` on unquoted placeholders (issue #2849).
 
+**Schema escape hatches.** `##(expr)` means "inline, drop the key if null" when building data but *optional* when asserting, so a nullable nested schema needs a path that reaches the match engine un-substituted. Two exist: `def schema = ({ ... })`, which walks with `forMatch = true` (see `isParenWrappedJson`), and `json schema = karate.readAsString(...)`, where `executeJson` deliberately does not walk a string RHS at all (v1-exact — the JSON twin of `text` then `xml`). Adding a walk back to `executeJson` re-breaks the second one; a literal or doc-string RHS already gets one inside `evalKarateExpression`.
+
 Splitting `read(path) arg` is **quote- and nested-paren-aware** via `StepUtils.findReadCloseParen` — paths containing `)` (inside quotes) and args containing parens (`{ val: foo() }`) both split correctly.
 
 **Source files:** `StepExecutor.evalKarateExpression`, `StepExecutor.processEmbeddedExpressions`, `StepUtils.findReadCloseParen` / `findCallArgSeparator`, `Json.parseLenient`.
