@@ -246,9 +246,38 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 // Binary file types - return raw bytes (V1 compatibility)
                 case "pdf", "png", "jpg", "jpeg", "gif", "ico", "mp4", "bin", "zip", "gz", "tar",
                      "xlsx", "xls", "docx", "doc", "pptx", "ppt" -> FileUtils.toBytes(resource.getStream());
-                default -> resource.getText();
+                default -> {
+                    // unknown extension: sniff container-format magic numbers so binary
+                    // files not on the extension list above return bytes instead of
+                    // being silently corrupted by a lossy text decode
+                    byte[] bytes = FileUtils.toBytes(resource.getStream());
+                    yield hasBinaryMagic(bytes) ? bytes : FileUtils.toString(bytes);
+                }
             };
         };
+    }
+
+    /**
+     * Detect binary container formats by magic number: zip (covers all zip-based
+     * formats e.g. odt / jar / epub), gzip and OLE2 compound files (legacy Office).
+     * Deliberately limited to unambiguous magics that cannot start a text file,
+     * so no genuine text content can be misclassified as binary.
+     */
+    private static boolean hasBinaryMagic(byte[] bytes) {
+        if (bytes.length >= 4 && bytes[0] == 'P' && bytes[1] == 'K') {
+            byte b2 = bytes[2];
+            byte b3 = bytes[3];
+            // local file header, empty archive, spanned archive
+            return (b2 == 3 && b3 == 4) || (b2 == 5 && b3 == 6) || (b2 == 7 && b3 == 8);
+        }
+        if (bytes.length >= 2 && bytes[0] == (byte) 0x1F && bytes[1] == (byte) 0x8B) {
+            return true; // gzip
+        }
+        return bytes.length >= 8
+                && bytes[0] == (byte) 0xD0 && bytes[1] == (byte) 0xCF
+                && bytes[2] == (byte) 0x11 && bytes[3] == (byte) 0xE0
+                && bytes[4] == (byte) 0xA1 && bytes[5] == (byte) 0xB1
+                && bytes[6] == (byte) 0x1A && bytes[7] == (byte) 0xE1; // OLE2
     }
 
     /**

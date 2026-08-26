@@ -4,6 +4,7 @@ import io.karatelabs.common.Json;
 import io.karatelabs.common.Resource;
 import io.karatelabs.http.ErrorHttpClient;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -102,6 +103,40 @@ class KarateJsTest {
                 """);
         assertEquals("bytes", context.engine.get("type"));
         assertArrayEquals(expected, (byte[]) context.engine.get("bytes"));
+    }
+
+    @Test
+    void testReadSniffsBinaryMagicForUnknownExtensions(@TempDir Path tempDir) throws Exception {
+        // binary container formats whose extensions are not on the read() allowlist
+        byte[] zip = Files.readAllBytes(Path.of("src/test/resources/io/karatelabs/core/upload/test.xlsx"));
+        Files.write(tempDir.resolve("archive.odt"), zip);
+        byte[] gzip = Files.readAllBytes(Path.of("src/test/resources/io/karatelabs/core/upload/gzip.bin"));
+        Files.write(tempDir.resolve("data.tgz"), gzip);
+        byte[] ole = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1, 0, 0};
+        Files.write(tempDir.resolve("legacy.msg"), ole);
+        // control: text starting with "PK" but no zip magic must stay a string
+        String text = "PK is a prefix, not a zip archive";
+        Files.writeString(tempDir.resolve("notes.unknown"), text);
+
+        KarateJs context = new KarateJs(Resource.path(tempDir.toString()));
+        context.engine.eval("""
+                var odt = read('archive.odt');
+                var odtType = karate.typeOf(odt);
+                var tgz = read('data.tgz');
+                var tgzType = karate.typeOf(tgz);
+                var msg = read('legacy.msg');
+                var msgType = karate.typeOf(msg);
+                var notes = read('notes.unknown');
+                var notesType = karate.typeOf(notes);
+                """);
+        assertEquals("bytes", context.engine.get("odtType"));
+        assertArrayEquals(zip, (byte[]) context.engine.get("odt"));
+        assertEquals("bytes", context.engine.get("tgzType"));
+        assertArrayEquals(gzip, (byte[]) context.engine.get("tgz"));
+        assertEquals("bytes", context.engine.get("msgType"));
+        assertArrayEquals(ole, (byte[]) context.engine.get("msg"));
+        assertEquals("string", context.engine.get("notesType"));
+        assertEquals(text, context.engine.get("notes"));
     }
 
     @Test
