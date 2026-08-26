@@ -491,6 +491,7 @@ function fn() {
 - `showDriverLog` has no effect (TODO)
 - W3C WebDriver types are fully supported: `chromedriver`, `geckodriver`, `safaridriver`, `msedgedriver`
 - `submit()` has been ported from v1 and works on all backends
+- `driver.inputFile()` works as in v1 — and now on all backends, not just `chrome`
 
 ### Driver Types
 
@@ -546,7 +547,7 @@ Scenario: Full regression
 
 These functions are only available **after** `driver 'url'` has been called (i.e., a browser session is active):
 
-`click()`, `input()`, `clear()`, `focus()`, `scroll()`, `select()`, `submit()`, `text()`, `html()`, `value()`, `attribute()`, `exists()`, `enabled()`, `position()`, `locate()`, `locateAll()`, `waitFor()`, `waitForText()`, `waitForUrl()`, `waitUntil()`, `screenshot()`, `highlight()`, `delay()`, `script()`, `scriptAll()`, `mouse()`, `keys()`, `switchFrame()`, `switchPage()`, `refresh()`, `back()`, `forward()`
+`click()`, `input()`, `inputFile()`, `clear()`, `focus()`, `scroll()`, `select()`, `submit()`, `text()`, `html()`, `value()`, `attribute()`, `exists()`, `enabled()`, `position()`, `locate()`, `locateAll()`, `waitFor()`, `waitForText()`, `waitForUrl()`, `waitUntil()`, `screenshot()`, `highlight()`, `delay()`, `script()`, `scriptAll()`, `mouse()`, `keys()`, `switchFrame()`, `switchPage()`, `refresh()`, `back()`, `forward()`
 
 If you see `<function> is not defined`, check that the driver was initialized before that line.
 
