@@ -93,6 +93,41 @@ class DriverApiTest {
     }
 
     @Test
+    void testResolveFilePathsFilePrefixIsPurePathMath() {
+        // file: is the escape hatch for host/browser-machine paths — no existence
+        // check, because with a remote browser the file may exist only browser-side
+        java.util.List<String> resolved = DriverApi.resolveFilePaths("file:/no/such/dir/upload.png");
+        assertEquals(1, resolved.size());
+        assertEquals(java.nio.file.Path.of("/no/such/dir/upload.png").toAbsolutePath().normalize().toString(),
+                resolved.get(0));
+    }
+
+    @Test
+    void testResolveFilePathsClasspathRefResolvesToAbsolutePath() {
+        java.util.List<String> resolved = DriverApi.resolveFilePaths(
+                "classpath:io/karatelabs/driver/features/upload-sample.txt");
+        java.nio.file.Path path = java.nio.file.Path.of(resolved.get(0));
+        assertTrue(path.isAbsolute());
+        assertTrue(java.nio.file.Files.exists(path));
+        assertEquals("upload-sample.txt", path.getFileName().toString());
+    }
+
+    @Test
+    void testResolveFilePathsMissingFileFailsWithResolvedPath() {
+        DriverException e = assertThrows(DriverException.class,
+                () -> DriverApi.resolveFilePaths("no-such-upload.txt"));
+        assertTrue(e.getMessage().contains("file not found"), e.getMessage());
+        assertTrue(e.getMessage().contains("no-such-upload.txt"), e.getMessage());
+    }
+
+    @Test
+    void testResolveFilePathsMissingClasspathRefFails() {
+        DriverException e = assertThrows(DriverException.class,
+                () -> DriverApi.resolveFilePaths("classpath:no/such/upload.txt"));
+        assertTrue(e.getMessage().contains("file not found"), e.getMessage());
+    }
+
+    @Test
     void testWaitCallableFeatureParses() {
         // The full E2E scenarios in wait-callable.feature are exercised via
         // DriverFeatureTest (requires Docker). This check keeps the feature

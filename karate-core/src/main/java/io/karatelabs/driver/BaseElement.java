@@ -180,6 +180,13 @@ public class BaseElement implements Element {
     }
 
     @Override
+    public Element inputFile(String... files) {
+        assertExists();
+        driver.inputFile(locator, files);
+        return this;
+    }
+
+    @Override
     public Element value(String value) {
         assertExists();
         driver.value(locator, value);
@@ -348,6 +355,17 @@ public class BaseElement implements Element {
             case "scroll" -> (JavaCallable) (ctx, args) -> scroll();
             case "highlight" -> (JavaCallable) (ctx, args) -> highlight();
             case "input" -> (JavaCallable) (ctx, args) -> input(args.length > 0 ? String.valueOf(args[0]) : "");
+            case "inputFile" -> (JavaCallable) (ctx, args) -> {
+                java.util.List<String> files = new java.util.ArrayList<>();
+                for (Object arg : args) {
+                    if (arg instanceof java.util.List<?> list) {
+                        list.forEach(o -> files.add(String.valueOf(o)));
+                    } else {
+                        files.add(String.valueOf(arg));
+                    }
+                }
+                return inputFile(files.toArray(new String[0]));
+            };
             case "attribute" -> (JavaCallable) (ctx, args) -> attribute(args.length > 0 ? String.valueOf(args[0]) : "");
             case "property" -> (JavaCallable) (ctx, args) -> property(args.length > 0 ? String.valueOf(args[0]) : "");
             case "script" -> (JavaCallable) (ctx, args) -> script(args.length > 0 ? String.valueOf(args[0]) : "");

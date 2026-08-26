@@ -98,6 +98,10 @@ class DriverFeatureTest {
         testServer = TestPageServer.start(TEST_SERVER_PORT);
         logger.info("test page server started on port: {}", testServer.getPort());
 
+        // upload.feature: the browser (in the container) must see the upload fixtures
+        // at the same absolute path inputFile() resolves on the host
+        io.karatelabs.driver.e2e.support.UploadFixtures.copyInto(chrome);
+
         // Set serverUrl for test pages (webSocketUrl not needed - ContainerDriverProvider handles it)
         String serverUrl = chrome.getHostAccessUrl(TEST_SERVER_PORT);
         // crossOriginUrl points at the same TestPageServer via a different hostname so the

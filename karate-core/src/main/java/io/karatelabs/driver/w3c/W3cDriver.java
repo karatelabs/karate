@@ -27,6 +27,7 @@ import io.karatelabs.driver.BaseElement;
 import io.karatelabs.driver.Dialog;
 import io.karatelabs.driver.DialogHandler;
 import io.karatelabs.driver.Driver;
+import io.karatelabs.driver.DriverApi;
 import io.karatelabs.driver.DriverException;
 import io.karatelabs.driver.DriverOptions;
 import io.karatelabs.driver.Element;
@@ -397,6 +398,20 @@ public class W3cDriver implements Driver {
                 eval(Locators.inputJs(locator, value));
             }
         }
+        return BaseElement.existing(this, locator);
+    }
+
+    @Override
+    public Element inputFile(String locator, String... files) {
+        List<String> resolved = DriverApi.resolveFilePaths(files);
+        logger.debug("inputFile: {} <- {}", locator, resolved);
+        // W3C route for file upload: send-keys the path(s) to the file input — the driver
+        // (chromedriver/geckodriver) intercepts this on file inputs and sets the FileList.
+        // Multiple files join with newline per the send-keys convention. NO JS fallback:
+        // script can never set a file input's value, so failing loudly beats silently doing
+        // the wrong thing.
+        String elementId = findElementIdWithRetry(locator);
+        session.sendKeys(elementId, String.join("\n", resolved));
         return BaseElement.existing(this, locator);
     }
 

@@ -79,6 +79,7 @@ io.karatelabs.driver/
 | `click(locator)` | ✅ Working |
 | `input(locator, value)` | ✅ Working |
 | `input(locator, ['a', Key.ENTER])` | ✅ Working |
+| `driver.inputFile(locator, path)` | ✅ Working — also bound as bare `inputFile()`, see below |
 | `focus(locator)` | ✅ Working |
 | `clear(locator)` | ✅ Working |
 | `value(locator, value)` | ✅ Working |
@@ -139,6 +140,33 @@ V2 drops v1's `parent`, `children`, `firstChild`, `lastChild`, `previousSibling`
 | `mouse(locator)` | ✅ Working |
 | `keys()` | ✅ Working |
 | `Key.ENTER`, `Key.TAB` | ✅ Working |
+
+### File Upload — `inputFile()`
+
+`inputFile()` is the ONE way to drive a file `<input>`: browsers forbid setting its `value`
+from script (a page must never be able to pick a file off the user's disk), so `value()`
+throws `InvalidStateError` and `input()` keystrokes go nowhere. Each backend uses its native
+mechanism — CDP `DOM.setFileInputFiles` (via the `objectId(locator)` primitive), W3C element
+send-keys (chromedriver/geckodriver intercept it on file inputs). Unlike v1 (chrome-only),
+both backends work.
+
+```gherkin
+* driver.inputFile('#file-upload', 'billie.jpg')          # v1-compatible form
+* inputFile('#file-upload', 'billie.jpg')                 # also bound as a bare keyword
+* inputFile('#file-multi', ['a.jpg', 'b.jpg'])            # multiple attribute needed on the input
+```
+
+File references resolve exactly like `read()` — relative to the calling feature, with
+`classpath:`, a root-anchored leading `/`, and `file:` for a real OS path (see
+`DriverApi.resolveFilePaths`). The reference must exist as a local file, checked at
+resolution time with the resolved path in the error — except `file:`, which is pure path
+math: with a remote browser (grid, container) the file may exist only on the machine the
+browser runs on, and the resolved path is handed to the browser process verbatim. The
+element does NOT need to be visible — file inputs are routinely `display:none` behind
+styled buttons.
+
+The browser-agnostic alternative from v1 still applies: upload via HTTP directly with
+`multipart file` when the test doesn't need to exercise the page's picker flow.
 
 ### Driver Lifecycle (V1 Behavior)
 

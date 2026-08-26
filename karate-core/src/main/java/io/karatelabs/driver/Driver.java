@@ -88,6 +88,24 @@ public interface Driver extends CoreDriver, SimpleObject {
                 String s = value == null ? "" : String.valueOf(value);
                 return delay > 0 ? input(loc, s, delay) : input(loc, s);
             };
+            case DriverApi.INPUT_FILE -> (JavaCallable) (ctx, args) -> {
+                String loc = String.valueOf(args[0]);
+                // second arg may be a single path, a list/array of paths, or varargs
+                List<String> files = new ArrayList<>();
+                for (int i = 1; i < args.length; i++) {
+                    if (args[i] instanceof List<?> list) {
+                        list.forEach(o -> files.add(String.valueOf(o)));
+                    } else if (args[i] != null && args[i].getClass().isArray()) {
+                        int length = java.lang.reflect.Array.getLength(args[i]);
+                        for (int j = 0; j < length; j++) {
+                            files.add(String.valueOf(java.lang.reflect.Array.get(args[i], j)));
+                        }
+                    } else {
+                        files.add(String.valueOf(args[i]));
+                    }
+                }
+                return inputFile(loc, files.toArray(new String[0]));
+            };
             case DriverApi.CLEAR -> (JavaCallable) (ctx, args) ->
                     clear(String.valueOf(args[0]));
             case DriverApi.FOCUS -> (JavaCallable) (ctx, args) ->
@@ -898,6 +916,27 @@ public interface Driver extends CoreDriver, SimpleObject {
             }
         }
         return BaseElement.of(this, locator);
+    }
+
+    /**
+     * Set the files of a file {@code <input>} element — the ONLY way to drive a file upload:
+     * browsers forbid setting a file input's {@code value} from script (a page must never be
+     * able to pick a file off the user's disk), so {@code value()} throws and {@code input()}
+     * keystrokes go nowhere. Each backend uses its native mechanism instead (CDP
+     * {@code DOM.setFileInputFiles}, W3C element send-keys).
+     *
+     * <p>File references resolve exactly like {@code read()} — relative to the calling feature,
+     * with {@code classpath:}, a root-anchored leading {@code /}, and {@code file:} for a real
+     * OS path (see {@link DriverApi#resolveFilePaths}). Multiple files need an input with the
+     * {@code multiple} attribute. The element does not need to be visible — file inputs are
+     * routinely hidden behind styled buttons.</p>
+     *
+     * <p>NOTE: the resolved path is handed to the browser process — with a remote browser
+     * (grid, container) the file must exist on the machine the BROWSER runs on; use
+     * {@code file:} to name such a path verbatim.</p>
+     */
+    default Element inputFile(String locator, String... files) {
+        throw new DriverException("inputFile not supported by this driver");
     }
 
     /**

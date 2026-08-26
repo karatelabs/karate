@@ -80,6 +80,10 @@ class W3cDriverFeatureTest {
     static void setup() {
         testServer = TestPageServer.start(TEST_SERVER_PORT);
         logger.info("test page server started on port: {}", testServer.getPort());
+
+        // upload.feature: chromedriver (in the container) validates and reads the
+        // sent file path, so the fixtures must exist there at the host-resolved path
+        io.karatelabs.driver.e2e.support.UploadFixtures.copyInto(chrome);
     }
 
     @AfterAll

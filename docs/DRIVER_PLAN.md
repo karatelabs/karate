@@ -107,9 +107,10 @@ public JS generators (`existsJs`, `findAllJs`, `selector`, `toFunction`, …) ·
 registry; nothing pins the rest, it is tested only downstream. Worth pinning beside
 `InitScriptE2eTest`: binding round-trip (`addBinding` → page-side call →
 `Runtime.bindingCalled` at an external listener); external listener receives Network events on
-the initial session **and after `switchPage`** (guards the F6 re-arm); `objectId(locator)` →
-`DOM.setFileInputFiles` against `input.html`; the partial-`__kjs` extend-don't-clobber guard;
-one `DOMCONTENT`-strategy scenario.
+the initial session **and after `switchPage`** (guards the F6 re-arm); the partial-`__kjs`
+extend-don't-clobber guard; one `DOMCONTENT`-strategy scenario. ~~`objectId(locator)` →
+`DOM.setFileInputFiles`~~ — now pinned in OSS by the `inputFile()` surface (`UploadE2eTest`
+and `upload.feature` against `upload.html`, CDP + W3C lanes).
 
 **Validation protocol.** A change to any of the above isn't done until the downstream consumer
 has been rebuilt against it and its driver e2e suite is green. Compile breaks are cheap to see;

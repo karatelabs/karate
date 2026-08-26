@@ -26,6 +26,7 @@ package io.karatelabs.driver.cdp;
 import io.karatelabs.driver.Dialog;
 import io.karatelabs.driver.DialogHandler;
 import io.karatelabs.driver.Driver;
+import io.karatelabs.driver.DriverApi;
 import io.karatelabs.driver.DriverException;
 import io.karatelabs.driver.DriverOptions;
 import io.karatelabs.driver.BaseElement;
@@ -2933,6 +2934,32 @@ public class CdpDriver implements Driver {
         } else {
             clear(locator);
             keys().type(value);
+        }
+        return BaseElement.existing(this, locator);
+    }
+
+    /**
+     * Set the files of a file {@code <input>} element via {@code DOM.setFileInputFiles} — the
+     * CDP method that addresses the node by reference, which is what {@link #objectId(String)}
+     * exists for. Existence-wait only: a file input is routinely {@code display:none} behind a
+     * styled button, so the click/input visibility rules don't apply.
+     */
+    @Override
+    public Element inputFile(String locator, String... files) {
+        List<String> resolved = DriverApi.resolveFilePaths(files);
+        logger.debug("inputFile: {} <- {}", locator, resolved);
+        retryIfNeeded(locator);
+        String objectId = objectId(locator);
+        if (objectId == null) {
+            throw new DriverException("inputFile: element did not resolve to a DOM node: " + locator);
+        }
+        CdpResponse response = cdp.method("DOM.setFileInputFiles")
+                .param("files", resolved)
+                .param("objectId", objectId)
+                .send();
+        if (response != null && response.isError()) {
+            throw new DriverException("inputFile failed: " + response.getErrorMessage()
+                    + " | locator: " + locator + " | files: " + resolved);
         }
         return BaseElement.existing(this, locator);
     }

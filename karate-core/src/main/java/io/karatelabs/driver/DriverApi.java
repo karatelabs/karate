@@ -1,10 +1,15 @@
 package io.karatelabs.driver;
 
+import io.karatelabs.common.Resource;
+import io.karatelabs.core.ScenarioRuntime;
 import io.karatelabs.js.Args;
 import io.karatelabs.js.Context;
 import io.karatelabs.js.Engine;
 import io.karatelabs.js.JavaCallable;
 
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.function.Supplier;
@@ -14,6 +19,7 @@ public class DriverApi {
     // Element actions
     public static final String CLICK = "click";
     public static final String INPUT = "input";
+    public static final String INPUT_FILE = "inputFile";
     public static final String CLEAR = "clear";
     public static final String FOCUS = "focus";
     public static final String SCROLL = "scroll";
@@ -114,7 +120,7 @@ public class DriverApi {
 
     // Collection of all bindable method names
     public static final List<String> BOUND_METHODS = List.of(
-            CLICK, INPUT, CLEAR, FOCUS, SCROLL, HIGHLIGHT, HIGHLIGHT_ALL, SELECT, SUBMIT,
+            CLICK, INPUT, INPUT_FILE, CLEAR, FOCUS, SCROLL, HIGHLIGHT, HIGHLIGHT_ALL, SELECT, SUBMIT,
             TEXT, HTML, VALUE, ATTRIBUTE, PROPERTY, EXISTS, ENABLED, POSITION,
             LOCATE, LOCATE_ALL, OPTIONAL,
             WAIT_FOR, WAIT_FOR_ANY, WAIT_FOR_TEXT, WAIT_FOR_ENABLED, WAIT_FOR_URL, WAIT_UNTIL, WAIT_FOR_RESULT_COUNT,
@@ -131,6 +137,58 @@ public class DriverApi {
             RIGHT_OF, LEFT_OF, ABOVE, BELOW, NEAR,
             RETRY, TIMEOUT
     );
+
+    /**
+     * Resolve file-path references for {@link Driver#inputFile(String, String...)} to absolute
+     * OS paths, using the SAME rule as {@code read()}: a bare path is relative to the calling
+     * feature's dir, a leading {@code /} anchors the project root, {@code classpath:} is
+     * classloader-first with a root fallback, and {@code this:} is the feature's dir. Outside a
+     * scenario (plain Java API use) a bare path falls back to classloader/CWD semantics.
+     *
+     * <p>Every resolved reference must exist as a real file on the local disk — a miss fails
+     * here, with the resolved path, rather than as an opaque browser-side error. The one
+     * exception is the {@code file:} escape hatch, which is pure path math with no existence
+     * check: with a remote browser (grid, container) the file may exist only on the machine
+     * the browser runs on, and only the user can know that.</p>
+     */
+    public static List<String> resolveFilePaths(String... refs) {
+        List<String> files = new ArrayList<>(refs.length);
+        for (String ref : refs) {
+            files.add(resolveFilePath(ref));
+        }
+        return files;
+    }
+
+    private static String resolveFilePath(String ref) {
+        if (ref.startsWith(Resource.FILE_COLON)) {
+            return Path.of(Resource.removePrefix(ref)).toAbsolutePath().normalize().toString();
+        }
+        ScenarioRuntime runtime = ScenarioRuntime.currentOrNull();
+        Resource resource;
+        try {
+            resource = runtime != null && runtime.getFeatureRuntime() != null
+                    ? runtime.getFeatureRuntime().resolve(ref)
+                    : Resource.path(ref);
+        } catch (Exception e) {
+            throw new DriverException(fileNotFoundMessage(ref, null), e);
+        }
+        Path path = resource.isFile() ? resource.getPath() : null;
+        if (path == null || path.getFileSystem() != FileSystems.getDefault()) {
+            throw new DriverException("inputFile: not a local file: " + ref
+                    + " — the browser needs a real file on disk; extract it first, or point at it with 'file:'");
+        }
+        if (!resource.exists()) {
+            throw new DriverException(fileNotFoundMessage(ref, path));
+        }
+        return path.toAbsolutePath().normalize().toString();
+    }
+
+    private static String fileNotFoundMessage(String ref, Path resolved) {
+        return "inputFile: file not found: " + ref
+                + (resolved == null ? "" : " (resolved to: " + resolved.toAbsolutePath().normalize() + ")")
+                + " — a bare path is relative to the feature, a leading '/' anchors the project root,"
+                + " 'file:' is a host machine path";
+    }
 
     /**
      * Adapt a JS/Java callable argument to a {@code Supplier<Object>}.

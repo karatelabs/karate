@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 { color: #333; }
+        .form-group { margin: 15px 0; }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        /* Real-world pattern: the file input is hidden behind a styled button.
+           inputFile() must work on it anyway — file inputs are routinely display:none. */
+        #file-hidden { display: none; }
+        .upload-button {
+            padding: 10px 20px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .status {
+            margin-top: 5px;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload Test Page</h1>
+    <p id="description">Test file uploads via inputFile().</p>
+
+    <div class="form-group">
+        <label for="file-upload">Single file</label>
+        <input type="file" id="file-upload" name="file-upload">
+        <div class="status" id="single-status">no file</div>
+    </div>
+
+    <div class="form-group">
+        <label for="file-multi">Multiple files</label>
+        <input type="file" id="file-multi" name="file-multi" multiple>
+        <div class="status" id="multi-status">no files</div>
+    </div>
+
+    <div class="form-group">
+        <label>Hidden input behind a styled button</label>
+        <button type="button" class="upload-button" onclick="document.getElementById('file-hidden').click()">Choose File</button>
+        <input type="file" id="file-hidden" name="file-hidden">
+        <div class="status" id="hidden-status">no file</div>
+    </div>
+
+    <script>
+        console.log('Upload page loaded');
+
+        // On change, report file names immediately, then read the actual content —
+        // proving the browser really read the file off ITS filesystem, not just that
+        // a path string was set. Status format: "<name>:<content>" (content trimmed),
+        // or "<n> files: <name>:<content>, ..." for a multi-select.
+        function report(input, statusId) {
+            input.addEventListener('change', function () {
+                var files = Array.prototype.slice.call(input.files);
+                var status = document.getElementById(statusId);
+                if (files.length === 0) {
+                    status.textContent = 'no file';
+                    return;
+                }
+                Promise.all(files.map(function (f) {
+                    return f.text().then(function (t) { return f.name + ':' + t.trim(); });
+                })).then(function (parts) {
+                    status.textContent = files.length === 1
+                        ? parts[0]
+                        : files.length + ' files: ' + parts.join(', ');
+                }).catch(function (e) {
+                    status.textContent = 'read error: ' + e;
+                });
+            });
+        }
+
+        report(document.getElementById('file-upload'), 'single-status');
+        report(document.getElementById('file-multi'), 'multi-status');
+        report(document.getElementById('file-hidden'), 'hidden-status');
+    </script>
+</body>
+</html>

@@ -85,6 +85,8 @@ public interface Element extends SimpleObject {
 
     Element input(String value);
 
+    Element inputFile(String... files);
+
     Element value(String value);
 
     Element select(String text);
