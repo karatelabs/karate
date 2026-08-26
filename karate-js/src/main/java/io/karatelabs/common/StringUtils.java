@@ -493,7 +493,7 @@ public class StringUtils {
                 return ostring;
             }
         }
-        if (o instanceof List || o instanceof Map) {
+        if (o instanceof List || o instanceof Map || (o != null && o.getClass().isArray())) {
             StringBuilder sb = new StringBuilder();
             // Use IdentityHashMap for circular reference detection (identity, not equals)
             Set<Object> visited = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -519,6 +519,45 @@ public class StringUtils {
             // Unwrap JS wrapper types (JsDate, JsNumber, JsString, JsBoolean) - check BEFORE Map/List
             // because these types extend JsObject which implements Map
             formatRecurse(jv.getJavaValue(), pretty, lenient, sort, indent, sb, depth, visited);
+        } else if (o.getClass().isArray()) {
+            // An array is a JSON array, not its JVM identity string. Without this every array
+            // nested in a payload (a byte[] read from a file, a Uint8Array unwrapped just above,
+            // a String[] from Java interop) rendered as "[B@1a2b3c" — in karate.pretty and
+            // karate.log, in the HTTP request/response log, and written into the callSingle
+            // disk cache, where a warm run then read it back as that garbage string. Elements
+            // are formatted individually so this agrees with the other serializer in the
+            // codebase (the json-smart writers behind Json, which the match engine and request
+            // bodies use): numbers for the numeric primitives, strings for char[].
+            if (visited.contains(o)) {
+                sb.append("\"[Circular]\"");
+                return;
+            }
+            visited.add(o);
+            try {
+                int length = java.lang.reflect.Array.getLength(o);
+                sb.append('[');
+                if (pretty) {
+                    sb.append('\n');
+                }
+                for (int i = 0; i < length; i++) {
+                    if (pretty) {
+                        pad(sb, depth + 1, indent);
+                    }
+                    formatRecurse(java.lang.reflect.Array.get(o, i), pretty, lenient, sort, indent, sb, depth + 1, visited);
+                    if (i < length - 1) {
+                        sb.append(',');
+                    }
+                    if (pretty) {
+                        sb.append('\n');
+                    }
+                }
+                if (pretty) {
+                    pad(sb, depth, indent);
+                }
+                sb.append(']');
+            } finally {
+                visited.remove(o);
+            }
         } else if (o instanceof List<?> list) {
             // Check for circular reference
             if (visited.contains(o)) {

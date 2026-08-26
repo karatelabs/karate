@@ -4,6 +4,7 @@ import io.karatelabs.common.StringUtils;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -130,6 +131,69 @@ class JsonEdgeCaseTest extends EvalBase {
         assertTrue(json.contains("1"));
         assertTrue(json.contains("\"hello\""));
         assertTrue(json.contains("2"));
+    }
+
+    @Test
+    void testJavaArraysSerializeAsJsonArrays() {
+        // a Java array used to fall through to its JVM identity string ("[B@1a2b3c"), so a
+        // byte[] read from a file showed up as garbage wherever this formatter is used —
+        // karate.pretty, karate.log, the HTTP log, the callSingle disk cache
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("bytes", new byte[]{1, 2, -3});
+        map.put("ints", new int[]{10, 20});
+        map.put("doubles", new double[]{1.5});
+        map.put("bools", new boolean[]{true, false});
+        map.put("chars", new char[]{'a', 'b'});
+        map.put("strings", new String[]{"x", "y"});
+        map.put("objects", new Object[]{"x", Map.of("k", "v")});
+
+        String json = StringUtils.formatJson(map, false, false, false);
+        assertEquals("{\"bytes\":[1,2,-3],\"ints\":[10,20],\"doubles\":[1.5],\"bools\":[true,false],"
+                + "\"chars\":[\"a\",\"b\"],\"strings\":[\"x\",\"y\"],\"objects\":[\"x\",{\"k\":\"v\"}]}", json);
+    }
+
+    @Test
+    void testTopLevelJavaArraySerializesAsJsonArray() {
+        assertEquals("[1,2,3]", StringUtils.formatJson(new byte[]{1, 2, 3}, false, false, false));
+        assertEquals("[]", StringUtils.formatJson(new String[0], false, false, false));
+    }
+
+    @Test
+    void testNestedJavaArrayIsSerializedRecursively() {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("rows", new byte[][]{{1, 2}, {3}});
+        assertEquals("{\"rows\":[[1,2],[3]]}", StringUtils.formatJson(map, false, false, false));
+    }
+
+    @Test
+    void testJavaArrayWithCircularReference() {
+        Object[] arr = new Object[2];
+        arr[0] = "a";
+        arr[1] = arr;
+        String json = StringUtils.formatJson(arr, false, false, false);
+        assertEquals("[\"a\",\"[Circular]\"]", json);
+    }
+
+    @Test
+    void testJavaArrayInLenientMode() {
+        // the lenient form is what the HTTP log and log masking render with
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("bytes", new byte[]{1, 2});
+        map.put("names", new String[]{"x"});
+        assertEquals("{bytes:[1,2],names:['x']}", StringUtils.formatJson(map, false, true, false));
+    }
+
+    @Test
+    void testJavaArrayPrettyPrinted() {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("bytes", new byte[]{1, 2});
+        assertEquals("""
+                {
+                  "bytes": [
+                    1,
+                    2
+                  ]
+                }""", StringUtils.formatJson(map, true, false, false));
     }
 
 }

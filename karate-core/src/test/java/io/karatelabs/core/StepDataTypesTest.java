@@ -378,6 +378,21 @@ class StepDataTypesTest {
     }
 
     @Test
+    void testPrettyRendersNestedArraysAsJsonArrays() {
+        // a byte[] nested in a payload used to render as its JVM identity ("[B@1a2b3c") in
+        // karate.pretty, karate.log and the HTTP log — the display serializer, which is not
+        // the one the match engine and `print` use
+        ScenarioRuntime sr = run("""
+            * def bytes = Java.type('java.nio.charset.StandardCharsets').UTF_8.encode('hi').array()
+            * def names = Java.type('java.util.List').of('a', 'b').toArray()
+            * def payload = ({ data: bytes, names: names })
+            * def rendered = karate.pretty(payload).replace(/\\s/g, '')
+            * match rendered == '{"data":[104,105],"names":["a","b"]}'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testText() {
         ScenarioRuntime sr = run("""
             * text myText =

@@ -32,6 +32,7 @@ import org.w3c.dom.Node;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -247,8 +248,19 @@ public class StepUtils {
     /**
      * Deep copy a value (Map, List, Set, array, XML Node, or primitive).
      */
-    @SuppressWarnings("unchecked")
     public static Object deepCopy(Object value) {
+        // The memo is what makes the walk cycle-safe: a self-referential container (a JS object
+        // that holds itself, two nodes pointing at each other) used to recurse until the stack
+        // blew. It also keeps the copy's shape faithful to the original — when one list is
+        // reachable by two paths, the original's two paths alias the same list, and so do the
+        // copy's, instead of the copy silently splitting them into two independent lists.
+        // Allocated lazily: scalars and immutables (the common case for a variable) never
+        // recurse, so they never pay for the map.
+        return deepCopy(value, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object deepCopy(Object value, Copies seen) {
         if (value == null) {
             return null;
         }
@@ -257,67 +269,161 @@ public class StepUtils {
             return value;
         }
         // XML variables are mutable via `set <var> /xpath/...` — share the reference and a
-        // callonce/callSingle cache (or a `copy` clone) is corrupted by the next mutation
-        if (value instanceof Document doc) {
-            return doc.cloneNode(true);
-        }
-        if (value instanceof Element element) {
-            // cloneNode alone is not enough for a non-Document node: the clone keeps the
-            // ORIGINAL ownerDocument, and set-by-xpath resolves through getOwnerDocument(),
-            // so an xpath write on the "copy" would still hit the original tree
-            return Xml.toNewDocument(element).getDocumentElement();
-        }
-        if (value instanceof Node node) {
-            return node.cloneNode(true);
+        // callonce/callSingle cache (or a `copy` clone) is corrupted by the next mutation.
+        // Cloned through the memo like any other mutable value, so two variables holding one
+        // document still hold one document after the copy
+        if (value instanceof Node) {
+            Object existing = alreadyCopied(seen, value);
+            if (existing != null) {
+                return existing;
+            }
+            Object copy;
+            if (value instanceof Element element && !(value instanceof Document)) {
+                // cloneNode alone is not enough for a non-Document node: the clone keeps the
+                // ORIGINAL ownerDocument, and set-by-xpath resolves through getOwnerDocument(),
+                // so an xpath write on the "copy" would still hit the original tree
+                copy = Xml.toNewDocument(element).getDocumentElement();
+            } else {
+                copy = ((Node) value).cloneNode(true);
+            }
+            if (seen != null) {
+                seen.put(value, copy);
+            }
+            return copy;
         }
         if (value.getClass().isArray()) {
             Class<?> componentType = value.getClass().getComponentType();
             if (componentType.isPrimitive()) {
+                // elements are values, so a primitive array cannot take part in a cycle — but it
+                // is still mutable, so two paths onto the same byte[] have to stay one byte[]
+                Object existing = alreadyCopied(seen, value);
+                if (existing != null) {
+                    return existing;
+                }
                 int length = Array.getLength(value);
                 Object copy = Array.newInstance(componentType, length);
                 System.arraycopy(value, 0, copy, 0, length);
+                if (seen != null) {
+                    // only inside a graph walk — a copy of a bare byte[] has nothing to alias,
+                    // so the top-level case still allocates no memo
+                    seen.put(value, copy);
+                }
                 return copy;
             }
             Object[] arr = (Object[]) value;
+            Object[] existing = (Object[]) alreadyCopied(seen, arr);
+            if (existing != null) {
+                return existing;
+            }
+            // The copy is built in an Object[], which holds anything, and only becomes a
+            // component-typed array at the end — the array has to be registered before its
+            // elements are walked, and a back-edge that grabs it must not later find itself
+            // holding a different array than the one returned. So the type is preserved only
+            // when nothing else in the graph took this copy: an array reachable twice, or from
+            // inside itself, stays Object[] rather than handing out two different arrays.
             Object[] copy = new Object[arr.length];
-            boolean typePreserved = true;
+            seen = remember(seen, arr, copy);
+            boolean typePreserved = componentType != Object.class;
             for (int i = 0; i < arr.length; i++) {
-                copy[i] = deepCopy(arr[i]);
+                copy[i] = deepCopy(arr[i], seen);
                 // a copied element may change concrete type (e.g. a Map subtype copies to
                 // LinkedHashMap) — a typed component array would reject it with ArrayStoreException
                 if (copy[i] != null && !componentType.isInstance(copy[i])) {
                     typePreserved = false;
                 }
             }
-            if (typePreserved && componentType != Object.class) {
+            if (typePreserved && !seen.wasShared(arr)) {
                 Object[] typed = (Object[]) Array.newInstance(componentType, arr.length);
                 System.arraycopy(copy, 0, typed, 0, arr.length);
+                seen.put(arr, typed);
                 return typed;
             }
             return copy;
         }
         if (value instanceof Map) {
+            Object existing = alreadyCopied(seen, value);
+            if (existing != null) {
+                return existing;
+            }
             Map<String, Object> copy = new LinkedHashMap<>();
+            seen = remember(seen, value, copy);
             for (Map.Entry<String, Object> entry : ((Map<String, Object>) value).entrySet()) {
-                copy.put(entry.getKey(), deepCopy(entry.getValue()));
+                copy.put(entry.getKey(), deepCopy(entry.getValue(), seen));
             }
             return copy;
         }
         if (value instanceof List) {
+            Object existing = alreadyCopied(seen, value);
+            if (existing != null) {
+                return existing;
+            }
             List<Object> copy = new ArrayList<>();
+            seen = remember(seen, value, copy);
             for (Object item : (List<Object>) value) {
-                copy.add(deepCopy(item));
+                copy.add(deepCopy(item, seen));
             }
             return copy;
         }
         if (value instanceof Set) {
+            Object existing = alreadyCopied(seen, value);
+            if (existing != null) {
+                return existing;
+            }
             Set<Object> copy = new LinkedHashSet<>();
+            seen = remember(seen, value, copy);
             for (Object item : (Set<Object>) value) {
-                copy.add(deepCopy(item));
+                copy.add(deepCopy(item, seen));
             }
             return copy;
         }
         return value;
+    }
+
+    private static Object alreadyCopied(Copies seen, Object value) {
+        return seen == null ? null : seen.get(value);
+    }
+
+    /**
+     * Register a container's copy before its contents are walked — a back-edge reached during
+     * that walk then resolves to this copy instead of recursing forever. Returns the memo to
+     * carry down, creating it on the first container so a scalar copy allocates nothing.
+     */
+    private static Copies remember(Copies seen, Object value, Object copy) {
+        if (seen == null) {
+            seen = new Copies();
+        }
+        seen.put(value, copy);
+        return seen;
+    }
+
+    /**
+     * The originals a {@link #deepCopy} walk has already copied, by identity, so that a value
+     * reached twice — a back-edge into a container being copied, or simply two paths onto one
+     * list — yields the same copy both times instead of recursing forever or splitting into
+     * two independent values. Also records which originals were actually handed out a second
+     * time, which is what tells the array branch whether its copy is safe to retype.
+     */
+    private static final class Copies {
+
+        private final IdentityHashMap<Object, Object> copies = new IdentityHashMap<>();
+        private final IdentityHashMap<Object, Boolean> shared = new IdentityHashMap<>();
+
+        Object get(Object original) {
+            Object copy = copies.get(original);
+            if (copy != null) {
+                shared.put(original, Boolean.TRUE);
+            }
+            return copy;
+        }
+
+        void put(Object original, Object copy) {
+            copies.put(original, copy);
+        }
+
+        boolean wasShared(Object original) {
+            return shared.containsKey(original);
+        }
+
     }
 
     /**

@@ -206,6 +206,149 @@ class StepUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void testDeepCopySelfReferentialContainers() {
+        // a JS object that holds itself is reachable from a feature ({} then obj.self = obj),
+        // and caching or copying it used to recurse until the stack blew
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("name", "test");
+        map.put("self", map);
+        Map<String, Object> mapCopy = (Map<String, Object>) StepUtils.deepCopy(map);
+        assertNotSame(map, mapCopy);
+        assertEquals("test", mapCopy.get("name"));
+        assertSame(mapCopy, mapCopy.get("self"));
+
+        List<Object> list = new ArrayList<>();
+        list.add("item");
+        list.add(list);
+        List<Object> listCopy = (List<Object>) StepUtils.deepCopy(list);
+        assertNotSame(list, listCopy);
+        assertSame(listCopy, listCopy.get(1));
+
+        Object[] array = new Object[2];
+        array[0] = "item";
+        array[1] = array;
+        Object[] arrayCopy = (Object[]) StepUtils.deepCopy(array);
+        assertNotSame(array, arrayCopy);
+        assertSame(arrayCopy, arrayCopy[1]);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testDeepCopyMutuallyReferentialContainers() {
+        Map<String, Object> a = new LinkedHashMap<>();
+        Map<String, Object> b = new LinkedHashMap<>();
+        a.put("b", b);
+        b.put("a", a);
+
+        Map<String, Object> copy = (Map<String, Object>) StepUtils.deepCopy(a);
+        Map<String, Object> copyB = (Map<String, Object>) copy.get("b");
+        assertNotSame(b, copyB);
+        assertSame(copy, copyB.get("a"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testDeepCopyKeepsSharedReferencesShared() {
+        // two keys pointing at one list mutate together in the original, so they must in
+        // the copy too — splitting them into independent lists changes the value's behavior
+        List<Object> shared = new ArrayList<>(List.of("a"));
+        Map<String, Object> original = new LinkedHashMap<>();
+        original.put("x", shared);
+        original.put("y", shared);
+
+        Map<String, Object> copy = (Map<String, Object>) StepUtils.deepCopy(original);
+        List<Object> copyX = (List<Object>) copy.get("x");
+        assertNotSame(shared, copyX);
+        assertSame(copyX, copy.get("y"));
+        copyX.add("b");
+        assertEquals(1, shared.size());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testDeepCopyKeepsSharedByteArraysShared() {
+        // the same isolation question as a shared list: a byte[] is mutable, so the two paths
+        // onto it must still be the same array after the copy
+        byte[] shared = new byte[]{1, 2};
+        Map<String, Object> original = new LinkedHashMap<>();
+        original.put("x", shared);
+        original.put("y", shared);
+
+        Map<String, Object> copy = (Map<String, Object>) StepUtils.deepCopy(original);
+        byte[] copyX = (byte[]) copy.get("x");
+        assertNotSame(shared, copyX);
+        assertSame(copyX, copy.get("y"));
+        copyX[0] = 99;
+        assertEquals(1, shared[0]);
+    }
+
+    @Test
+    void testDeepCopyTypedArrayReachedTwiceStaysOneArray() {
+        // the copy is registered before its elements are walked, so it cannot be swapped for a
+        // differently typed array afterwards without the other holder keeping the old one —
+        // an array reached more than once gives up its component type to stay a single array
+        String[] shared = new String[]{"alpha"};
+        Map<String, Object> original = new LinkedHashMap<>();
+        original.put("x", shared);
+        original.put("y", shared);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> copy = (Map<String, Object>) StepUtils.deepCopy(original);
+        assertNotSame(shared, copy.get("x"));
+        assertSame(copy.get("x"), copy.get("y"));
+        assertEquals("alpha", ((Object[]) copy.get("x"))[0]);
+    }
+
+    @Test
+    void testDeepCopyTypedArrayGrabbedMidWalkStaysOneArray() {
+        // the element copies stay assignable to the component type, so only the fact that the
+        // walk handed this array's copy to the list inside it stops the retype — retyping here
+        // would leave the list pointing at an array that is not the one returned
+        List<Object> list = new ArrayList<>();
+        List<?>[] original = new List<?>[]{list};
+        list.add(original);
+
+        Object[] copy = (Object[]) StepUtils.deepCopy(original);
+        assertEquals(1, copy.length);
+        List<?> copiedList = (List<?>) copy[0];
+        assertNotSame(list, copiedList);
+        assertSame(copy, copiedList.getFirst());
+    }
+
+    @Test
+    void testDeepCopyXmlReachedTwiceStaysOneDocument() {
+        // two variables holding one XML document keep holding one document, so a later
+        // set-by-xpath through either is visible through both, as it was before the copy
+        Document doc = Xml.toXmlDoc("<root><a>1</a></root>");
+        Map<String, Object> original = new LinkedHashMap<>();
+        original.put("x", doc);
+        original.put("y", doc);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> copy = (Map<String, Object>) StepUtils.deepCopy(original);
+        assertNotSame(doc, copy.get("x"));
+        assertSame(copy.get("x"), copy.get("y"));
+        Xml.setByPath((Node) copy.get("x"), "/root/a", "2");
+        assertEquals("1", Xml.getTextValueByPath(doc, "/root/a"));
+    }
+
+    @Test
+    void testDeepCopyTypedArrayHoldingItselfKeepsTheCycle() {
+        // a TreeMap[] whose map points back at the array: the element copy is a LinkedHashMap,
+        // which a TreeMap[] cannot hold, and the back-edge must still land on the array returned
+        TreeMap<String, Object> treeMap = new TreeMap<>();
+        TreeMap<?, ?>[] original = new TreeMap<?, ?>[]{treeMap};
+        treeMap.put("array", original);
+
+        Object[] copy = (Object[]) StepUtils.deepCopy(original);
+        assertEquals(1, copy.length);
+        Map<?, ?> copiedMap = (Map<?, ?>) copy[0];
+        assertNotSame(treeMap, copiedMap);
+        assertSame(copy, copiedMap.get("array"));
+    }
+
+    @Test
     void testDeepCopyMultidimensionalByteArray() {
         byte[][] original = new byte[][]{{1, 2}, {3, 4, 5}};
         Object copyObj = StepUtils.deepCopy(original);

@@ -214,6 +214,28 @@ class JsonTest {
     }
 
     @Test
+    void testBothSerializersAgreeOnArrays() {
+        // there are two JSON writers in play — this json-smart one (match messages, request
+        // bodies) and StringUtils.formatJson (print, karate.pretty, the callSingle disk cache).
+        // An array rendered as its JVM identity by one and as a JSON array by the other is how
+        // a byte[] came to be written into the disk cache as "[B@1a2b3c"
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("bytes", new byte[]{1, -2});
+        map.put("chars", new char[]{'h', 'i'});
+        map.put("shorts", new short[]{3, 4});
+        map.put("ints", new int[]{5, 6});
+        map.put("longs", new long[]{7L, 8L});
+        map.put("floats", new float[]{1.5f});
+        map.put("doubles", new double[]{2.5});
+        map.put("bools", new boolean[]{true, false});
+        map.put("strings", new String[]{"a", null});
+        map.put("objects", new Object[]{null, 1, "two", List.of(3), new byte[]{9}});
+        map.put("empty", new int[0]);
+        map.put("nested", new byte[][]{{1}, {2, 3}});
+        assertEquals(Json.stringifyStrict(map), StringUtils.formatJson(map, false, false, false));
+    }
+
+    @Test
     void testStringifyStrictBreaksCyclesThroughArrays() {
         // a cycle whose back-edge sits inside an Object[] was invisible to the
         // Map/List-only cycle walk, so json-smart recursed to StackOverflowError

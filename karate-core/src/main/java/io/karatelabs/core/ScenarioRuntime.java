@@ -43,7 +43,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -737,7 +739,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                             String json = Files.readString(cacheFile.toPath());
                             result = Json.parseLenient(json);
                             logger.info("[callSingle] disk cache hit: {}", cacheFile);
-                        } catch (IOException e) {
+                        } catch (Exception e) {
+                            // a truncated or hand-edited file fails to parse, which is a
+                            // RuntimeException, not an IOException — falling back to executing
+                            // the feature beats failing every scenario until it is deleted
+                            result = null;
                             logger.warn("[callSingle] disk cache read failed: {} - {}", cacheFile, e.getMessage());
                         }
                     } else {
@@ -768,7 +774,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
                 // Write to disk cache if configured and result is JSON-like
                 if (cacheMinutes > 0 && cacheFile != null) {
-                    if (Json.isMapOrList(result)) {
+                    String notJsonLike = Json.isMapOrList(result) ? findNonJsonValue(result, "$") : "the result itself";
+                    if (notJsonLike == null) {
                         try {
                             cacheFile.getParentFile().mkdirs();
                             String json = StringUtils.formatJson(result, false, false, false);
@@ -778,7 +785,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                             logger.warn("[callSingle] disk cache write failed: {} - {}", cacheFile, e.getMessage());
                         }
                     } else {
-                        logger.warn("[callSingle] disk cache skipped (not JSON-like): {}", path);
+                        logger.warn("[callSingle] disk cache skipped (not JSON-like at {}): {}", notJsonLike, path);
                     }
                 }
             }
@@ -868,6 +875,71 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         } else {
             // Return as-is (JSON, text, etc.)
             return content;
+        }
+    }
+
+    /**
+     * The path of the first value in the result that a JSON round-trip would not return
+     * intact, or null when the whole graph survives one. Only JSON's own types make it
+     * back from disk unchanged: a {@code byte[]} read from a file writes out as a number
+     * array and reads back as a List, an XML variable and any other Java object write out
+     * as their {@code toString()}, and a reference back into the graph writes out as the
+     * string "[Circular]" — so a warm run would quietly hand the scenario a different value
+     * than the cold run that produced the cache. Skipping the write costs a re-execution on
+     * the next JVM; writing it costs correctness. Functions are the one deliberate omission —
+     * JSON has none, and dropping them is long-standing behavior.
+     */
+    private static String findNonJsonValue(Object value, String path) {
+        return findNonJsonValue(value, path, Collections.newSetFromMap(new IdentityHashMap<>()));
+    }
+
+    private static String findNonJsonValue(Object value, String path, Set<Object> visited) {
+        if (value instanceof Double d) {
+            // NaN and the infinities have no JSON form — the writer emits them bare, which is
+            // not valid JSON, so the warm run reads back a string or fails to parse at all
+            return d.isNaN() || d.isInfinite() ? path : null;
+        }
+        if (value instanceof Float f) {
+            return f.isNaN() || f.isInfinite() ? path : null;
+        }
+        if (value == null || value instanceof CharSequence || value instanceof Number || value instanceof Boolean) {
+            return null;
+        }
+        if (value instanceof JavaCallable) {
+            return null;
+        }
+        if (!visited.add(value)) {
+            // a back-edge: the writer replaces it with the string "[Circular]", which reads
+            // back as an ordinary string value rather than as the loop it stands for
+            return path;
+        }
+        try {
+            if (value instanceof Map<?, ?> map) {
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    if (!(entry.getKey() instanceof String)) {
+                        // the writer stringifies every key, so a Java map keyed by anything
+                        // else comes back from disk with different keys than it went in with
+                        return path + "." + entry.getKey();
+                    }
+                    String found = findNonJsonValue(entry.getValue(), path + "." + entry.getKey(), visited);
+                    if (found != null) {
+                        return found;
+                    }
+                }
+                return null;
+            }
+            if (value instanceof List<?> list) {
+                for (int i = 0; i < list.size(); i++) {
+                    String found = findNonJsonValue(list.get(i), path + "[" + i + "]", visited);
+                    if (found != null) {
+                        return found;
+                    }
+                }
+                return null;
+            }
+            return path;
+        } finally {
+            visited.remove(value);
         }
     }
 
