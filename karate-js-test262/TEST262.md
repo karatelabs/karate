@@ -657,8 +657,18 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   bucket counts lives in the `expectations.yaml` comment on the class
   path rule; dominant blocker is the member-name identifier lexer, not
   the public-field tail.
-- **Symbol primitive.** Gates a long tail across String / Array / RegExp /
-  Object. Deprioritized — real-world code doesn't use it.
+- **Symbol primitive — the remaining half.** The identity-keyed slot store
+  and `typeof` landed (see Active priorities); what is left: `Symbol.prototype`
+  (`description`, `toString`, `valueOf`), the registry (`Symbol.for` / `keyFor`),
+  `Reflect.get` / `set` / `has` / `deleteProperty`, and moving the well-known
+  symbols off their `"@@…"` string keys onto the symbol store (the iteration /
+  ToPrimitive / toStringTag dispatch in `IterUtils` and `Terms` is built on the
+  strings — that is the real cost). Gates a long tail across String / Array /
+  RegExp / Object (`Symbol.species`, the RegExp protocol). Note the test262
+  slices that would cover the store — `Reflect/ownKeys`, `language/expressions/super`,
+  `class/definition`, `class/accessor-name-*`, most of `built-ins/Symbol` — are
+  feature-skipped, so the store's semantics rest on `JsSymbolTest` alone until
+  those skips lift.
 
 ### Engine — cleanup
 
@@ -678,7 +688,10 @@ Benchmark-gated or coordinated with other work.
   `iterator()` / `toArray()` / `subList()` / `contains()` / `indexOf()` /
   `lastIndexOf()` route raw; only `get(int)` translates HOLE→null.
   Centralize on one unwrap helper. ~30 min. Pairs with above.
-- **`PropertyKey` abstraction.** Symbol prep — YAGNI until Symbol lands.
+- **`PropertyKey` abstraction.** Half landed as `JsObject`'s identity-keyed
+  symbol slot store beside `privates`; a unified string|symbol key type is
+  still the right end state once the well-known symbols leave their string
+  keys (see Symbol, above) — do not introduce it before then.
 - **`Arguments` → spec exotic Arguments object.** Cached `JsArray`
   today; missing `arguments.callee` (strict TypeError), non-strict
   alias-to-formal-parameters, and `[object Arguments]` toStringTag.
@@ -719,6 +732,17 @@ Observably non-spec; pick up when the owning slice surfaces them.
 - **`ToPropertyKey` no-ctx callers** — `JsObjectConstructor.hasOwn` and
   `getOwnPropertyDescriptor` still on the no-ctx path. Migrate when a
   workload passes non-string keys.
+- **`Object.getOwnPropertyDescriptor` returns a raw Java `Map`, not a
+  `JsObject`** (`JsObjectConstructor.buildDescriptor`), so `'get' in desc`
+  throws `Cannot use 'in' operator` and `desc.hasOwnProperty` is absent —
+  string and symbol keys alike. Return a `JsObject` built through the ordinary
+  path; one test per descriptor shape.
+- **`BaseLexer.tokenize` drops a comment after the last primary token** —
+  the comment buffer is attached to the *next* primary token and is never
+  flushed at EOF, so a trailing file comment is unreachable from the token
+  stream. Flush to the EOF token (it is primary). The consumer that needs it
+  is a source formatter in a downstream repo, which scans the raw tail until
+  this lands.
 - **Integer-index accessors beyond `JsArray.list.size()`** — high-index
   accessor via `defineProperty` is missed by `jsEntries`. Current
   workaround: `defineOwnAccessor` HOLE-pads. Real fix: merge integer-index
