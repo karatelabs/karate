@@ -264,6 +264,59 @@ Test262Error triage, class skip-shadow re-measure, 65-snippet LLM-idiom
 battery cross-checked against Node) **refilled the tiers below** — every
 repro was independently verified against HEAD before being listed.
 
+### Next session — the recommended order, real-world first
+
+The symbol-store session (`f7a568523`) probed the engine from the outside — a
+downstream prototype ran real JS against the shipped jar — and this is what it
+found, ranked by how often LLM-written or customer JS hits it per hour of fix,
+not by spec distance. Everything here was verified against HEAD; the last
+group is named so it is not picked up by accident.
+
+1. **`structuredClone()` and `performance.now()` are absent** (P1 — surface
+   LLMs write constantly). Both are `ReferenceError` today; modern LLM output
+   reaches for `structuredClone(x)` as *the* deep copy and `performance.now()`
+   for timing, and a check or rulebook dies on the first line. `structuredClone`
+   over the JSON-safe subset plus `Date`/`Map`/`Set`/`RegExp` with cycle
+   detection (`DataCloneError` for functions/symbols per the HTML spec) is a
+   morning; `performance.now()` is `System.nanoTime()` behind a `performance`
+   object — an hour. Highest value per hour on this list.
+2. **The ASI-`[` / ASI-`(` error message** (P2 — error UX). A line that starts
+   with `[` or `(` continues the previous statement — real JS does the same —
+   but the failure surfaces as a raw parser dump that names neither cause nor
+   fix. LLMs omit semicolons; a downstream drive measured this costing a run
+   three iterations. The message names the line, says "the previous line has no
+   `;` and this line starts with `[`", and shows the fix. Message only — the
+   behaviour is spec.
+3. **`Object.getOwnPropertyDescriptor` returns a raw Java `Map`** (P0 —
+   silent wrong answer): `'get' in desc` throws, `desc.hasOwnProperty` is
+   absent, spreading a descriptor loses it. Real idiom in cloning/decorator
+   code. Small; details under [Engine — spec alignment](#engine--spec-alignment).
+4. **`BaseLexer` drops a comment after the last primary token.** A trailing
+   file comment is unreachable from the token stream; the downstream formatter
+   works around it with a raw-tail scan. Flush to the EOF token. Small.
+5. **`JsArray` is both `ObjectLike` and `List`, and `toMap()` drops the
+   elements** — the Java bridge, not the language: an embedder that inspects a
+   result by `instanceof ObjectLike` first renders an array as `{}` and carries a
+   check-`List`-first workaround forever. Fix the bridge so an array's primary
+   conversion is the list; one contract, every consumer.
+6. **Well-known symbols off their `"@@…"` string keys** — P0 but narrow:
+   `Object.keys` of any object or class instance carrying `[Symbol.iterator]()`
+   shows a phantom `"@@iterator"` key. Real code writes iterables; it rarely
+   enumerates them. The cost is rewriting the `IterUtils`/`Terms` dispatch that
+   is built on the strings — pull it when a real case bites, not for the slice
+   counts, and do the `PropertyKey` unification in the same cut.
+7. **Downstream asks, product-driven:** a `COMPARE` event for membership
+   (`in`, `.includes()`) so the branch-learning explorer can witness that
+   spelling; `Reflect.get/set/has/deleteProperty` only alongside `Proxy` and only
+   if a real library needs them.
+
+**Deliberately last — conformance, not real life:** `Symbol.prototype` /
+`description` / the registry, cross-realm well-known identity, `Symbol.species`
+and the RegExp symbol protocol, `JSON.stringify` leaving U+2028 raw, and lifting
+the `Symbol` / `Reflect/ownKeys` / `super` / `class/definition` feature skips for
+their own sake. Pick any of these up only when it is the blocker in front of an
+item above.
+
 ### P0 — silent wrong answers (valid code, wrong result, no error)
 
 The most dangerous class: nothing throws, output is just wrong.
