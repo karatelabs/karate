@@ -855,4 +855,36 @@ class JsObjectTest extends EvalBase {
         assertEquals("TypeError", eval("try { Object.fromEntries(1) } catch (e) { e.name }"));
     }
 
+    @Test
+    void testObjectPrototypeConstructor() {
+        assertEquals(true, eval("({}).constructor === Object"));
+        assertEquals(true, eval("Object.getPrototypeOf({}).constructor === Object"));
+        assertEquals("function", eval("typeof ({}).constructor"));
+        // inherited from Object.prototype, never an own property
+        assertEquals(false, eval("({}).hasOwnProperty('constructor')"));
+        assertEquals(true, eval("Object.prototype.hasOwnProperty('constructor')"));
+    }
+
+    @Test
+    void testObjectKeysKeepsUserKeysThatLookLikeSymbols() {
+        assertEquals("[\"@@type\"]", eval("JSON.stringify(Object.keys(JSON.parse('{\"@@type\":1}')))"));
+        assertEquals("[\"@@id\"]", eval("JSON.stringify(Object.keys({'@@id': 7}))"));
+        assertEquals("[7]", eval("JSON.stringify(Object.values({'@@id': 7}))"));
+        assertEquals("[[\"@@id\",7]]", eval("JSON.stringify(Object.entries({'@@id': 7}))"));
+        // spellings that collide with engine-internal keys are still customer data
+        assertEquals("[\"@@iterator\"]", eval("JSON.stringify(Object.keys({'@@iterator': 1}))"));
+        assertEquals("[\"@@sym:1:x\"]", eval("JSON.stringify(Object.keys({'@@sym:1:x': 7}))"));
+    }
+
+    @Test
+    void testObjectKeysSkipsSymbolKeyedProperties() {
+        assertEquals("[]", eval("var o = {}; o[Symbol('k')] = 1; JSON.stringify(Object.keys(o))"));
+        assertEquals("[\"a\"]", eval("var o = {a: 1}; o[Symbol('k')] = 2; JSON.stringify(Object.keys(o))"));
+        // a well-known symbol is an engine-internal string key and stays visible
+        assertEquals("[1]", eval("var o = {}; o[Symbol.iterator] = 1; JSON.stringify(Object.values(o))"));
+        assertEquals("[]", eval("var o = {}; o[Symbol('k')] = 1; JSON.stringify(Object.entries(o))"));
+        // the value is still reachable through the same symbol
+        assertEquals(1, eval("var s = Symbol('k'); var o = {}; o[s] = 1; o[s]"));
+    }
+
 }

@@ -40,6 +40,7 @@ class JsWeakMapPrototype extends Prototype {
         install("delete", 1, this::delete);
         // Spec tags WeakMap via @@toStringTag rather than a builtin class check.
         install("@@toStringTag", "WeakMap");
+        installConstructor("WeakMap");
     }
 
     private static JsWeakMap asWeakMap(Context context) {

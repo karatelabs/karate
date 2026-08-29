@@ -64,6 +64,16 @@ class JsObject implements ObjectLike, Map<String, Object> {
      * {@code #x} store into different entries. Lazily allocated.
      */
     private Map<PrivateName, Object> privates;
+    /**
+     * Symbol-keyed properties, by {@link JsSymbol} identity. Separate from
+     * {@code props} for the same reason {@code privates} is: a minted symbol has
+     * no string identity, so nothing that walks property names — {@code
+     * Object.keys}, {@code for-in}, {@code getOwnPropertyNames}, spread,
+     * {@code JSON.stringify} — can reach or collide with one. That is what makes
+     * a customer payload key like {@code "@@type"} safe. Lazily allocated, so an
+     * object with no symbol keys pays one null check.
+     */
+    private Map<JsSymbol, PropertySlot> symbols;
     private ObjectLike __proto__;
     /** Object-wide extensibility flags. Per-property attributes live on each
      *  Slot's {@code attrs} byte. The per-object flags double as fast-path
@@ -158,6 +168,177 @@ class JsObject implements ObjectLike, Map<String, Object> {
             privates = new HashMap<>(4);
         }
         privates.put(pn, value);
+    }
+
+    //==== symbol-keyed state — see the `symbols` field
+
+    boolean hasSymbol(JsSymbol sym) {
+        return ownSymbolSlot(sym) != null;
+    }
+
+    /** Own slot for a symbol key, or null when absent. */
+    PropertySlot ownSymbolSlot(JsSymbol sym) {
+        PropertySlot s = symbols == null ? null : symbols.get(sym);
+        return s == null || s.tombstoned ? null : s;
+    }
+
+    /** Own store only — the copy seams ({@code Object.assign}, spread) want
+     *  exactly this. {@code ctx} must be the live context: the spec's Get runs
+     *  an accessor's getter, and without one {@code AccessorSlot.read} yields
+     *  undefined instead of invoking it. */
+    Object getSymbol(JsSymbol sym, CoreContext ctx) {
+        PropertySlot s = ownSymbolSlot(sym);
+        return s == null ? Terms.UNDEFINED : s.read(this, ctx);
+    }
+
+    /** [[Get]] for a symbol key: own store, then up the prototype chain — a
+     *  class method keyed by a symbol lives on the prototype, not the instance.
+     *  Presence is the slot, never the value, so a stored {@code null} shadows
+     *  an inherited entry instead of falling through to it. */
+    Object getSymbolMember(JsSymbol sym, Object receiver, CoreContext ctx) {
+        for (ObjectLike o = this; o != null; o = o.getPrototype()) {
+            if (o instanceof JsObject jo) {
+                PropertySlot s = jo.ownSymbolSlot(sym);
+                if (s != null) {
+                    return s.read(receiver, ctx);
+                }
+            }
+        }
+        return Terms.UNDEFINED;
+    }
+
+    /**
+     * §10.1.9.2 OrdinarySetWithOwnDescriptor for a symbol key, with {@code this}
+     * as the receiver. Walks the prototype chain: an inherited setter runs with
+     * the receiver, an inherited non-writable data property rejects the write,
+     * and anything else creates an own default-attribute slot. Mirrors what
+     * {@code setByName} + {@code putMember} do for string keys.
+     */
+    void setSymbol(JsSymbol sym, Object value, CoreContext ctx, boolean strict) {
+        for (ObjectLike o = this; o != null; o = o.getPrototype()) {
+            if (!(o instanceof JsObject jo)) {
+                continue;
+            }
+            PropertySlot s = jo.ownSymbolSlot(sym);
+            if (s == null) {
+                continue;
+            }
+            if (s instanceof AccessorSlot acc) {
+                acc.write(this, value, ctx, strict);
+                return;
+            }
+            if (!s.isWritable()) {
+                if (strict) {
+                    throw JsErrorException.typeError(
+                            "Cannot assign to read only property '" + sym + "'");
+                }
+                return;
+            }
+            if (jo == this) {
+                s.write(this, value, ctx, strict);
+                return;
+            }
+            break; // inherited writable data property — shadow it with an own slot
+        }
+        if (frozen || sealed || nonExtensible) {
+            if (strict) {
+                throw JsErrorException.typeError(
+                        "Cannot add property " + sym + ", object is not extensible");
+            }
+            return;
+        }
+        defineOwnSymbol(sym, value, PropertySlot.ATTRS_DEFAULT);
+    }
+
+    /** Low-level data-descriptor write for a symbol key — the
+     *  {@code Object.defineProperty} seam. */
+    void defineOwnSymbol(JsSymbol sym, Object value, byte attrs) {
+        if (symbols == null) {
+            symbols = new LinkedHashMap<>(4);
+        }
+        PropertySlot existing = symbols.get(sym);
+        DataSlot s;
+        if (existing instanceof DataSlot ds) {
+            s = ds;
+        } else {
+            s = new DataSlot(sym.toString());
+            symbols.put(sym, s);
+        }
+        s.value = value;
+        s.attrs = attrs;
+        s.tombstoned = false;
+    }
+
+    /** Low-level accessor-descriptor write for a symbol key — backs
+     *  {@code get [sym]() {}} and {@code Object.defineProperty} with an accessor. */
+    void defineOwnSymbolAccessor(JsSymbol sym, JsCallable getter, JsCallable setter, byte attrs) {
+        if (symbols == null) {
+            symbols = new LinkedHashMap<>(4);
+        }
+        PropertySlot existing = symbols.get(sym);
+        AccessorSlot s;
+        if (existing instanceof AccessorSlot as) {
+            s = as;
+        } else {
+            s = new AccessorSlot(sym.toString());
+            symbols.put(sym, s);
+        }
+        s.getter = getter;
+        s.setter = setter;
+        s.attrs = attrs;
+        s.tombstoned = false;
+    }
+
+    boolean removeSymbol(JsSymbol sym, boolean strict) {
+        PropertySlot s = ownSymbolSlot(sym);
+        if (s == null) {
+            return true;
+        }
+        if (!s.isConfigurable()) {
+            if (strict) {
+                throw JsErrorException.typeError("Cannot delete property '" + sym + "'");
+            }
+            return false;
+        }
+        symbols.remove(sym);
+        return true;
+    }
+
+    /** Own enumerable symbol keys — the partition §7.3.26 CopyDataProperties
+     *  and {@code Object.assign} copy. */
+    List<JsSymbol> ownEnumerableSymbols() {
+        if (symbols == null) {
+            return List.of();
+        }
+        List<JsSymbol> out = new ArrayList<>(symbols.size());
+        for (Map.Entry<JsSymbol, PropertySlot> e : symbols.entrySet()) {
+            PropertySlot slot = e.getValue();
+            if (!slot.tombstoned && slot.isEnumerable()) {
+                out.add(e.getKey());
+            }
+        }
+        return out;
+    }
+
+    /** Attribute byte for an own symbol key, for descriptor reads. */
+    byte ownSymbolAttrs(JsSymbol sym) {
+        PropertySlot s = ownSymbolSlot(sym);
+        return s == null ? 0 : s.attrs;
+    }
+
+    /** Own symbol keys in insertion order — the [[OwnPropertyKeys]] symbol
+     *  partition behind {@code Object.getOwnPropertySymbols}. */
+    List<JsSymbol> ownSymbols() {
+        if (symbols == null) {
+            return List.of();
+        }
+        List<JsSymbol> out = new ArrayList<>(symbols.size());
+        for (Map.Entry<JsSymbol, PropertySlot> e : symbols.entrySet()) {
+            if (!e.getValue().tombstoned) {
+                out.add(e.getKey());
+            }
+        }
+        return out;
     }
 
     @Override
@@ -535,6 +716,13 @@ class JsObject implements ObjectLike, Map<String, Object> {
                 }
             }
         }
+        if (symbols != null) {
+            for (PropertySlot s : symbols.values()) {
+                if (!s.tombstoned) {
+                    s.attrs &= ~CONFIGURABLE;
+                }
+            }
+        }
     }
 
     @Override
@@ -548,6 +736,15 @@ class JsObject implements ObjectLike, Map<String, Object> {
                 if (s.tombstoned) continue;
                 s.attrs &= ~CONFIGURABLE;
                 // writable is N/A for accessor properties — only clear on data slots.
+                if (s instanceof DataSlot) {
+                    s.attrs &= ~WRITABLE;
+                }
+            }
+        }
+        if (symbols != null) {
+            for (PropertySlot s : symbols.values()) {
+                if (s.tombstoned) continue;
+                s.attrs &= ~CONFIGURABLE;
                 if (s instanceof DataSlot) {
                     s.attrs &= ~WRITABLE;
                 }

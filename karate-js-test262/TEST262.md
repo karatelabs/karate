@@ -246,8 +246,9 @@ pass at the session's `run-baseline-lang`, 0 PASS→FAIL regressions at
 every step — and `run-doneprint-bi` — 10050 pass / 3140 fail / 10324
 skip, the first built-ins baseline with generators and `flags: [async]`
 live; plus the idiomatic-JS smoke battery at
-[Real-world smoke battery](#real-world-smoke-battery), **63/64** — the
-only holdout is `typeof Symbol('a')`, parked by decision).
+[Real-world smoke battery](#real-world-smoke-battery), **64/64** — that
+battery's `typeof Symbol('a')` snippet passes; it is not a statement about
+Symbol conformance, which stays parked).
 The ES2015–ES2022 core an LLM leans on hardest — arrows, destructuring in
 every position, spread, optional chaining, `??`/`??=`, template + tagged
 literals, classes with getters/`extends`/`super`/public+private fields and
@@ -488,8 +489,20 @@ Touch only when a priority above drags it in:
   RegExp/Array) — the
   [§ Spec preamble](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points)
   track.
-- **Symbol primitive** — parked; well-known symbols work as string
-  stand-ins. (Battery edge: `typeof Symbol('a')` → `'object'`.)
+- **Symbol primitive** — parked. `JsSymbol` answers `typeof`, and a minted
+  symbol keys its own identity-keyed `PropertySlot` store on `JsObject`: it is
+  invisible to every string-key surface by construction, carries real
+  writable/enumerable/configurable attributes, supports accessors, descriptors,
+  freeze/seal, strict-mode rejection and prototype-aware `[[Set]]`, and
+  `getOwnPropertySymbols` / `Reflect.ownKeys` are real. Implicit coercion throws
+  per spec. Residuals: no
+  `Symbol.prototype`, no registry (`Symbol.for` / `keyFor`), no `description`;
+  `sym instanceof Object` is true; well-known symbols stay engine-internal
+  string keys and so remain visible to `Object.keys` as `"@@…"`; a symbol key
+  on a non-`JsObject` target has nowhere to go; `Reflect.get` / `set` / `has` /
+  `deleteProperty` absent. Well-known identity is per Engine — a deliberate
+  deviation (the spec shares well-knowns across an agent's realms).
+  See [JS_ENGINE.md § Iteration](../docs/JS_ENGINE.md#iteration).
 - **Skip-list hygiene:** built-ins FAIL counts are dominated by absent
   feature families that should be `features:` skips, not FAILs —
   `Iterator` helpers, `ArrayBuffer`/`DataView`, `ShadowRealm`. Adding
@@ -1070,7 +1083,10 @@ PASS/FAIL line per snippet plus a total.
 
 ```sh
 mvn -f ../pom.xml -pl karate-js -o test-compile -q
-CP="../karate-js/target/classes:$(find ~/.m2/repository -name 'slf4j-api-*.jar' | head -1)"
+# slf4j-api alone is not enough — JsParser's static init needs the module's
+# full dependency set, or every snippet fails with NoClassDefFoundError.
+mvn -f ../pom.xml -pl karate-js -o dependency:build-classpath -Dmdep.outputFile=/tmp/kjs-cp.txt -q
+CP="../karate-js/target/classes:$(cat /tmp/kjs-cp.txt)"
 javac -cp "$CP" -d target/smoke etc/smoke/Smoke.java
 java -cp "$CP:target/smoke" Smoke etc/smoke/snippets
 ```

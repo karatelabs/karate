@@ -361,36 +361,19 @@ class ContextRoot implements Context {
             // test262 isConstructor harness works. Full Reflect stays gated
             // via the `feature: Reflect` skip in expectations.yaml.
             case "Reflect" -> new JsReflect();
-            // Minimal Symbol: only the well-known symbols are exposed, as their
-            // string-keyed stand-ins ("@@iterator" etc.). No Symbol() constructor,
-            // no unique-symbol identity — tests that need real Symbol stay gated by
-            // `feature: Symbol`. Lets `arr[Symbol.iterator]` resolve to `arr["@@iterator"]`.
-            // Currently consumed by the engine: @@iterator (IterUtils.getIterator),
-            // @@toPrimitive (Terms.toPrimitive), @@toStringTag (JsObjectPrototype).
-            // The remainder are exposed so user code that *reads* them (e.g.
-            // `obj[Symbol.species]`) sees a stable string key rather than undefined,
-            // unblocking tests that just check existence or use the key as a property.
+            // Minimal Symbol: the well-known symbols are {@link JsSymbol} values over
+            // their spec keys ("@@iterator" etc.), so `arr[Symbol.iterator]` resolves
+            // to `arr["@@iterator"]`. Consumed by the engine: @@iterator
+            // (IterUtils.getIterator), @@toPrimitive (Terms.toPrimitive),
+            // @@toStringTag (JsObjectPrototype). The remainder are exposed so user
+            // code that *reads* them (e.g. `obj[Symbol.species]`) gets a stable key
+            // rather than undefined. No symbol registry (Symbol.for / keyFor) and no
+            // Symbol.prototype — tests needing those stay gated by `feature: Symbol`.
             case "Symbol" -> {
-                // `Symbol(...)` is callable — returns a fresh JsObject as a
-                // stand-in for a unique symbol value. We don't model real
-                // symbols (no unique identity, `typeof === "symbol"`, etc.);
-                // tests that need that are gated via `feature: Symbol`. This
-                // keeps `Symbol()` from throwing when used as a placeholder
-                // "non-function value" by tests of *other* features.
                 JsObject sym = new SymbolStandIn();
-                sym.putMember("iterator", IterUtils.SYMBOL_ITERATOR);
-                sym.putMember("asyncIterator", "@@asyncIterator");
-                sym.putMember("toPrimitive", "@@toPrimitive");
-                sym.putMember("toStringTag", "@@toStringTag");
-                sym.putMember("hasInstance", "@@hasInstance");
-                sym.putMember("isConcatSpreadable", "@@isConcatSpreadable");
-                sym.putMember("species", "@@species");
-                sym.putMember("match", "@@match");
-                sym.putMember("matchAll", "@@matchAll");
-                sym.putMember("replace", "@@replace");
-                sym.putMember("search", "@@search");
-                sym.putMember("split", "@@split");
-                sym.putMember("unscopables", "@@unscopables");
+                for (String name : JsSymbol.WELL_KNOWN) {
+                    sym.putMember(name, new JsSymbol(JsSymbol.keyOf(name)));
+                }
                 yield sym;
             }
             default -> null;
@@ -398,16 +381,15 @@ class ContextRoot implements Context {
     }
 
     /**
-     * Minimal callable stand-in for {@code Symbol}. Lets tests that exist
-     * outside the {@code feature: Symbol} skip list (e.g. ones that pass
-     * {@code Symbol()} as a "non-callable value" probe) construct a unique
-     * placeholder without {@code Symbol(...)} throwing. Real symbol identity /
-     * {@code typeof === "symbol"} stay out of scope.
+     * The {@code Symbol} global itself — callable, so {@code Symbol(desc)} mints
+     * a fresh {@link JsSymbol} with a key of its own.
      */
     private static final class SymbolStandIn extends JsObject implements JsCallable {
         @Override
         public Object call(Context context, Object[] args) {
-            return new JsObject();
+            Object description = args.length == 0 ? Terms.UNDEFINED : args[0];
+            return JsSymbol.mint(description == Terms.UNDEFINED ? ""
+                    : Terms.toStringCoerce(description, context instanceof CoreContext cc ? cc : null));
         }
     }
 

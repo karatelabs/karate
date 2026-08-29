@@ -128,4 +128,14 @@ class JsMapSetTest extends EvalBase {
         assertThrows(Exception.class, () -> eval("'abc'.matchAll(/a/)"));
     }
 
+    @Test
+    void mapAndSetPrototypeConstructor() {
+        assertEquals(true, eval("new Map().constructor === Map"));
+        assertEquals(true, eval("new Set().constructor === Set"));
+        assertEquals("function", eval("typeof new Map().constructor"));
+        assertEquals("function", eval("typeof new Set().constructor"));
+        assertEquals(true, eval("Map.prototype.constructor === Map"));
+        assertEquals(false, eval("new Map().hasOwnProperty('constructor')"));
+    }
+
 }

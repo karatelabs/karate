@@ -131,6 +131,10 @@ non-sealed class JsString extends JsObject implements JsPrimitive, JsCallable {
         // with a JS toString returns the user's value, not "[object Object]".
         if (args.length == 0) {
             temp = "";
+        } else if (args[0] instanceof JsSymbol sym) {
+            // §22.1.1.1 step 2a: String(sym) is the one operation that yields
+            // SymbolDescriptiveString instead of the ToString TypeError
+            temp = sym.toString();
         } else {
             CoreContext cc = context instanceof CoreContext c ? c : null;
             temp = Terms.toStringCoerce(args[0], cc);

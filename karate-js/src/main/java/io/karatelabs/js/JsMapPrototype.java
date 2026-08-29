@@ -57,6 +57,7 @@ class JsMapPrototype extends Prototype {
         // ES2025 upsert proposal — Map.prototype.{getOrInsert, getOrInsertComputed}.
         install("getOrInsert", 2, this::getOrInsert);
         install("getOrInsertComputed", 2, this::getOrInsertComputed);
+        installConstructor("Map");
     }
 
     private static JsMap asMap(Context context) {

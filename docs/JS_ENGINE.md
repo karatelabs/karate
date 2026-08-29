@@ -1377,14 +1377,65 @@ JsString, List, native arrays) take fast paths; user-defined `ObjectLike` with
 null/undefined per spec). JS-side errors during user iteration propagate via
 `context.error` rather than Java exceptions.
 
-**Minimal `Symbol` global.** `ContextRoot.initGlobal` exposes `Symbol.iterator`
-/ `Symbol.asyncIterator` as their well-known string keys (`"@@iterator"` /
-`"@@asyncIterator"`). `Symbol(...)` *is* callable — `ContextRoot.SymbolStandIn`
-is a `JsObject implements JsCallable` that returns a fresh placeholder object
-so `Symbol()` used as a "non-callable value" probe doesn't throw. There is no
-symbol primitive type: `typeof Symbol('a')` reports `"object"`, and two calls
-have no unique-symbol identity beyond object identity (known deviation — see
-TEST262.md Active priorities). Tests needing real symbols still skip via
+**Minimal `Symbol` global — two kinds, stored differently.** `typeof` reports
+`"symbol"` and `Object.prototype.toString` reports `[object Symbol]` for both.
+
+A **minted** symbol (`Symbol(desc)`) has *no string key at all*. It addresses a
+separate symbol-keyed store on `JsObject` (`JsObject.symbols`) holding
+`PropertySlot`s. Spec-exact there: writable/enumerable/configurable attributes,
+accessors (`get [s]() {}`), `getOwnPropertyDescriptor` and `defineProperty`
+(sharing the string path's ValidateAndApplyPropertyDescriptor rejection checks),
+`freeze`/`seal`, strict-mode rejection on write and delete, prototype-aware
+`[[Set]]` (`JsObject.setSymbol` — an inherited setter runs with the receiver, an
+inherited non-writable data property rejects), and copying through
+`Object.assign` ([[Set]]) and spread (CreateDataProperty) for own enumerable
+symbols only. It is keyed by `JsSymbol` identity — the same shape the ES2022 private names beside it already
+use, and lazily allocated so an object with no symbol keys pays one null check.
+`JsSymbol.keyedBy(key)` is the single seam every property site consults to pick
+the store: computed get / put / delete in `PropertyAccess`, `in`,
+`hasOwnProperty`, computed keys in object literals, and the `Object.assign` /
+spread copies (the spec copies both key partitions). Because a minted symbol
+never enters the string key space, `Object.keys` / `values` / `entries`,
+`getOwnPropertyNames`, `for…in` and `JSON.stringify` skip it **by
+construction** — there is no predicate that could misclassify a key, which is
+what makes a customer payload key like `"@@type"` or `"@@sym:1:x"` safe. It is
+reachable only through the symbol: `Object.getOwnPropertySymbols` and
+`Reflect.ownKeys` return the symbol *values*.
+
+A **well-known** symbol (`Symbol.iterator` and friends) is an engine-internal
+*string* key — `"@@iterator"` — because the iteration, `ToPrimitive` and
+`toStringTag` dispatch is built on those strings (`IterUtils.SYMBOL_ITERATOR`).
+`ContextRoot` installs them from `JsSymbol.WELL_KNOWN`. `Terms.toPropertyKey`
+is the one place such a symbol coerces to its string, which is what keeps
+`obj[Symbol.iterator]` resolving to `obj["@@iterator"]`. **Consequence:** a
+well-known symbol used as a key stays visible to the string-key surfaces —
+`Object.keys({[Symbol.iterator]: f})` shows `"@@iterator"` — and, symmetrically,
+a user string key `"@@iterator"` is ordinary data that round-trips. That is a
+pre-existing deviation, not a property of the symbol store.
+
+**Coercion.** Implicit `ToString` / `ToPrimitive` on a symbol throws a
+`TypeError` per spec — `` `${sym}` ``, `sym + ''`, `'' + sym`, `[sym].join()`.
+`String(sym)` is the one operation that does not: it yields
+`SymbolDescriptiveString` (`"Symbol(x)"`), special-cased in `JsString.getObject`,
+and `console.log` follows it so logging never throws. `Terms.toPropertyKey` has
+its own branch, which is what keeps a well-known symbol resolving to its string
+key. Loose equality does not coerce: a symbol equals only itself.
+
+**Well-known identity is per Engine — a deliberate deviation.** `ContextRoot`
+builds a fresh well-known set during each global initialization, so
+`Symbol.iterator === Symbol.iterator` holds *within* one Engine but two Engines
+get distinct objects. The spec shares the well-known symbols across every realm
+in an agent, so this is a deviation, not realm-correct behaviour; it is
+invisible to code that stays inside one Engine.
+
+Residuals, exactly as they stand: no `Symbol.prototype`, no registry
+(`Symbol.for` / `keyFor`), no `description` accessor; a `JsSymbol` is a
+`JsObject` underneath, so `instanceof Object` is `true` and `Object.keys(sym)`
+works; well-known symbols remain visible to `Object.keys` /
+`getOwnPropertyNames` as their `"@@…"` string keys; a symbol key on a
+non-`JsObject` target (a `JsArray`, a raw Java `Map`) has nowhere to go; and
+`Reflect.get` / `set` / `has` / `deleteProperty` are absent (only `construct`,
+`apply` and `ownKeys` exist). Tests needing those still skip via
 `feature: Symbol`.
 
 **C-style `for` per-iteration `let`/`const` environment (§14.7.4.3).**

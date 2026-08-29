@@ -38,11 +38,28 @@ class JsReflect extends JsObject {
         return switch (name) {
             case "construct" -> (JsCallable) this::construct;
             case "apply" -> (JsCallable) this::apply;
+            case "ownKeys" -> (JsCallable) this::ownKeys;
             default -> null;
         };
     }
 
-    private static final List<String> INTRINSIC_NAMES = List.of("construct", "apply");
+    private static final List<String> INTRINSIC_NAMES = List.of("construct", "apply", "ownKeys");
+
+    /** §28.1.11 — [[OwnPropertyKeys]] in spec order: string keys, then the
+     *  symbol values from the object's symbol store. */
+    private Object ownKeys(Context context, Object[] args) {
+        if (args.length < 1 || !(args[0] instanceof ObjectLike target)) {
+            throw JsErrorException.typeError("Reflect.ownKeys called on non-object");
+        }
+        // §10.1.11.1 OrdinaryOwnPropertyKeys: integer indices ascending, then
+        // strings in insertion order — the same helper Object.keys uses.
+        List<Object> keys = new java.util.ArrayList<>(
+                JsObject.orderedOwnKeys(target.toMap().keySet()));
+        if (target instanceof JsObject jo) {
+            keys.addAll(jo.ownSymbols());
+        }
+        return new JsArray(keys);
+    }
 
     @Override
     protected Iterable<String> ownIntrinsicNames() {

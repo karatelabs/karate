@@ -1817,22 +1817,22 @@ class EvalTest extends EvalBase {
 
     @Test
     void testSymbolWellKnownKeys() {
-        // Well-known symbols are exposed as string-keyed stand-ins on the Symbol global.
-        // No primitive symbol type — these are the literal "@@<name>" strings the engine
-        // uses internally as property keys.
-        assertEquals("@@iterator", eval("Symbol.iterator"));
-        assertEquals("@@asyncIterator", eval("Symbol.asyncIterator"));
-        assertEquals("@@toPrimitive", eval("Symbol.toPrimitive"));
-        assertEquals("@@toStringTag", eval("Symbol.toStringTag"));
-        assertEquals("@@hasInstance", eval("Symbol.hasInstance"));
-        assertEquals("@@isConcatSpreadable", eval("Symbol.isConcatSpreadable"));
-        assertEquals("@@species", eval("Symbol.species"));
-        assertEquals("@@match", eval("Symbol.match"));
-        assertEquals("@@matchAll", eval("Symbol.matchAll"));
-        assertEquals("@@replace", eval("Symbol.replace"));
-        assertEquals("@@search", eval("Symbol.search"));
-        assertEquals("@@split", eval("Symbol.split"));
-        assertEquals("@@unscopables", eval("Symbol.unscopables"));
+        // Well-known symbols are symbol values over the literal "@@<name>" strings the
+        // engine uses internally as property keys — that key is their ToString.
+        assertEquals("symbol", eval("typeof Symbol.iterator"));
+        assertEquals("@@iterator", eval("String(Symbol.iterator)"));
+        assertEquals("@@asyncIterator", eval("String(Symbol.asyncIterator)"));
+        assertEquals("@@toPrimitive", eval("String(Symbol.toPrimitive)"));
+        assertEquals("@@toStringTag", eval("String(Symbol.toStringTag)"));
+        assertEquals("@@hasInstance", eval("String(Symbol.hasInstance)"));
+        assertEquals("@@isConcatSpreadable", eval("String(Symbol.isConcatSpreadable)"));
+        assertEquals("@@species", eval("String(Symbol.species)"));
+        assertEquals("@@match", eval("String(Symbol.match)"));
+        assertEquals("@@matchAll", eval("String(Symbol.matchAll)"));
+        assertEquals("@@replace", eval("String(Symbol.replace)"));
+        assertEquals("@@search", eval("String(Symbol.search)"));
+        assertEquals("@@split", eval("String(Symbol.split)"));
+        assertEquals("@@unscopables", eval("String(Symbol.unscopables)"));
     }
 
     @Test

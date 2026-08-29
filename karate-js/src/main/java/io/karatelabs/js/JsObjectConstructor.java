@@ -61,6 +61,7 @@ class JsObjectConstructor extends JsFunction {
         defineOwn("setPrototypeOf", new JsBuiltinMethod("setPrototypeOf", 2, (JsInvokable) this::setPrototypeOf), METHOD_ATTRS);
         defineOwn("hasOwn", new JsBuiltinMethod("hasOwn", 2, (JsInvokable) this::hasOwn), METHOD_ATTRS);
         defineOwn("getOwnPropertyNames", new JsBuiltinMethod("getOwnPropertyNames", 1, (JsInvokable) this::getOwnPropertyNames), METHOD_ATTRS);
+        defineOwn("getOwnPropertySymbols", new JsBuiltinMethod("getOwnPropertySymbols", 1, (JsInvokable) this::getOwnPropertySymbols), METHOD_ATTRS);
         defineOwn("getOwnPropertyDescriptor", new JsBuiltinMethod("getOwnPropertyDescriptor", 2, (JsInvokable) this::getOwnPropertyDescriptor), METHOD_ATTRS);
         defineOwn("getOwnPropertyDescriptors", new JsBuiltinMethod("getOwnPropertyDescriptors", 1, (JsInvokable) this::getOwnPropertyDescriptors), METHOD_ATTRS);
         defineOwn("defineProperty", new JsBuiltinMethod("defineProperty", 3, (JsCallable) this::defineProperty), METHOD_ATTRS);
@@ -240,6 +241,22 @@ class JsObjectConstructor extends JsFunction {
             if (cc != null && cc.isError()) {
                 break; // a source getter threw — nothing copies past it
             }
+            // §20.1.2.1 step 4: both key partitions copy — the symbol store has
+            // no string key, so it is walked separately
+            if (args[i] instanceof JsObject from && target instanceof JsObject to) {
+                // §20.1.2.1 step 4c is Set(to, key, value, true) — an inherited
+                // setter on the target runs, unlike spread's CreateDataProperty
+                for (JsSymbol sym : from.ownEnumerableSymbols()) {
+                    if (cc != null && cc.isError()) {
+                        break;
+                    }
+                    Object v = from.getSymbol(sym, cc);
+                    if (cc != null && cc.isError()) {
+                        break; // a source getter threw — nothing copies past it
+                    }
+                    to.setSymbol(sym, v, cc, true);
+                }
+            }
             for (KeyValue kv : Terms.toIterable(args[i], cc)) {
                 if (cc != null && cc.isError()) {
                     break;
@@ -267,7 +284,8 @@ class JsObjectConstructor extends JsFunction {
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
         CoreContext cc = context instanceof CoreContext c ? c : null;
-        Map<String, Object> result = new LinkedHashMap<>();
+        // a JsObject, not a bare map: a symbol key has to reach the symbol store
+        JsObject result = new JsObject();
         JsIterator iter = IterUtils.getIterator(source, context);
         while (iter.hasNext()) {
             Object entry = iter.next();
@@ -282,7 +300,12 @@ class JsObjectConstructor extends JsFunction {
             } else {
                 throw JsErrorException.typeError("Iterator value " + entry + " is not an entry object");
             }
-            result.put(Terms.toPropertyKey(key, cc), value);
+            JsSymbol sym = JsSymbol.keyedBy(key);
+            if (sym != null) {
+                result.defineOwnSymbol(sym, value, PropertySlot.ATTRS_DEFAULT);
+            } else {
+                result.putMember(Terms.toPropertyKey(key, cc), value);
+            }
         }
         return result;
     }
@@ -344,6 +367,10 @@ class JsObjectConstructor extends JsFunction {
         if (args.length < 2) {
             return false;
         }
+        JsSymbol sym = JsSymbol.keyedBy(args[1]);
+        if (sym != null) {
+            return args[0] instanceof JsObject jo && jo.hasSymbol(sym);
+        }
         String prop = Terms.toPropertyKey(args[1]);
         return isOwnKey(args[0], prop);
     }
@@ -356,12 +383,30 @@ class JsObjectConstructor extends JsFunction {
         return new JsArray(new ArrayList<>(ownKeys(args[0])));
     }
 
+    /** §20.1.2.11 — the symbol partition of [[OwnPropertyKeys]], as the symbol
+     *  values themselves. Only a {@link JsObject} carries a symbol store. */
+    private Object getOwnPropertySymbols(Object[] args) {
+        if (args.length < 1 || args[0] == null || args[0] == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("Cannot convert undefined or null to object");
+        }
+        return new JsArray(args[0] instanceof JsObject jo
+                ? new ArrayList<>(jo.ownSymbols())
+                : new ArrayList<>());
+    }
+
     private Object getOwnPropertyDescriptor(Object[] args) {
         if (args.length < 1 || args[0] == null || args[0] == Terms.UNDEFINED) {
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
         if (args.length < 2) {
             return Terms.UNDEFINED;
+        }
+        JsSymbol sym = JsSymbol.keyedBy(args[1]);
+        if (sym != null) {
+            if (!(args[0] instanceof JsObject jo) || !jo.hasSymbol(sym)) {
+                return Terms.UNDEFINED;
+            }
+            return buildSymbolDescriptor(jo, sym);
         }
         String prop = Terms.toPropertyKey(args[1]);
         if (!isOwnKey(args[0], prop)) {
@@ -418,6 +463,72 @@ class JsObjectConstructor extends JsFunction {
         }
         desc.put("enumerable", (attrs & JsObject.ENUMERABLE) != 0);
         desc.put("configurable", (attrs & JsObject.CONFIGURABLE) != 0);
+        return desc;
+    }
+
+    /**
+     * Spec §10.1.6.3 ValidateAndApplyPropertyDescriptor — the rejection half, for
+     * an existing NON-configurable property. Only two changes are legal: a
+     * same-value redefine, and narrowing {@code writable} true → false on a data
+     * property. Shared by the string- and symbol-keyed {@code defineProperty}
+     * paths so the two cannot drift. {@code newValue} is a supplier because
+     * reading the descriptor's {@code value} can run a getter, which must not
+     * happen on a branch that doesn't need it.
+     */
+    private static void validateNonConfigurableRedefine(
+            Object label, boolean existingIsAccessor, AccessorSlot existingAcc, Object existingValue,
+            byte oldAttrs, byte newAttrs, boolean isAccessor, boolean isData,
+            boolean hasConfigurable, boolean hasEnumerable, boolean hasGet, boolean hasSet,
+            boolean hasValue, JsCallable newGetter, JsCallable newSetter,
+            java.util.function.Supplier<Object> newValue) {
+        // configurable cannot flip false → true
+        if (hasConfigurable && (newAttrs & JsObject.CONFIGURABLE) != 0) {
+            throw JsErrorException.typeError("Cannot redefine property: " + label);
+        }
+        // enumerable cannot change
+        if (hasEnumerable && ((oldAttrs ^ newAttrs) & JsObject.ENUMERABLE) != 0) {
+            throw JsErrorException.typeError("Cannot redefine property: " + label);
+        }
+        // Cannot switch between data and accessor shapes
+        if (existingIsAccessor != isAccessor && (isAccessor || isData)) {
+            throw JsErrorException.typeError("Cannot redefine property: " + label);
+        }
+        if (existingIsAccessor && isAccessor) {
+            // Accessor→accessor: get / set cannot change unless they match the existing.
+            JsCallable mergedGet = hasGet ? newGetter : existingAcc.getter;
+            JsCallable mergedSet = hasSet ? newSetter : existingAcc.setter;
+            if (mergedGet != existingAcc.getter || mergedSet != existingAcc.setter) {
+                throw JsErrorException.typeError("Cannot redefine property: " + label);
+            }
+        } else if (!existingIsAccessor && isData) {
+            // Data → data on non-configurable: writable cannot flip false → true.
+            boolean oldWritable = (oldAttrs & JsObject.WRITABLE) != 0;
+            boolean newWritable = (newAttrs & JsObject.WRITABLE) != 0;
+            if (!oldWritable && newWritable) {
+                throw JsErrorException.typeError("Cannot redefine property: " + label);
+            }
+            // If !writable, value cannot change. Spec uses SameValue —
+            // {@code +0} and {@code -0} are *not* the same value here,
+            // even though they are {@code ===}-equal.
+            if (!oldWritable && hasValue && !Terms.sameValue(existingValue, newValue.get())) {
+                throw JsErrorException.typeError("Cannot redefine property: " + label);
+            }
+        }
+    }
+
+    /** Descriptor for an own symbol-keyed property, read off its slot. */
+    private static Map<String, Object> buildSymbolDescriptor(JsObject obj, JsSymbol sym) {
+        PropertySlot slot = obj.ownSymbolSlot(sym);
+        Map<String, Object> desc = new LinkedHashMap<>();
+        if (slot instanceof AccessorSlot acc) {
+            desc.put("get", acc.getter == null ? Terms.UNDEFINED : acc.getter);
+            desc.put("set", acc.setter == null ? Terms.UNDEFINED : acc.setter);
+        } else {
+            desc.put("value", slot.read(obj, null));
+            desc.put("writable", slot.isWritable());
+        }
+        desc.put("enumerable", slot.isEnumerable());
+        desc.put("configurable", slot.isConfigurable());
         return desc;
     }
 
@@ -488,11 +599,15 @@ class JsObjectConstructor extends JsFunction {
         }
 
         Object target = args[0];
-        boolean keyExists = ownKeys(target).contains(prop);
+        // Detected before the string-keyed checks below: `prop` is a symbol's
+        // descriptive string, which is not a key of the string store, so those
+        // checks would read the wrong slot (and reject on a frozen object).
+        JsSymbol symKey = JsSymbol.keyedBy(args[1]);
+        boolean keyExists = symKey == null && ownKeys(target).contains(prop);
 
         // Extensibility check — ObjectLikes that don't model state inherit
         // the perpetually-extensible default and pass through.
-        if (!keyExists && target instanceof ObjectLike ol && !ol.isExtensible()) {
+        if (symKey == null && !keyExists && target instanceof ObjectLike ol && !ol.isExtensible()) {
             throw JsErrorException.typeError("Cannot define property " + prop + ", object is not extensible");
         }
 
@@ -523,6 +638,59 @@ class JsObjectConstructor extends JsFunction {
                     newSetter = c;
                 }
             }
+        }
+
+        // A symbol key addresses the symbol store — the validation below is
+        // indexed by `prop`, which a symbol key does not have.
+        if (symKey != null) {
+            if (!(target instanceof JsObject jo)) {
+                return target;
+            }
+            PropertySlot prior = jo.ownSymbolSlot(symKey);
+            if (prior == null && !jo.isExtensible()) {
+                throw JsErrorException.typeError(
+                        "Cannot define property " + symKey + ", object is not extensible");
+            }
+            // new keys default to all-false per ValidateAndApplyPropertyDescriptor
+            byte symAttrs = prior == null ? 0 : prior.attrs;
+            if (hasWritable) {
+                symAttrs = setBit(symAttrs, JsObject.WRITABLE,
+                        Terms.isTruthy(descRead(descObj, descMap, "writable", cc)));
+            }
+            if (hasEnumerable) {
+                symAttrs = setBit(symAttrs, JsObject.ENUMERABLE,
+                        Terms.isTruthy(descRead(descObj, descMap, "enumerable", cc)));
+            }
+            if (hasConfigurable) {
+                symAttrs = setBit(symAttrs, JsObject.CONFIGURABLE,
+                        Terms.isTruthy(descRead(descObj, descMap, "configurable", cc)));
+            }
+            if (isAccessor) {
+                symAttrs = (byte) (symAttrs & ~JsObject.WRITABLE);
+            }
+            AccessorSlot priorAcc = prior instanceof AccessorSlot pa ? pa : null;
+            if (prior != null && !prior.isConfigurable()) {
+                validateNonConfigurableRedefine(symKey, priorAcc != null, priorAcc,
+                        priorAcc != null ? null : prior.read(jo, cc),
+                        prior.attrs, symAttrs, isAccessor, isData, hasConfigurable, hasEnumerable,
+                        hasGet, hasSet, hasValue, newGetter, newSetter,
+                        () -> descRead(descObj, descMap, "value", cc));
+            }
+            if (isAccessor) {
+                // defining only get keeps the existing setter, and vice versa
+                JsCallable g = !hasGet && priorAcc != null ? priorAcc.getter : newGetter;
+                JsCallable st = !hasSet && priorAcc != null ? priorAcc.setter : newSetter;
+                jo.defineOwnSymbolAccessor(symKey, g, st, symAttrs);
+            } else if (isGeneric && priorAcc != null) {
+                // a generic descriptor preserves the accessor and only changes attrs
+                jo.defineOwnSymbolAccessor(symKey, priorAcc.getter, priorAcc.setter, symAttrs);
+            } else {
+                jo.defineOwnSymbol(symKey, hasValue
+                        ? descRead(descObj, descMap, "value", cc)
+                        : (prior == null || priorAcc != null ? Terms.UNDEFINED : prior.read(jo, cc)),
+                        symAttrs);
+            }
+            return target;
         }
 
         // Spec ArraySetLength preface: when target is an Array and prop is
@@ -567,42 +735,11 @@ class JsObjectConstructor extends JsFunction {
         //   1. Setting the same value (no-op redefine).
         //   2. Toggling writable from true → false on a data property.
         if (keyExists && (oldAttrs & JsObject.CONFIGURABLE) == 0) {
-            // configurable cannot flip false → true
-            if (hasConfigurable && (newAttrs & JsObject.CONFIGURABLE) != 0) {
-                throw JsErrorException.typeError("Cannot redefine property: " + prop);
-            }
-            // enumerable cannot change
-            if (hasEnumerable && ((oldAttrs ^ newAttrs) & JsObject.ENUMERABLE) != 0) {
-                throw JsErrorException.typeError("Cannot redefine property: " + prop);
-            }
-            // Cannot switch between data and accessor shapes
-            if (existingIsAccessor != isAccessor && (isAccessor || isData)) {
-                throw JsErrorException.typeError("Cannot redefine property: " + prop);
-            }
-            if (existingIsAccessor && isAccessor) {
-                // Accessor→accessor: get / set cannot change unless they match the existing.
-                JsCallable mergedGet = hasGet ? newGetter : existingAcc.getter;
-                JsCallable mergedSet = hasSet ? newSetter : existingAcc.setter;
-                if (mergedGet != existingAcc.getter || mergedSet != existingAcc.setter) {
-                    throw JsErrorException.typeError("Cannot redefine property: " + prop);
-                }
-            } else if (!existingIsAccessor && isData) {
-                // Data → data on non-configurable: writable cannot flip false → true.
-                boolean oldWritable = (oldAttrs & JsObject.WRITABLE) != 0;
-                boolean newWritable = (newAttrs & JsObject.WRITABLE) != 0;
-                if (!oldWritable && newWritable) {
-                    throw JsErrorException.typeError("Cannot redefine property: " + prop);
-                }
-                // If !writable, value cannot change. Spec uses SameValue —
-                // {@code +0} and {@code -0} are *not* the same value here,
-                // even though they are {@code ===}-equal.
-                if (!oldWritable && hasValue) {
-                    Object newValue = isArrayLength ? coercedLength : descRead(descObj, descMap, "value", cc);
-                    if (!Terms.sameValue(existing, newValue)) {
-                        throw JsErrorException.typeError("Cannot redefine property: " + prop);
-                    }
-                }
-            }
+            Long lengthValue = coercedLength;
+            validateNonConfigurableRedefine(prop, existingIsAccessor, existingAcc, existing,
+                    oldAttrs, newAttrs, isAccessor, isData, hasConfigurable, hasEnumerable,
+                    hasGet, hasSet, hasValue, newGetter, newSetter,
+                    () -> isArrayLength ? lengthValue : descRead(descObj, descMap, "value", cc));
         }
 
         // Apply.

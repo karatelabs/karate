@@ -326,6 +326,46 @@ class JsJsonTest extends EvalBase {
     }
 
     @Test
+    void testStringifyNonFiniteNumberIsNull() {
+        assertEquals("null", eval("JSON.stringify(NaN)"));
+        assertEquals("null", eval("JSON.stringify(Infinity)"));
+        assertEquals("null", eval("JSON.stringify(-Infinity)"));
+        assertEquals("{\"a\":null}", eval("JSON.stringify({a: NaN})"));
+        assertEquals("[null,null]", eval("JSON.stringify([NaN, Infinity])"));
+        assertEquals("{\"a\":null}", eval("JSON.stringify({a: 1/0})"));
+        // ToString is unaffected — only JSON output collapses to null
+        assertEquals("NaN", eval("String(NaN)"));
+        assertEquals("Infinity", eval("String(Infinity)"));
+    }
+
+    @Test
+    void testStringifyKeepsUserKeysThatLookLikeSymbols() {
+        // a string key is a string key however it is spelled — only the engine's
+        // own symbol keys are skipped, never a customer payload's
+        assertEquals("{\"@@id\":7}", eval("JSON.stringify({'@@id': 7})"));
+        assertEquals("{\"@@type\":1,\"a\":2}",
+                eval("JSON.stringify(JSON.parse('{\"@@type\":1,\"a\":2}'))"));
+        assertEquals("{\"@@\":1}", eval("JSON.stringify({'@@': 1})"));
+        assertEquals("{\"@@sym\":1}", eval("JSON.stringify({'@@sym': 1})"));
+        assertEquals("{\"@@iterator2\":1}", eval("JSON.stringify({'@@iterator2': 1})"));
+        // a string key spelled like an engine-internal one is still customer data
+        assertEquals("{\"@@sym:1:x\":7}", eval("JSON.stringify({'@@sym:1:x': 7})"));
+        assertEquals("{\"@@iterator\":1}", eval("JSON.stringify({'@@iterator': 1})"));
+        assertEquals("{\"@@sym:1:x\":7}",
+                eval("JSON.stringify(JSON.parse('{\"@@sym:1:x\":7}'))"));
+    }
+
+    @Test
+    void testStringifySkipsSymbolKeyedProperties() {
+        assertEquals("{}", eval("var o = {}; o[Symbol('k')] = 1; JSON.stringify(o)"));
+        assertEquals("{\"a\":1}", eval("var o = {a: 1}; o[Symbol('k')] = 2; JSON.stringify(o)"));
+        assertEquals("{}", eval("JSON.stringify({[Symbol('k')]: 1})"));
+        // a well-known symbol is an engine-internal string key, so it stays
+        // visible — the pre-existing deviation, see docs/JS_ENGINE.md
+        assertEquals("{\"@@iterator\":1}", eval("var o = {}; o[Symbol.iterator] = 1; JSON.stringify(o)"));
+    }
+
+    @Test
     void testParseWithReviverTransformsValues() {
         assertEquals(10, eval("JSON.parse('{\"n\":1}', function(k, v) {"
                 + " return typeof v === 'number' ? v * 10 : v }).n"));

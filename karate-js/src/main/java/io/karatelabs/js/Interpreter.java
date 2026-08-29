@@ -1137,7 +1137,9 @@ class Interpreter {
             ctor.homeObject = proto; // [[HomeObject]] for super.m() inside the constructor
             for (ClassMember cm : members) {
                 PrivateName pn = cm.privateName;
-                String key = pn == null ? classMemberKey(cm, context) : pn.name;
+                Object keyValue = pn == null ? classMemberKeyValue(cm, context) : pn.name;
+                JsSymbol symKey = JsSymbol.keyedBy(keyValue);
+                String key = symKey != null ? symKey.toString() : (String) keyValue;
                 if (context.isError()) {
                     return Terms.UNDEFINED;
                 }
@@ -1149,7 +1151,9 @@ class Interpreter {
                         if (context.isError()) {
                             return Terms.UNDEFINED;
                         }
-                        if (pn == null) {
+                        if (symKey != null) {
+                            ctor.defineOwnSymbol(symKey, value, PropertySlot.ATTRS_DEFAULT);
+                        } else if (pn == null) {
                             ctor.putMember(key, value); // public static fields are enumerable own props
                         } else {
                             ctor.putPrivate(pn, value);
@@ -1192,6 +1196,16 @@ class Interpreter {
                             ctor.privateBrands.add(pn);
                         }
                     }
+                } else if (cm.isAccessor && symKey != null) {
+                    PropertySlot prior = target.ownSymbolSlot(symKey);
+                    JsCallable g = prior instanceof AccessorSlot pa ? pa.getter : null;
+                    JsCallable st = prior instanceof AccessorSlot pa ? pa.setter : null;
+                    if ("get".equals(cm.kind)) {
+                        g = fn;
+                    } else {
+                        st = fn;
+                    }
+                    target.defineOwnSymbolAccessor(symKey, g, st, PropertySlot.CONFIGURABLE);
                 } else if (cm.isAccessor) {
                     PropertySlot existing = target.getOwnSlot(key);
                     JsCallable getter = existing instanceof AccessorSlot ea ? ea.getter : null;
@@ -1203,6 +1217,10 @@ class Interpreter {
                     }
                     // class accessors are non-enumerable + configurable (no value/writable)
                     target.defineOwnAccessor(key, getter, setter, PropertySlot.CONFIGURABLE);
+                } else if (symKey != null) {
+                    // class methods are writable + configurable, non-enumerable
+                    target.defineOwnSymbol(symKey, fn,
+                            (byte) (PropertySlot.WRITABLE | PropertySlot.CONFIGURABLE));
                 } else {
                     // class methods are writable + configurable, non-enumerable (spec §15.7)
                     target.defineOwn(key, fn, (byte) (PropertySlot.WRITABLE | PropertySlot.CONFIGURABLE));
@@ -1588,10 +1606,13 @@ class Interpreter {
         return t.getText(); // IDENT or NUMBER
     }
 
-    private static String classMemberKey(ClassMember cm, CoreContext context) {
+    /** The member's key as evaluated — a {@link JsSymbol} for a computed key that
+     *  resolved to one (the caller routes it to the symbol store), else a String. */
+    private static Object classMemberKeyValue(ClassMember cm, CoreContext context) {
         if (cm.computed) {
             Object keyValue = eval(cm.keyExprNode, context);
-            return Terms.toStringCoerce(keyValue, context);
+            JsSymbol sym = JsSymbol.keyedBy(keyValue);
+            return sym != null ? sym : Terms.toPropertyKey(keyValue, context);
         }
         return cm.simpleKey;
     }
@@ -2041,9 +2062,13 @@ class Interpreter {
             boolean computed = token == L_BRACKET;
             int afterKeyPos = keyPos + (computed ? 3 : 1);
             String key;
+            JsSymbol symKey = null;
             if (computed) {
                 Object keyValue = evalExpr(elem.get(keyPos + 1), context);
-                key = Terms.toStringCoerce(keyValue, context);
+                symKey = JsSymbol.keyedBy(keyValue);
+                // §13.2.5.5 ToPropertyKey — a well-known symbol resolves to its
+                // engine key here rather than throwing the ToString TypeError
+                key = symKey != null ? null : Terms.toPropertyKey(keyValue, context);
             } else if (token == DOT_DOT_DOT) {
                 key = null; // spread has no key — handled below by spreadInto
             } else if (token == S_STRING || token == D_STRING) {
@@ -2058,13 +2083,13 @@ class Interpreter {
             } else if (elem.size() > afterKeyPos && elem.get(afterKeyPos).type == NodeType.FN_EXPR) {
                 // Shorthand method: {foo() {...}} or {[k]() {...}} — the synthetic
                 // FN_EXPR is the next child after the key structure.
-                result.put(key, evalFnExpr(elem.get(afterKeyPos), context));
+                putLiteralValue(result, key, symKey, evalFnExpr(elem.get(afterKeyPos), context));
             } else if (!computed && elem.size() < 3) { // shorthand {foo}
                 result.put(key, context.get(key));
             } else if (JsParser.isProtoSetter(elem)) {
                 setLiteralPrototype(result, evalExpr(elem.get(afterKeyPos + 1), context), context);
             } else {
-                result.put(key, evalExpr(elem.get(afterKeyPos + 1), context));
+                putLiteralValue(result, key, symKey, evalExpr(elem.get(afterKeyPos + 1), context));
             }
             // A property whose key or value threw ends the literal, as for an array or an
             // argument list — the remaining properties are not evaluated.
@@ -2073,6 +2098,16 @@ class Interpreter {
             }
         }
         return result;
+    }
+
+    /** A computed key that evaluated to a minted symbol stores by identity;
+     *  everything else is an ordinary string key. */
+    private static void putLiteralValue(JsObject result, String key, JsSymbol symKey, Object value) {
+        if (symKey != null) {
+            result.defineOwnSymbol(symKey, value, PropertySlot.ATTRS_DEFAULT);
+        } else {
+            result.put(key, value);
+        }
     }
 
     /**
@@ -2140,9 +2175,11 @@ class Interpreter {
         // starting at position 1.
         Node keyChild = elem.get(1);
         String key;
+        JsSymbol symKey = null;
         if (keyChild.token != null && keyChild.token.type == L_BRACKET) {
             Object keyValue = evalExpr(elem.get(2), context);
-            key = Terms.toStringCoerce(keyValue, context);
+            symKey = JsSymbol.keyedBy(keyValue);
+            key = symKey != null ? symKey.toString() : Terms.toPropertyKey(keyValue, context);
         } else if (keyChild.token != null
                 && (keyChild.token.type == S_STRING || keyChild.token.type == D_STRING)) {
             key = (String) Terms.literalValue(keyChild.token);
@@ -2156,13 +2193,18 @@ class Interpreter {
         // Merge with any existing accessor at this key — {get foo(){...},
         // set foo(v){...}} keeps both halves on the same AccessorSlot.
         // Object-literal accessors are non-writable per spec; use E|C only.
-        PropertySlot existing = target.getOwnSlot(key);
+        PropertySlot existing = symKey != null ? target.ownSymbolSlot(symKey) : target.getOwnSlot(key);
         JsCallable getter = existing instanceof AccessorSlot ea ? ea.getter : null;
         JsCallable setter = existing instanceof AccessorSlot ea ? ea.setter : null;
         if ("get".equals(kind)) {
             getter = callable;
         } else {
             setter = callable;
+        }
+        if (symKey != null) {
+            target.defineOwnSymbolAccessor(symKey, getter, setter,
+                    (byte) (PropertySlot.ENUMERABLE | PropertySlot.CONFIGURABLE));
+            return;
         }
         target.defineOwnAccessor(key,
                 getter,

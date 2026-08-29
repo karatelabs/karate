@@ -42,7 +42,9 @@ class JsConsole implements SimpleObject {
             if (i > 0) {
                 sb.append(' ');
             }
-            sb.append(Terms.toStringCoerce(args[i], (CoreContext) context));
+            // a symbol has no ToString; log it the way String(sym) shows it
+            sb.append(args[i] instanceof JsSymbol sym
+                    ? sym.toString() : Terms.toStringCoerce(args[i], (CoreContext) context));
         }
         return sb.toString();
     }

@@ -162,11 +162,23 @@ public class JsJson extends JsObject {
         if (value instanceof JsFunction) {
             return value; // JSON has no functions; the formatter drops / nulls them
         }
+        // §25.5.2: a Symbol value is unrepresentable — omitted as a property,
+        // null as an array element. Ahead of the JsValue unwrap because a
+        // JsSymbol is a JsObject and would otherwise recurse into "{}".
+        if (value instanceof JsSymbol) {
+            return Terms.UNDEFINED;
+        }
         if (value instanceof JsValue jv && !(value instanceof JsUndefined)) {
             value = jv.getJavaValue(); // Number / String / Boolean / Date wrappers
         }
         if (value instanceof BigInteger || value instanceof JsBigInt) {
             throw JsErrorException.typeError("Do not know how to serialize a BigInt");
+        }
+        // §25.5.2.2 SerializeJSONNumber: a finite Number is its ToString, a
+        // non-finite one is the literal null — JSON has no NaN / Infinity.
+        // Only here: Terms.numberToString stays the ToString seam String(NaN) shares.
+        if (value instanceof Number n && !Double.isFinite(n.doubleValue())) {
+            return null;
         }
         if (!(value instanceof Map<?, ?>) && !(value instanceof List<?>)) {
             return value;

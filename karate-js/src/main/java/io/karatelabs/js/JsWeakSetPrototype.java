@@ -38,6 +38,7 @@ class JsWeakSetPrototype extends Prototype {
         install("has", 1, this::has);
         install("delete", 1, this::delete);
         install("@@toStringTag", "WeakSet");
+        installConstructor("WeakSet");
     }
 
     private static JsWeakSet asWeakSet(Context context) {

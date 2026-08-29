@@ -506,6 +506,11 @@ public class Terms {
      * so the returned value is meaningless once that is set.
      */
     static boolean looseEq(Object lhs, Object rhs, CoreContext context) {
+        // a symbol is a primitive that equals only itself — never ToPrimitive'd,
+        // so `sym == 'x'` is false rather than the coercion TypeError
+        if (lhs instanceof JsSymbol || rhs instanceof JsSymbol) {
+            return lhs == rhs;
+        }
         if (lhs instanceof ObjectLike) {
             if (rhs instanceof ObjectLike) {
                 return lhs == rhs;
@@ -992,6 +997,10 @@ public class Terms {
      * is a no-op; primitives contribute whatever their ToObject wrapper
      * exposes (a string's characters by index, nothing for number/boolean).
      * {@code excluded} is the rest pattern's already-bound key set, or null.
+     * <p>
+     * Own enumerable <i>symbol</i> keys copy too (the spec copies both
+     * partitions) — only reachable when both sides are {@link JsObject}, which
+     * is where the symbol store lives.
      */
     static void copyDataProperties(Map<String, Object> target, Object source, Set<String> excluded, CoreContext ctx) {
         if (source == null || source == UNDEFINED || (ctx != null && ctx.isError())) {
@@ -1003,6 +1012,19 @@ public class Terms {
             }
             if (excluded == null || !excluded.contains(kv.key())) {
                 target.put(kv.key(), kv.value());
+            }
+        }
+        if (source instanceof JsObject from && target instanceof JsObject to) {
+            // CreateDataProperty, not Set — spread never runs a target setter
+            for (JsSymbol sym : from.ownEnumerableSymbols()) {
+                if (ctx != null && ctx.isError()) {
+                    return;
+                }
+                Object v = from.getSymbol(sym, ctx);
+                if (ctx != null && ctx.isError()) { // a getter threw — nothing copies past it
+                    return;
+                }
+                to.defineOwnSymbol(sym, v, PropertySlot.ATTRS_DEFAULT);
             }
         }
     }
@@ -1124,6 +1146,10 @@ public class Terms {
         if (value instanceof String) {
             return "string";
         }
+        // Before the object branches — a symbol is a JsObject underneath.
+        if (value instanceof JsSymbol) {
+            return "symbol";
+        }
         // Raw JsInvokable lambdas (parseInt, eval, Math.max, ...).
         if (value instanceof JsInvokable) {
             return "function";
@@ -1208,6 +1234,17 @@ public class Terms {
                     "Cannot use 'in' operator to search for '"
                             + String.valueOf(lhs) + "' in " + String.valueOf(rhs));
         }
+        JsSymbol sym = JsSymbol.keyedBy(lhs);
+        if (sym != null) {
+            ObjectLike walk = obj;
+            while (walk != null) {
+                if (walk instanceof JsObject jo && jo.hasSymbol(sym)) {
+                    return true;
+                }
+                walk = walk.getPrototype();
+            }
+            return false;
+        }
         String key = toPropertyKey(lhs);
         ObjectLike current = obj;
         while (current != null) {
@@ -1255,6 +1292,11 @@ public class Terms {
     static Object toPrimitive(Object value, String hint, CoreContext context) {
         if (value == null || value == UNDEFINED) {
             return value;
+        }
+        // §7.1.1: a symbol IS a primitive, so it never runs OrdinaryToPrimitive.
+        // Every arithmetic / string coercion that reaches it throws (`sym + ''`).
+        if (value instanceof JsSymbol) {
+            throw JsErrorException.typeError("Cannot convert a Symbol value to a string");
         }
         // Boxed primitives unwrap directly — equivalent to spec valueOf for these,
         // but cheaper than a method dispatch.
@@ -1356,6 +1398,11 @@ public class Terms {
     public static String toPropertyKey(Object o, CoreContext ctx) {
         if (o == null) return "null";
         if (o instanceof String s) return s;
+        // A well-known symbol IS its engine-internal string key. A minted one has
+        // none — every property site routes it to the symbol store before here,
+        // so this is only reached by a non-property coercion, where the spec's
+        // SymbolDescriptiveString is the least surprising answer.
+        if (o instanceof JsSymbol sym) return sym.toString();
         if (o == UNDEFINED) return "undefined";
         if (o instanceof JsString js) return js.toString();
         if (o instanceof Number n) return numberToString(n);
@@ -1440,6 +1487,12 @@ public class Terms {
     public static String toStringCoerce(Object o, CoreContext context) {
         if (o instanceof String s) {
             return s;
+        }
+        // §7.1.17 ToString throws for a symbol. String(sym) is the one operation
+        // that does not (JsString.getObject special-cases it), and ToPropertyKey
+        // has its own branch above, so both stay reachable.
+        if (o instanceof JsSymbol) {
+            throw JsErrorException.typeError("Cannot convert a Symbol value to a string");
         }
         if (o instanceof Number n) {
             return numberToString(n);

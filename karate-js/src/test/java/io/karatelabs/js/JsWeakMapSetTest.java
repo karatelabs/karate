@@ -144,4 +144,12 @@ class JsWeakMapSetTest extends EvalBase {
         assertThrows(Exception.class, () -> eval("WeakSet()"));
     }
 
+    @Test
+    void weakMapAndWeakSetPrototypeConstructor() {
+        assertEquals(true, eval("new WeakMap().constructor === WeakMap"));
+        assertEquals(true, eval("new WeakSet().constructor === WeakSet"));
+        assertEquals("function", eval("typeof new WeakMap().constructor"));
+        assertEquals("function", eval("typeof new WeakSet().constructor"));
+    }
+
 }

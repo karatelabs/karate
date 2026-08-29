@@ -68,6 +68,7 @@ class JsObjectPrototype extends Prototype {
         if (o instanceof JsDate || o instanceof java.util.Date) return "Date";
         if (o instanceof JsRegex) return "RegExp";
         if (o instanceof JsError) return "Error";
+        if (o instanceof JsSymbol) return "Symbol";
         if (o instanceof JsMap) return "Map";
         if (o instanceof JsSet) return "Set";
         if (o instanceof JsBoolean || o instanceof Boolean) return "Boolean";
@@ -113,6 +114,9 @@ class JsObjectPrototype extends Prototype {
         install("__defineSetter__", 2, (ctx, args) -> defineAccessor(ctx, args, false));
         install("__lookupGetter__", 1, (ctx, args) -> lookupAccessor(ctx, args, true));
         install("__lookupSetter__", 1, (ctx, args) -> lookupAccessor(ctx, args, false));
+        // Spec §20.1.3.1: Object.prototype.constructor === Object — resolved
+        // per access against the reading Engine's constructor instance.
+        installConstructor("Object");
     }
 
     private static Object defineAccessor(Context context, Object[] args, boolean isGetter) {
@@ -236,9 +240,13 @@ class JsObjectPrototype extends Prototype {
     private Object hasOwnProperty(Context context, Object[] args) {
         // Spec §20.1.3.2 step 1: ToPropertyKey(V); step 2: ToObject(this).
         // Both can throw — keep the coercion order.
+        JsSymbol sym = args.length == 0 ? null : JsSymbol.keyedBy(args[0]);
         String prop = args.length == 0 ? "undefined" : Terms.toPropertyKey(args[0]);
         Object thisObj = context.getThisObject();
         Terms.requireObjectCoercible(thisObj, "Object.prototype.hasOwnProperty");
+        if (sym != null) {
+            return thisObj instanceof JsObject jo && jo.hasSymbol(sym);
+        }
         // Single dispatch through ObjectLike.isOwnProperty — JsObject /
         // JsArray / Prototype each override with the storage-specific check
         // (own-slot non-tombstoned, intrinsic-installed, or numeric-index

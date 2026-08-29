@@ -196,6 +196,9 @@ class PropertyAccess {
                     ? getByIndex(site.target, site.key, false, context, false)
                     : getByName(site.target, (String) site.key, false, context, false);
         }
+        if (site.isIndex && JsSymbol.keyedBy(site.key) != null) {
+            return getByIndex(site.receiver, site.key, false, context, false);
+        }
         return getByName(site.target,
                 site.isIndex ? Terms.toPropertyKey(site.key) : (String) site.key,
                 false, context, false, site.receiver);
@@ -206,6 +209,10 @@ class PropertyAccess {
         if (site.receiver == null) {
             if (site.isIndex) setByIndex(site.target, site.key, value, context, trackingNode);
             else setByName(site.target, (String) site.key, value, context, trackingNode);
+            return;
+        }
+        if (site.isIndex && JsSymbol.keyedBy(site.key) != null) {
+            setByIndex(site.receiver, site.key, value, context, trackingNode);
             return;
         }
         setByName(site.target,
@@ -604,6 +611,11 @@ class PropertyAccess {
                 // per spec is a successful delete
                 if (site == SHORT_CIRCUIT_SITE) yield true;
                 if (site == null) yield false;
+                JsSymbol sym = JsSymbol.keyedBy(site.key);
+                if (sym != null) {
+                    yield !(site.target instanceof JsObject jo)
+                            || jo.removeSymbol(sym, context.strict);
+                }
                 yield deleteByKey(site.target, Terms.toPropertyKey(site.key), context, node);
             }
             default -> false;
@@ -776,6 +788,12 @@ class PropertyAccess {
         if (node.getFirst().type == NodeType.SUPER_EXPR) {
             ObjectLike superProto = Interpreter.evalSuperBase(context);
             Object index = Interpreter.eval(node.get(2), context);
+            JsSymbol sym = JsSymbol.keyedBy(index);
+            if (sym != null) {
+                // the lookup walks the super base, but `this` stays the receiver
+                return superProto instanceof JsObject jo
+                        ? jo.getSymbolMember(sym, context.thisObject, context) : Terms.UNDEFINED;
+            }
             return getByName(superProto, Terms.toPropertyKey(index), false, context, functionCall,
                     context.thisObject);
         }
@@ -828,8 +846,12 @@ class PropertyAccess {
         if (node.getFirst().type == NodeType.SUPER_EXPR) {
             ObjectLike superProto = Interpreter.evalSuperBase(context);
             Object index = Interpreter.eval(node.get(2), context);
-            Object result = getByName(superProto, Terms.toPropertyKey(index), false, context, true,
-                    context.thisObject);
+            JsSymbol sym = JsSymbol.keyedBy(index);
+            Object result = sym != null
+                    ? (superProto instanceof JsObject jo
+                            ? jo.getSymbolMember(sym, context.thisObject, context) : Terms.UNDEFINED)
+                    : getByName(superProto, Terms.toPropertyKey(index), false, context, true,
+                            context.thisObject);
             context.callReceiver = context.thisObject;
             return result;
         }
@@ -843,6 +865,11 @@ class PropertyAccess {
 
     private static Object getByIndex(Object object, Object index, boolean optional,
                                       CoreContext context, boolean functionCall) {
+        JsSymbol sym = JsSymbol.keyedBy(index);
+        if (sym != null) {
+            // a minted symbol addresses the symbol store, never a string key
+            return object instanceof JsObject jo ? jo.getSymbolMember(sym, object, context) : Terms.UNDEFINED;
+        }
         if (!functionCall && index instanceof Number n) {
             int i = denseIndex(n);
             if (i < 0) {
@@ -1021,6 +1048,13 @@ class PropertyAccess {
     }
 
     private static void setByIndex(Object object, Object index, Object value, CoreContext context, Node trackingNode) {
+        JsSymbol sym = JsSymbol.keyedBy(index);
+        if (sym != null) {
+            if (object instanceof JsObject jo) {
+                jo.setSymbol(sym, value, context, context.strict);
+            }
+            return;
+        }
         if (index instanceof Number n) {
             int i = denseIndex(n);
             if (i < 0) {

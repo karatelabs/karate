@@ -62,6 +62,7 @@ class JsSetPrototype extends Prototype {
         install("isSubsetOf", 1, this::isSubsetOf);
         install("isSupersetOf", 1, this::isSupersetOf);
         install("isDisjointFrom", 1, this::isDisjointFrom);
+        installConstructor("Set");
     }
 
     private static JsSet asSet(Context context) {
