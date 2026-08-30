@@ -158,6 +158,8 @@ public class HttpServer implements Stoppable {
     public void stopAndWait() {
         stopAsync();
         try {
+            // the closeFuture, not group termination, is what guarantees the port is free on return
+            channel.closeFuture().sync();
             bossGroup.terminationFuture().sync();
             workerGroup.terminationFuture().sync();
         } catch (InterruptedException e) {
@@ -170,6 +172,9 @@ public class HttpServer implements Stoppable {
     public void stopAsync() {
         KarateLifecycle.unregister(this);
         logger.debug("stop: shutting down");
+        // close the listen socket first — group termination closes registered channels only as a
+        // side effect, and (without a quiet period) can complete before the fd is released
+        channel.close();
         // no quiet period: a server being torn down accepts nothing more, so waiting for one to
         // pass only delays the (blocking) stop — the timeout still bounds in-flight work
         bossGroup.shutdownGracefully(0, 15, TimeUnit.SECONDS);
