@@ -299,7 +299,9 @@ job, not the platform's.
 **Per-class active-set + `closeAll()` idiom.** Components that can
 accumulate live instances self-register in a private static set and expose
 a bulk stop: `HttpServer.ACTIVE_SERVERS` + `shutdownAll()` (Netty event
-loop groups, `stopAsync()` / `stopAndWait()`), `WsClient.ACTIVE_CLIENTS` +
+loop groups, `stopAsync()` / `stopAndWait()` — shut down with **no quiet
+period**, the 15 s timeout bounding in-flight work, so a blocking stop is
+milliseconds and the port is free when it returns), `WsClient.ACTIVE_CLIENTS` +
 `closeAll()` (+ a shared `ws-callback-` pool, per-connection executor
 injectable via `WsClientOptions`), `CdpDriver`/`CdpLauncher.closeAll()`,
 `ProcessHandle.LIVE_HANDLES` (the one with its own JVM shutdown hook — see

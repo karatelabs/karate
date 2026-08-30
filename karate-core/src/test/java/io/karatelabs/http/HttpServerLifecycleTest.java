@@ -36,6 +36,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -102,6 +103,24 @@ class HttpServerLifecycleTest {
                 socket.connect(new InetSocketAddress("127.0.0.1", server.getPort()), 2000);
             }
         });
+    }
+
+    @Test
+    void stopAndWaitIsPromptAndReleasesThePort() {
+        // no Netty quiet period on the way down: a blocking stop is milliseconds, and the port is
+        // free for the next bind when it returns
+        HttpServer server = HttpServer.start(0, req -> HttpResponse.text("ok"));
+        int port = server.getPort();
+        long start = System.nanoTime();
+        server.stopAndWait();
+        long millis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+        assertTrue(millis < 1000, "stopAndWait took " + millis + " ms");
+        HttpServer next = HttpServer.start(port, req -> HttpResponse.text("ok"));
+        try {
+            assertEquals(port, next.getPort());
+        } finally {
+            next.stopAndWait();
+        }
     }
 
 }

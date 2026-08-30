@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 public class HttpServer implements Stoppable {
@@ -169,8 +170,10 @@ public class HttpServer implements Stoppable {
     public void stopAsync() {
         KarateLifecycle.unregister(this);
         logger.debug("stop: shutting down");
-        bossGroup.shutdownGracefully();
-        workerGroup.shutdownGracefully();
+        // no quiet period: a server being torn down accepts nothing more, so waiting for one to
+        // pass only delays the (blocking) stop — the timeout still bounds in-flight work
+        bossGroup.shutdownGracefully(0, 15, TimeUnit.SECONDS);
+        workerGroup.shutdownGracefully(0, 15, TimeUnit.SECONDS);
     }
 
     private HttpServer(String host, int requestedPort, SslContext sslContext, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler, WsHandler wsHandler) {
