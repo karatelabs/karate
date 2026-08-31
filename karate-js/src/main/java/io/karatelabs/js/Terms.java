@@ -1187,6 +1187,29 @@ public class Terms {
         return "object";
     }
 
+    /** True iff this is exactly a plain engine object — every built-in subtype (Map, Set,
+     *  RegExp, Error, symbol, function, ...) is false, as is a host {@code Map} or POJO. */
+    public static boolean isPlainObject(Object value) {
+        // Exact class, not instanceof: every built-in exotic (JsMap / JsSet / JsRegex /
+        // JsError / JsSymbol / JsFunction / ...) is a JsObject subclass, so identity is
+        // what makes "plain" mean plain. The interpreter allocates exactly this class for
+        // an object literal, Object.create and `new F()` on a plain constructor — a
+        // constructor derived from a built-in allocates that built-in's class instead.
+        return value != null && value.getClass() == JsObject.class;
+    }
+
+    /** True iff this is exactly a plain engine array — a typed array (Uint8Array) and a host
+     *  {@code java.util.List} are both false. */
+    public static boolean isPlainArray(Object value) {
+        // Exact class for the same reason as isPlainObject — JsUint8Array extends JsArray.
+        return value != null && value.getClass() == JsArray.class;
+    }
+
+    /** True iff this is an engine symbol value, minted or well-known — never a host value. */
+    public static boolean isSymbol(Object value) {
+        return value instanceof JsSymbol;
+    }
+
     static boolean instanceOf(Object lhs, Object rhs) {
         // Handle built-in constructors by class comparison
         // JsArray doesn't extend JsObject, so handle it first
