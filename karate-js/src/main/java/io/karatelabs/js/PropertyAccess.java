@@ -263,7 +263,7 @@ class PropertyAccess {
                 context.callReceiver = null;
                 yield c;
             }
-            default -> throw JsErrorException.typeError("cannot call: " + node);
+            default -> throw JsErrorException.notAFunction(node);
         };
     }
 

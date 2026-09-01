@@ -81,6 +81,18 @@ class EngineExceptionTest {
     }
 
     @Test
+    void testNotAFunctionNamesTheCalleeAndHintsAtAsi() {
+        // `const b = 1` with no ';' makes the next line's '(' a call on 1 - spec ASI. The message
+        // must read as JS does (no engine node type) and point at the omitted ';'.
+        EngineException ex = assertThrowsEngineException("const b = 1\n(function(){})()");
+        assertTrue(ex.getMessage().contains("TypeError: 1 is not a function"
+                + " — hint: line 2 starts with '(' — without a ';' ending line 1 it continues that"
+                + " statement (as a call); add ';' to the end of line 1 if a new statement was intended"),
+                ex.getMessage());
+        assertEquals("TypeError", ex.getJsErrorName());
+    }
+
+    @Test
     void testEngineProducedTypeErrorPrefix() {
         // Calling a non-callable emits "TypeError: ... is not a function"
         EngineException ex = assertThrowsEngineException("var x = 1; x()");

@@ -23,6 +23,9 @@
  */
 package io.karatelabs.js;
 
+import io.karatelabs.parser.AsiHint;
+import io.karatelabs.parser.Node;
+
 /**
  * Java exception carrier for a JS-side {@link JsError} value.
  * <p>
@@ -76,6 +79,17 @@ class JsErrorException extends RuntimeException {
 
     static JsErrorException syntaxError(String message) {
         return new JsErrorException(build(JsErrorPrototype.SYNTAX_ERROR, message, null));
+    }
+
+    /**
+     * The single shape for calling something that is not callable — the JS idiom, naming the
+     * callee's source text rather than an engine node type. When the call's {@code (} begins a
+     * line, an omitted {@code ;} on the line before is the likely cause, so say so.
+     */
+    static JsErrorException notAFunction(Node callee) {
+        String hint = AsiHint.forOpener(callee.getLastToken().getNextPrimary());
+        return typeError(callee.getTextIncludingWhitespace() + " is not a function"
+                + (hint == null ? "" : " — " + hint));
     }
 
     static JsErrorException referenceError(String message) {

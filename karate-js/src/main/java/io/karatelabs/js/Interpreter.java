@@ -746,7 +746,7 @@ class Interpreter {
             }
             return result;
         } else {
-            throw JsErrorException.typeError(node.getTextIncludingWhitespace() + " is not a function");
+            throw JsErrorException.notAFunction(node);
         }
     }
 
@@ -882,7 +882,7 @@ class Interpreter {
             return o;
         }
         if (!(o instanceof JsCallable callable)) {
-            throw JsErrorException.typeError(callableNode.getTextIncludingWhitespace() + " is not a function");
+            throw JsErrorException.notAFunction(callableNode);
         }
         Object[] args = new Object[substitutions.size() + 1];
         args[0] = cooked;

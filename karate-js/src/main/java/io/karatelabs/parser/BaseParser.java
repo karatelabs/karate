@@ -116,12 +116,14 @@ public abstract class BaseParser {
             errors.add(new SyntaxError(token, message));
             return;
         }
+        String hint = AsiHint.forFailure(tokens, position);
         if (token.getResource().isFile()) {
             System.err.println("file://" + token.getResource().getUri().getPath() + ":" + token.getPositionDisplay() + " " + message);
         }
         throw new ParserException(message + "\n"
                 + token.getPositionDisplay()
-                + " " + token + "\nparser state: " + this);
+                + " " + token + "\nparser state: " + this
+                + (hint == null ? "" : "\n" + hint));
     }
 
     protected void error(NodeType... expected) {
@@ -449,7 +451,7 @@ public abstract class BaseParser {
      * {@code Token.getText()}). The clamp makes that fail toward <i>terminating</i> the statement,
      * which is the safe direction — the unsafe one is silently swallowing the next expression.
      */
-    private static boolean lineTerminatorBetween(Token last, Token next) {
+    static boolean lineTerminatorBetween(Token last, Token next) {
         String text = last.getResource().getText();
         int from = Math.max(last.pos, Math.min(last.pos + last.length, text.length()));
         int to = Math.min(next.pos, text.length());

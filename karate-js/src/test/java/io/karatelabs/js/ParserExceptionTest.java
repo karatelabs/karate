@@ -63,6 +63,42 @@ class ParserExceptionTest {
         }
     }
 
+    // A line starting with '[' or '(' continues the previous line when that line has no ';'.
+    // The parse is spec-correct; only the message changes - it now names the omitted ';'.
+
+    @Test
+    void testMissingSemicolonBeforeBracketLineHintsAtAsi() {
+        Engine engine = new Engine();
+        ParserException pe = assertThrows(ParserException.class,
+                () -> engine.eval("const a = 1\n[1,2].forEach(function(x){})"));
+        assertEquals("expected: [R_BRACKET]\n"
+                        + "2:3 ,\n"
+                        + "parser state: | const a = 1 [ 1 >>, 2 ] . forEach ( function |\n"
+                        + "current node: VAR_DECL >> EXPR >> [REF_BRACKET_EXPR]\n"
+                        + "hint: line 2 starts with '[' — without a ';' ending line 1 it continues that"
+                        + " statement (as an index); add ';' to the end of line 1 if a new statement was intended",
+                pe.getMessage());
+    }
+
+    @Test
+    void testAsiHintDoesNotFireOnUnrelatedParseErrors() {
+        Engine engine = new Engine();
+        // nothing line-initial anywhere near the failure
+        assertNoAsiHint(engine, "var x = ;");
+        assertNoAsiHint(engine, "function foo( { }");
+        // the previous line already ended with a ';'
+        assertNoAsiHint(engine, "const c = 1;\n[1,2].forEach(function(x){");
+        // a genuine continuation - the previous line ends with an operator
+        assertNoAsiHint(engine, "const d =\n[1,2].forEach(function(x){}");
+        // an `if` head never wanted a ';' after it
+        assertNoAsiHint(engine, "if (true)\n(1 +)");
+    }
+
+    private static void assertNoAsiHint(Engine engine, String script) {
+        ParserException pe = assertThrows(ParserException.class, () -> engine.eval(script));
+        assertFalse(pe.getMessage().contains("hint:"), pe.getMessage());
+    }
+
     // The four spec-defined Static Semantics: Early Errors involving optional
     // chaining. Each must surface as ParserException — the test262 runner
     // classifies that as `phase: parse, type: SyntaxError`, matching what the
