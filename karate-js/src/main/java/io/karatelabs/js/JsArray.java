@@ -522,12 +522,44 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         if (denseSlot) list.set(i, HOLE);
     }
 
+    /**
+     * Own-property view: index keys ({@code "0"}, {@code "1"}, …) in order,
+     * then the {@link #namedProps} entries. An array's primary host conversion
+     * is the {@link List} it implements — this map exists so an embedder that
+     * inspects a result through {@link ObjectLike} sees the elements rather
+     * than an empty map.
+     * <p>
+     * Holes surface as {@code null}, mirroring {@link #get(int)}. That makes
+     * the view denser than the spec key set (a hole is <em>not</em> an own
+     * property), so JS-semantic key enumeration must not read it —
+     * {@code Object.keys} / for-in go through {@link #jsEntries(CoreContext)}
+     * and the spec key order through {@code JsObjectConstructor.ownKeys};
+     * the named-only half is {@link #namedPropsView()}.
+     */
     @Override
     public Map<String, Object> toMap() {
-        // Arrays don't typically convert to maps; surface namedProps' values
-        // (the value-side of each Slot, excluding any pure-attrs slots that
-        // carry no value override). Accessor slots have no extractable raw
-        // value at this Java-interop boundary; surface as null.
+        Map<String, Object> view = new LinkedHashMap<>(list.size() + (namedProps == null ? 0 : namedProps.size()));
+        for (int i = 0; i < list.size(); i++) {
+            Object v = list.get(i);
+            view.put(Integer.toString(i), v == HOLE ? null : v);
+        }
+        // an index-keyed namedProps entry overrides the dense slot (see
+        // getIndexedValue) — put() keeps the index position, replaces the value
+        if (namedProps != null) {
+            for (PropertySlot s : namedProps.values()) {
+                view.put(s.name, s instanceof DataSlot ds ? ds.value : null);
+            }
+        }
+        return view;
+    }
+
+    /**
+     * The named (non-index) half of {@link #toMap()} — the value-side of each
+     * {@link #namedProps} Slot, excluding any pure-attrs slot that carries no
+     * value override. Accessor slots have no extractable raw value at this
+     * Java-interop boundary; they surface as null.
+     */
+    Map<String, Object> namedPropsView() {
         if (namedProps == null || namedProps.isEmpty()) return Collections.emptyMap();
         Map<String, Object> view = new LinkedHashMap<>(namedProps.size());
         for (PropertySlot s : namedProps.values()) {

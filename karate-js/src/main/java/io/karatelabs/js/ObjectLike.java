@@ -84,6 +84,11 @@ public interface ObjectLike {
         removeMember(name);
     }
 
+    /**
+     * The own-property view, for host inspection. {@link JsArray} answers with
+     * its indices (then its named properties) — its primary host conversion is
+     * still the {@link java.util.List} it implements.
+     */
     Map<String, Object> toMap();
 
     /**

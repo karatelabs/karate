@@ -53,8 +53,10 @@ class JsReflect extends JsObject {
         }
         // §10.1.11.1 OrdinaryOwnPropertyKeys: integer indices ascending, then
         // strings in insertion order — the same helper Object.keys uses.
-        List<Object> keys = new java.util.ArrayList<>(
-                JsObject.orderedOwnKeys(target.toMap().keySet()));
+        // named half only for an array — toMap()'s index keys include holes,
+        // and the spec index+length key set for arrays is a separate gap here
+        List<Object> keys = new java.util.ArrayList<>(JsObject.orderedOwnKeys(
+                target instanceof JsArray ja ? ja.namedPropsView().keySet() : target.toMap().keySet()));
         if (target instanceof JsObject jo) {
             keys.addAll(jo.ownSymbols());
         }

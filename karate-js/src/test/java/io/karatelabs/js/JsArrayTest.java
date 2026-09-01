@@ -2,6 +2,11 @@ package io.karatelabs.js;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class JsArrayTest extends EvalBase {
@@ -61,6 +66,38 @@ class JsArrayTest extends EvalBase {
         // `undefined`. NodeUtils.match now compares against the raw element
         // value (was previously seeing `null` via the auto-unwrap on List.get).
         matchEval("[,]", "[undefined]");
+    }
+
+    @Test
+    void testArrayToMapIsOwnPropertyView() {
+        // an embedder that inspects a result through ObjectLike must see the
+        // elements, not an empty map (the List remains the primary conversion)
+        assertEquals(new LinkedHashMap<>(), ((ObjectLike) eval("[]")).toMap());
+        Map<String, Object> plain = ((ObjectLike) eval("[1, 2, 3]")).toMap();
+        assertEquals(List.of("0", "1", "2"), new ArrayList<>(plain.keySet()));
+        assertEquals(List.of(1, 2, 3), new ArrayList<>(plain.values()));
+        // indices first, then named properties
+        Map<String, Object> named = ((ObjectLike) eval("var a = [1, 2]; a.x = 'y'; a")).toMap();
+        assertEquals(List.of("0", "1", "x"), new ArrayList<>(named.keySet()));
+        assertEquals("y", named.get("x"));
+        // a hole is null at its index, as List.get() reports it
+        Map<String, Object> sparse = ((ObjectLike) eval("[1, , 3]")).toMap();
+        assertEquals(List.of("0", "1", "2"), new ArrayList<>(sparse.keySet()));
+        assertNull(sparse.get("1"));
+    }
+
+    @Test
+    void testArrayKeyEnumerationUnaffectedByToMapView() {
+        // toMap()'s index keys are a host-facing view — JS key semantics
+        // (holes are not own properties) must not shift with it
+        matchEval("JSON.stringify(Object.keys([1, 2, 3]))", "'[\"0\",\"1\",\"2\"]'");
+        matchEval("JSON.stringify(Object.keys([1, , 3]))", "'[\"0\",\"2\"]'");
+        matchEval("JSON.stringify(Object.getOwnPropertyNames([1, , 3]))", "'[\"0\",\"2\",\"length\"]'");
+        matchEval("JSON.stringify([1, 2, 3])", "'[1,2,3]'");
+        matchEval("JSON.stringify([1, , 3])", "'[1,null,3]'");
+        matchEval("var s = ''; for (var k in [1, , 3]) s += k + ','; s", "'0,2,'");
+        matchEval("JSON.stringify({ ...[1, , 3] })", "'{\"0\":1,\"2\":3}'");
+        matchEval("JSON.stringify(Object.assign({}, [1, , 3]))", "'{\"0\":1,\"2\":3}'");
     }
 
     @Test

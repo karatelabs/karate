@@ -941,7 +941,9 @@ class JsObjectConstructor extends JsFunction {
                     keys.add(Integer.toString(i));
                 }
             }
-            for (String k : ja.toMap().keySet()) {
+            // named half only — toMap()'s index keys include holes, which are
+            // not own properties
+            for (String k : ja.namedPropsView().keySet()) {
                 keys.add(k);
             }
             keys.add("length");
@@ -965,7 +967,9 @@ class JsObjectConstructor extends JsFunction {
             // isOwnProperty already covers the resolveOwnIntrinsic-derived
             // surface (collapsed in S5+), so a single isOwnProperty check
             // suffices across all subclasses.
-            Map<String, Object> m = ol.toMap();
+            // an array's indices are read through getMember below (live value,
+            // accessor overrides honoured), so only its named half applies here
+            Map<String, Object> m = ol instanceof JsArray ja ? ja.namedPropsView() : ol.toMap();
             if (m.containsKey(key)) return m.get(key);
             if (ol.isOwnProperty(key)) return ol.getMember(key);
             return Terms.UNDEFINED;
