@@ -1268,12 +1268,23 @@ ride, and `Interpreter.runStaticBlock` executes the body through a synthetic
 `JsFunctionNode` — so the block gets its own frame (`var` / `let` / `const`
 inside stay inside), `this` = the constructor, and `[[HomeObject]]` = the
 constructor, which is what makes `super.x` read off the parent constructor as
-it does for a static method. `return` in a block is a parse-phase SyntaxError
-(a per-node helper in the fused `earlyErrors` walk); `await` / `arguments`
-inside one are not yet rejected. The class's own name is bound *before* the
-members run, so `static { C.x = 1 }` and `static b = C.a` can name the class.
-Members are still installed in one source-order pass, so neither a static block
-nor a static field can see a method declared textually *below* it.
+it does for a static method. The class's own name is bound *before* the members
+run, so `static { C.x = 1 }` and `static b = C.a` can name the class. Members are
+still installed in one source-order pass, so neither a static block nor a static
+field can see a method declared textually *below* it.
+
+**A static block is a function-like boundary for the parse-phase early errors**
+(§15.7.1), all of them per-node helpers of the fused `earlyErrors` walk rooted
+at the `CLASS_STATIC_BLOCK` node — `JsParser.checkStaticBlockBody` descends that
+block's subtree only, never the whole tree. `return` has no target; `break` /
+`continue` may not reach a loop, switch or label outside the block (the labelled
+forms fall out of `labelNodeChecks` resetting the label chain at the block, the
+bare forms from the block's own loop/switch nesting); and `await` is a reserved
+word, since ClassStaticBlockStatementList is `[+Await]` — a parameter that
+reaches a nested function's *name* and an arrow's *parameters* but neither one's
+body. `arguments` is equally illegal per spec and deliberately not rejected:
+separating a reference from the legal `x.arguments` / `{arguments: …}` spellings
+costs more than the rule is worth.
 
 **`async` methods are honored** — instance, `static`, and computed-name alike.
 The parse-time flag reaches `JsFunctionNode.async`, so `new C().m()` returns a

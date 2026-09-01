@@ -216,10 +216,9 @@ public class JsParser extends BaseParser {
         if (inPattern && node.type == NodeType.LIT_ARRAY) {
             validateRestElementRules(node);
         }
-        // §15.7.1: a static block's body is not a function body, so it has no
-        // return target. Scans only the block's own subtree, never the whole tree.
+        // §15.7.1 static-block family — scans only the block's own subtree.
         if (node.type == NodeType.CLASS_STATIC_BLOCK) {
-            checkNoReturnInStaticBlock(node);
+            checkStaticBlockBody(node, 0);
         }
         // At most one B.3.1 proto-setter per ObjectLiteral; not a rule for patterns.
         if (sawProtoKey && !inPattern && node.type == NodeType.LIT_OBJECT) {
@@ -405,7 +404,9 @@ public class JsParser extends BaseParser {
                 }
                 return new Label(name, labelsIterationStatement(node), labels);
             }
-            case FN_EXPR, FN_ARROW_EXPR -> {
+            // §15.7.1 makes a static initialization block a boundary of the same kind
+            // as a function body: nothing inside it may name a label outside it.
+            case FN_EXPR, FN_ARROW_EXPR, CLASS_STATIC_BLOCK -> {
                 return null;
             }
             case BREAK_STMT -> {
@@ -644,19 +645,100 @@ public class JsParser extends BaseParser {
         }
     }
 
-    /** Throws on a {@code return} anywhere in a static initialization block's body.
-     *  A nested function is its own return target, so the descent stops there. */
-    private static void checkNoReturnInStaticBlock(Node node) {
-        for (int i = 0, n = node.size(); i < n; i++) {
+    // Descent state for checkStaticBlockBody.
+    private static final int SB_FN = 1;       // inside a nested function — its own return / break target
+    private static final int SB_LOOP = 2;     // inside an iteration statement of the block's own
+    private static final int SB_SWITCH = 4;   // inside a switch statement of the block's own
+    private static final int SB_AWAIT_OK = 8; // inside a nested function's body — `await` is a name again
+
+    /**
+     * §15.7.1 early errors a class static initialization block carries. Every rule
+     * stops at the block boundary, so this descends that block's subtree only — a
+     * per-node helper of {@link #earlyErrors}, not a second traversal of the tree.
+     * <ul>
+     *   <li>{@code return} has no target: the body is not a function body.</li>
+     *   <li>{@code break} / {@code continue} may not reach out of the block. The
+     *       labelled forms fall to the label chain ({@link #labelNodeChecks} resets it
+     *       at the block); the bare forms need the block's own loop / switch nesting,
+     *       which is what {@code SB_LOOP} / {@code SB_SWITCH} track.</li>
+     *   <li>{@code await} is reserved: ClassStaticBlockStatementList is {@code [+Await]},
+     *       and that grammar parameter reaches a nested function's NAME and an arrow's
+     *       PARAMETERS but neither one's body. {@code await} lexes as an IDENT, so the
+     *       check is on the token — skipping the positions where it is a property name
+     *       rather than a reference.</li>
+     * </ul>
+     * {@code arguments} is equally illegal per spec but is not rejected here: telling a
+     * reference from the many legal {@code x.arguments} / {@code {arguments: …}} spellings
+     * costs more than the rule is worth.
+     */
+    private void checkStaticBlockBody(Node node, int flags) {
+        boolean keepAwait = (flags & SB_AWAIT_OK) == 0 && !isPropertyNameHolder(node);
+        int last = node.size() - 1;
+        TokenType prev = null;
+        for (int i = 0; i <= last; i++) {
             Node child = node.get(i);
-            if (child.isToken() || child.type == NodeType.FN_EXPR || child.type == NodeType.FN_ARROW_EXPR) {
+            if (child.isToken()) {
+                TokenType type = child.token.type;
+                // `x.await` / `x?.await` name a member, they do not reference one
+                if (keepAwait && type == IDENT && prev != DOT && prev != QUES_DOT
+                        && isIdentText(child.token, "await")) {
+                    throw new ParserException("'await' is a reserved word in a class static initialization block");
+                }
+                prev = type;
                 continue;
             }
-            if (child.type == NodeType.RETURN_STMT) {
-                throw new ParserException("'return' is not allowed in a class static initialization block");
+            prev = null;
+            int childFlags = flags;
+            switch (child.type) {
+                case RETURN_STMT -> {
+                    if ((flags & SB_FN) == 0) {
+                        throw new ParserException("'return' is not allowed in a class static initialization block");
+                    }
+                }
+                case BREAK_STMT -> {
+                    if ((flags & (SB_FN | SB_LOOP | SB_SWITCH)) == 0 && child.size() == 1) {
+                        throw new ParserException("'break' may not cross a class static initialization block");
+                    }
+                }
+                case CONTINUE_STMT -> {
+                    if ((flags & (SB_FN | SB_LOOP)) == 0 && child.size() == 1) {
+                        throw new ParserException("'continue' may not cross a class static initialization block");
+                    }
+                }
+                case FOR_STMT, WHILE_STMT, DO_WHILE_STMT -> childFlags |= SB_LOOP;
+                case SWITCH_STMT -> childFlags |= SB_SWITCH;
+                case FN_EXPR, FN_ARROW_EXPR -> childFlags |= SB_FN;
+                default -> {
+                }
             }
-            checkNoReturnInStaticBlock(child);
+            // A function's parameters are [~Await] along with its body; an arrow's are
+            // not — only the body (always its last child) leaves the reserved region.
+            if (node.type == NodeType.FN_EXPR
+                    || (node.type == NodeType.FN_ARROW_EXPR && i == last)) {
+                childFlags |= SB_AWAIT_OK;
+            }
+            checkStaticBlockBody(child, childFlags);
         }
+    }
+
+    /** True where this node's own token children are property / member names rather than
+     *  references — {@code {await: 1}}, {@code {await() {}}}, {@code class { await = 1 }}.
+     *  The shorthand {@code {await}} has neither a colon nor a value child and is a
+     *  reference, which is why an all-token object element does not qualify. */
+    private static boolean isPropertyNameHolder(Node node) {
+        if (node.type == NodeType.CLASS_METHOD) {
+            return true;
+        }
+        if (node.type != NodeType.OBJECT_ELEM) {
+            return false;
+        }
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node child = node.get(i);
+            if (!child.isToken() || child.token.type == COLON) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Throws if any direct {@code STATEMENT} child of {@code node} is itself a
@@ -2690,7 +2772,7 @@ public class JsParser extends BaseParser {
         // ES2022 `static { ... }` — the only class element that is not a key +
         // value. Two-token lookahead because `static` is a contextual keyword:
         // `static = 1` and `static() {}` are still a field and a method.
-        if (peekIf(IDENT) && "static".equals(peekToken().getText()) && peekAheadIf(1, L_CURLY)) {
+        if (peekIf(IDENT) && isIdentText(peekToken(), "static") && peekAhead(1).type == L_CURLY) {
             return class_static_block();
         }
         enter(NodeType.CLASS_METHOD);

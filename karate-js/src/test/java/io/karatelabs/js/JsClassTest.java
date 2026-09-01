@@ -702,6 +702,48 @@ class JsClassTest extends EvalBase {
     }
 
     @Test
+    void testBreakAndContinueCannotCrossAStaticBlock() {
+        assertParseError("label: while (false) { class C { static { break } } }");
+        assertParseError("label: while (false) { class C { static { continue } } }");
+        assertParseError("label: while (false) { class C { static { continue label } } }");
+        assertParseError("label: while (false) { class C { static { break label } } }");
+        assertParseError("switch (1) { case 1: class C { static { break } } }");
+        // a loop, switch or label inside the block is still a legal target
+        assertEquals(1, eval("class C { static { while (true) { this.v = 1; break } } }\nC.v"));
+        assertEquals(2, eval("class C { static { for (var i = 0; i < 5; i++) { if (i) continue; this.v = 2 } } }\nC.v"));
+        assertEquals(3, eval("class C { static { switch (1) { case 1: this.v = 3; break } } }\nC.v"));
+        assertEquals(4, eval("class C { static { out: { this.v = 4; break out } } }\nC.v"));
+        // a function inside the block is its own boundary again
+        assertEquals(5, eval("class C { static { this.f = function () { while (true) { return 5 } } } }\nC.f()"));
+    }
+
+    @Test
+    void testAwaitIsReservedInsideAStaticBlock() {
+        assertParseError("class C { static { await } }");
+        assertParseError("class C { static { await: 0 } }");
+        assertParseError("class C { static { let await } }");
+        assertParseError("class C { static { const await = 0 } }");
+        assertParseError("class C { static { var await } }");
+        assertParseError("class C { static { var [await] = [] } }");
+        assertParseError("class C { static { var {await} = {} } }");
+        assertParseError("class C { static { function await() {} } }");
+        assertParseError("class C { static { try {} catch (await) {} } }");
+        assertParseError("class C { static { ({ await }) } }");
+        assertParseError("class C { static { (await => 0) } }");
+        assertParseError("class C { static { ((x = await) => 0) } }");
+    }
+
+    @Test
+    void testAwaitIsAnOrdinaryNameAgainInsideANestedFunction() {
+        assertEquals(1, eval("class C { static { this.f = function () { var await = 1; return await } } }\nC.f()"));
+        assertEquals(2, eval("class C { static { this.f = () => { let await = 2; return await } } }\nC.f()"));
+        // property names are never references
+        assertEquals("3,4", eval("class C { static { var o = { await: 3 }; this.v = o.await + ',' + ({ await() { return 4 } }).await() } }\nC.v"));
+        // a function's parameters are [~Await]; only its name is not
+        assertEquals(5, eval("class C { static { this.f = function (await) { return await } } }\nC.f(5)"));
+    }
+
+    @Test
     void testStaticBlockIsNotAFieldNamedStatic() {
         assertEquals("undefined", eval("class C { static { } }\ntypeof C.static"));
         // `static` with no member name after it is still an ordinary field name

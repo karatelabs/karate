@@ -378,13 +378,6 @@ public abstract class BaseParser {
         return peek() == token;
     }
 
-    /** Lookahead past the next token. The token list holds only primary tokens
-     *  (whitespace / comments are attached to them), so the offset is a plain index. */
-    protected boolean peekAheadIf(int offset, TokenType token) {
-        int index = position + offset;
-        return index < size && tokens.get(index).type == token;
-    }
-
     // Array overload - use with pre-allocated static arrays to avoid allocation
     protected boolean peekAnyOf(TokenType[] tokens) {
         TokenType current = peek();
