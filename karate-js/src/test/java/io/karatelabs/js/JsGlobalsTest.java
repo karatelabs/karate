@@ -121,6 +121,15 @@ class JsGlobalsTest extends EvalBase {
         assertEquals("", eval("const e = new Error();"
                 + " Object.defineProperty(e, 'message', { configurable: true, get() { return { x: 1 } } });"
                 + " structuredClone(e).message"));
+        // the descriptor is inspected, never Get — an enumerable getter must not fire
+        assertEquals(true, eval("let calls = 0; const e = new Error();"
+                + " Object.defineProperty(e, 'message',"
+                + " { configurable: true, enumerable: true, get() { calls++; return 'x' } });"
+                + " const c = structuredClone(e); calls === 0 && c.message === ''"));
+        assertEquals("", eval("const e = new Error();"
+                + " Object.defineProperty(e, 'message',"
+                + " { configurable: true, enumerable: true, get() { throw new Error('nope') } });"
+                + " structuredClone(e).message"));
     }
 
     @Test

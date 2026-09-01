@@ -83,7 +83,7 @@ final class JsStructuredClone {
             // jsEntries is the spec own-key walk: holes are skipped, index
             // accessors resolve through their getter, and named props follow —
             // reading a.list directly would miss all three
-            copyOwn(a.jsEntries(ctx), copy, null, memo, ctx);
+            copyOwn(a.jsEntries(ctx), copy, memo, ctx);
             // trailing holes carry no own key, so length has to be restored
             while (copy.list.size() < a.list.size()) {
                 copy.list.add(JsArray.HOLE);
@@ -96,7 +96,7 @@ final class JsStructuredClone {
             for (Map.Entry<Object, Object> e : m.entries.entrySet()) {
                 copy.setValue(clone(e.getKey(), memo, ctx), clone(e.getValue(), memo, ctx));
             }
-            copyOwn(m.jsEntries(ctx), copy, null, memo, ctx);
+            copyOwn(m.jsEntries(ctx), copy, memo, ctx);
             return copy;
         }
         if (value instanceof JsSet s) {
@@ -105,7 +105,7 @@ final class JsStructuredClone {
             for (Object e : s.elements.keySet()) {
                 copy.addValue(clone(e, memo, ctx));
             }
-            copyOwn(s.jsEntries(ctx), copy, null, memo, ctx);
+            copyOwn(s.jsEntries(ctx), copy, memo, ctx);
             return copy;
         }
         if (value instanceof JsObject o) {
@@ -127,12 +127,20 @@ final class JsStructuredClone {
                         && !(ds.value instanceof JsObject mo && builtinErrorPrototype(mo) != null)) {
                     copy.defineOwn("message", Terms.toStringCoerce(ds.value, ctx), DATA_ATTRS);
                 }
-                copyOwn(o.jsEntries(ctx), copy, "message", memo, ctx);
+                // jsEntries resolves each value as it yields, which would fire an
+                // enumerable `message` getter the spec never Gets — so the key is
+                // filtered here, before any read
+                for (String key : JsObject.orderedOwnKeys(o.keySet())) {
+                    if ("message".equals(key) || !o.isEnumerable(key)) {
+                        continue;
+                    }
+                    copy.putMember(key, clone(o.getMember(key, o, ctx), memo, ctx));
+                }
                 return copy;
             }
             JsObject copy = new JsObject();
             memo.put(value, copy);
-            copyOwn(o.jsEntries(ctx), copy, null, memo, ctx);
+            copyOwn(o.jsEntries(ctx), copy, memo, ctx);
             return copy;
         }
         if (value instanceof Map<?, ?> m) {
@@ -159,14 +167,9 @@ final class JsStructuredClone {
         return copy;
     }
 
-    /** {@code skip}, when non-null, is a key the caller has already installed
-     *  by other means and that must not be cloned over. */
-    private static void copyOwn(Iterable<KeyValue> entries, ObjectLike target, String skip,
+    private static void copyOwn(Iterable<KeyValue> entries, ObjectLike target,
                                 IdentityHashMap<Object, Object> memo, CoreContext ctx) {
         for (KeyValue kv : entries) {
-            if (kv.key().equals(skip)) {
-                continue;
-            }
             target.putMember(kv.key(), clone(kv.value(), memo, ctx));
         }
     }
