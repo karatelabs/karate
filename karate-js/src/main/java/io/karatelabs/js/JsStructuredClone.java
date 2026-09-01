@@ -83,7 +83,7 @@ final class JsStructuredClone {
             // jsEntries is the spec own-key walk: holes are skipped, index
             // accessors resolve through their getter, and named props follow —
             // reading a.list directly would miss all three
-            copyOwn(a.jsEntries(ctx), copy, memo, ctx);
+            copyOwn(a.jsEntries(ctx), copy, null, memo, ctx);
             // trailing holes carry no own key, so length has to be restored
             while (copy.list.size() < a.list.size()) {
                 copy.list.add(JsArray.HOLE);
@@ -96,7 +96,7 @@ final class JsStructuredClone {
             for (Map.Entry<Object, Object> e : m.entries.entrySet()) {
                 copy.setValue(clone(e.getKey(), memo, ctx), clone(e.getValue(), memo, ctx));
             }
-            copyOwn(m.jsEntries(ctx), copy, memo, ctx);
+            copyOwn(m.jsEntries(ctx), copy, null, memo, ctx);
             return copy;
         }
         if (value instanceof JsSet s) {
@@ -105,7 +105,7 @@ final class JsStructuredClone {
             for (Object e : s.elements.keySet()) {
                 copy.addValue(clone(e, memo, ctx));
             }
-            copyOwn(s.jsEntries(ctx), copy, memo, ctx);
+            copyOwn(s.jsEntries(ctx), copy, null, memo, ctx);
             return copy;
         }
         if (value instanceof JsObject o) {
@@ -116,16 +116,23 @@ final class JsStructuredClone {
                 // `instanceof AppError`, but `instanceof Error` must hold
                 JsError copy = new JsError(ep);
                 memo.put(value, copy);
-                // `message` is normally non-enumerable, so copyOwn misses it
-                if (o.isOwnProperty("message")) {
-                    copy.defineOwn("message", o.getMember("message"), DATA_ATTRS);
+                // per HTML, `message` is read only as an own DATA property and
+                // stored ToString'd — never cloned, so no reference from the
+                // source can leak in through it. An accessor or a missing slot
+                // leaves the prototype's empty-string default.
+                // ToString on an error reads its own `message` in turn, so an
+                // error-valued message can cycle back here — nothing meaningful
+                // to serialize, so that too keeps the default.
+                if (PropertyAccess.ownSlot(o, "message") instanceof DataSlot ds && !ds.tombstoned
+                        && !(ds.value instanceof JsObject mo && builtinErrorPrototype(mo) != null)) {
+                    copy.defineOwn("message", Terms.toStringCoerce(ds.value, ctx), DATA_ATTRS);
                 }
-                copyOwn(o.jsEntries(ctx), copy, memo, ctx);
+                copyOwn(o.jsEntries(ctx), copy, "message", memo, ctx);
                 return copy;
             }
             JsObject copy = new JsObject();
             memo.put(value, copy);
-            copyOwn(o.jsEntries(ctx), copy, memo, ctx);
+            copyOwn(o.jsEntries(ctx), copy, null, memo, ctx);
             return copy;
         }
         if (value instanceof Map<?, ?> m) {
@@ -152,9 +159,14 @@ final class JsStructuredClone {
         return copy;
     }
 
-    private static void copyOwn(Iterable<KeyValue> entries, ObjectLike target,
+    /** {@code skip}, when non-null, is a key the caller has already installed
+     *  by other means and that must not be cloned over. */
+    private static void copyOwn(Iterable<KeyValue> entries, ObjectLike target, String skip,
                                 IdentityHashMap<Object, Object> memo, CoreContext ctx) {
         for (KeyValue kv : entries) {
+            if (kv.key().equals(skip)) {
+                continue;
+            }
             target.putMember(kv.key(), clone(kv.value(), memo, ctx));
         }
     }

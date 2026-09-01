@@ -107,6 +107,23 @@ class JsGlobalsTest extends EvalBase {
     }
 
     @Test
+    void testStructuredCloneErrorMessageIsCoerced() {
+        assertEquals(true, eval("const e = new Error(); e.message = 'plain';"
+                + " structuredClone(e).message === 'plain'"));
+        // per spec the message is ToString'd, so no source reference can leak in
+        assertEquals(true, eval("const e = new Error(); e.message = { x: 1 };"
+                + " const c = structuredClone(e);"
+                + " c.message === '[object Object]' && c.message !== e.message"));
+        assertEquals(true, eval("const e = new Error(); e.message = e;"
+                + " const c = structuredClone(e);"
+                + " typeof c.message === 'string' && c.message !== e"));
+        // an accessor message is not a data property, so the default survives
+        assertEquals("", eval("const e = new Error();"
+                + " Object.defineProperty(e, 'message', { configurable: true, get() { return { x: 1 } } });"
+                + " structuredClone(e).message"));
+    }
+
+    @Test
     void testStructuredCloneCycle() {
         assertEquals(true, eval("const a = { n: 1 }; a.self = a; const c = structuredClone(a);"
                 + " c !== a && c.self === c && c.n === 1"));
