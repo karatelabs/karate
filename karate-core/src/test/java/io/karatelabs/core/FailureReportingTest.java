@@ -536,6 +536,80 @@ class FailureReportingTest {
     }
 
     @Test
+    void testSuiteResultErrorsLeadWithLocationAndStep() throws Exception {
+        // Regression: a Runner-API caller typically joins getErrors() into its own JUnit assertion
+        // message, which surefire then echoes in its [ERROR] output. Those surfaces bypass the
+        // decorated Throwable path entirely, so the location has to ride on the error string
+        // itself — otherwise the reader sees only the match diff with no hint which step failed.
+        Path feature = tempDir.resolve("errors.feature");
+        Files.writeString(feature, """
+                Feature: Errors list carries location
+
+                Scenario: bad match
+                * def a = 1
+                * match a == 999
+                """);
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isFailed());
+        assertEquals(1, result.getErrors().size());
+        String error = result.getErrors().get(0);
+
+        // location first, alone on its line — the IDE console filter's hyperlink shape
+        String firstLine = error.substring(0, error.indexOf('\n'));
+        assertTrue(firstLine.endsWith("errors.feature:5"),
+                "error entry must lead with the location line, got: " + firstLine);
+        assertTrue(firstLine.matches("\\s*\\S.*\\.feature:\\d+"),
+                "location line must satisfy the IDE hyperlink pattern: '" + firstLine + "'");
+
+        // then the offending source line, then the reason — the console block's reading order
+        int sourceIdx = error.indexOf("* match a == 999");
+        int reasonIdx = error.indexOf("match failed");
+        assertTrue(sourceIdx > 0, "error entry must show the offending step: " + error);
+        assertTrue(sourceIdx < reasonIdx, "step line must come before the error message: " + error);
+
+        // the raw message stays undecorated for consumers that render the location separately
+        ScenarioResult sr = result.getFeatureResults().get(0).getScenarioResults().get(0);
+        assertFalse(sr.getFailureMessage().contains("errors.feature:"),
+                "raw getFailureMessage() must NOT carry the location: " + sr.getFailureMessage());
+    }
+
+    @Test
+    void testSuiteResultErrorsDegradeWhenThereIsNoParsedStep() throws Exception {
+        // a config-time failure is reported via a synthetic step with no feature-file line —
+        // the error entry has no location to lead with and must fall back to the message alone
+        Files.writeString(tempDir.resolve("karate-config.js"), """
+                function fn() {
+                  throw 'config blew up';
+                }
+                """);
+        Path feature = tempDir.resolve("no-step.feature");
+        Files.writeString(feature, """
+                Feature: Never gets to run
+
+                Scenario: config fails first
+                * def a = 1
+                """);
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isFailed());
+        assertEquals(1, result.getErrors().size());
+        ScenarioResult sr = result.getFeatureResults().get(0).getScenarioResults().get(0);
+        assertEquals(sr.getFailureMessage(), result.getErrors().get(0),
+                "with no parsed step the entry falls back to the raw message");
+    }
+
+    @Test
     void testPrintSummaryOrdersLocationSourceThenError() throws Exception {
         Path feature = tempDir.resolve("order.feature");
         Files.writeString(feature, """

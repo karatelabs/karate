@@ -369,14 +369,22 @@ public class SuiteResult {
     }
 
     /**
-     * Get all error messages from failed scenarios.
+     * Get all error messages from failed scenarios. Each entry leads with the feature-file
+     * location ({@code path.feature:line}) and the offending step — callers routinely join this
+     * list into a JUnit assertion message, and without the header that surface (and the surefire
+     * {@code [ERROR]} echo of it) shows only the match diff with no hint which step failed.
+     *
+     * @see ScenarioResult#getFailureMessageWithLocation()
      */
     public List<String> getErrors() {
         List<String> errors = new ArrayList<>();
         for (FeatureResult fr : featureResults) {
             for (ScenarioResult sr : fr.getScenarioResults()) {
-                if (sr.isFailed() && sr.getFailureMessage() != null) {
-                    errors.add(sr.getFailureMessage());
+                if (sr.isFailed()) {
+                    String message = sr.getFailureMessageWithLocation();
+                    if (message != null) {
+                        errors.add(message);
+                    }
                 }
             }
         }

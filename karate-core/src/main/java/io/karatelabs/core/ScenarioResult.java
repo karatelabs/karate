@@ -315,6 +315,39 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     }
 
     /**
+     * The failure message led by the feature-file location and the offending Gherkin source line:
+     * <pre>
+     * path/to/feature.feature:LINE
+     * And match each response[*].id == expected
+     * match failed: ...
+     * </pre>
+     * This is the shape of one entry in {@link SuiteResult#getErrors()} — the string a caller of
+     * the {@code Runner} API typically feeds straight into a JUnit assertion message, which then
+     * lands verbatim in the surefire {@code [ERROR]} output. Without the header those surfaces show
+     * only the match diff, with no hint which {@code .feature} step failed. The location sits alone
+     * on the first line — the exact shape the IDE console filter hyperlinks. Falls back to the raw
+     * message when the failure is not tied to a parsed step (hook / synthetic), and null when there
+     * is no failure. {@link #getFailureMessage()} stays raw for consumers (reports, the console
+     * summary) that render the location separately and must not show it twice.
+     */
+    public String getFailureMessageWithLocation() {
+        String message = getFailureMessage();
+        if (message == null) {
+            return null;
+        }
+        String location = getFailedStepLocation();
+        if (location == null) {
+            return message;
+        }
+        StringBuilder sb = new StringBuilder(location);
+        String stepText = getFailedStepText();
+        if (stepText != null) {
+            sb.append('\n').append(stepText);
+        }
+        return sb.append('\n').append(message).toString();
+    }
+
+    /**
      * The failure message with the Gherkin comment label stripped from the front. The label is
      * prepended to {@code match}/{@code assert} messages so it travels with the error, but every
      * surface that renders the comment separately (the console summary, the Gatling failure log)
