@@ -126,6 +126,18 @@ class ErrorUtilsTest {
     }
 
     @Test
+    void testClassifyThrownErrorWithClobberedName() {
+        // An Error whose own `name` is wiped still classifies via the
+        // constructor.name fallback — it is not a thrown non-Error value.
+        Throwable undef = assertThrows(Throwable.class,
+                () -> new Engine().eval("var e = new TypeError('x'); e.name = undefined; throw e"));
+        assertEquals("TypeError", ErrorUtils.classify(undef));
+        Throwable nul = assertThrows(Throwable.class,
+                () -> new Engine().eval("var e = new TypeError('x'); e.name = null; throw e"));
+        assertEquals("TypeError", ErrorUtils.classify(nul));
+    }
+
+    @Test
     void testFirstLineTruncation() {
         assertEquals("abc", ErrorUtils.firstLine("abc\ndef", 100));
         assertNull(ErrorUtils.firstLine(null, 100));

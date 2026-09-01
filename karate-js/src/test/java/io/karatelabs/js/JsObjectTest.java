@@ -641,6 +641,12 @@ class JsObjectTest extends EvalBase {
         // Spec key order for a data descriptor.
         assertEquals("value,writable,enumerable,configurable", eval(
                 "Object.keys(Object.getOwnPropertyDescriptor({a: 1}, 'a')).join(',')"));
+        // The descriptor's own fields are ordinary writable/enumerable/configurable
+        // data properties — a descriptor of the descriptor proves it.
+        assertEquals(true, eval(
+                "var d = Object.getOwnPropertyDescriptor({x: 1}, 'x');"
+                        + " var dd = Object.getOwnPropertyDescriptor(d, 'value');"
+                        + " dd.writable && dd.enumerable && dd.configurable"));
     }
 
     @Test
