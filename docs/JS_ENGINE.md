@@ -1260,6 +1260,21 @@ copy-own-props shim rather than true exotic subclassing; decorators, class
 early-errors and the public-field conformance edge tail stay test262-skipped
 (see the un-skip gate in `karate-js-test262/etc/expectations.yaml`).
 
+**Static initialization blocks (`static { ... }`, ES2022) run at
+class-definition time, interleaved with the static field initializers in source
+order.** The parser emits a `CLASS_STATIC_BLOCK` (the `static` token + a
+`BLOCK`); `evalClassExpr` puts it on the same ordered member list the fields
+ride, and `Interpreter.runStaticBlock` executes the body through a synthetic
+`JsFunctionNode` — so the block gets its own frame (`var` / `let` / `const`
+inside stay inside), `this` = the constructor, and `[[HomeObject]]` = the
+constructor, which is what makes `super.x` read off the parent constructor as
+it does for a static method. `return` in a block is a parse-phase SyntaxError
+(a per-node helper in the fused `earlyErrors` walk); `await` / `arguments`
+inside one are not yet rejected. The class's own name is bound *before* the
+members run, so `static { C.x = 1 }` and `static b = C.a` can name the class.
+Members are still installed in one source-order pass, so neither a static block
+nor a static field can see a method declared textually *below* it.
+
 **`async` methods are honored** — instance, `static`, and computed-name alike.
 The parse-time flag reaches `JsFunctionNode.async`, so `new C().m()` returns a
 promise rather than the body's value (see

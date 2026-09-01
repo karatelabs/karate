@@ -216,6 +216,11 @@ public class JsParser extends BaseParser {
         if (inPattern && node.type == NodeType.LIT_ARRAY) {
             validateRestElementRules(node);
         }
+        // §15.7.1: a static block's body is not a function body, so it has no
+        // return target. Scans only the block's own subtree, never the whole tree.
+        if (node.type == NodeType.CLASS_STATIC_BLOCK) {
+            checkNoReturnInStaticBlock(node);
+        }
         // At most one B.3.1 proto-setter per ObjectLiteral; not a rule for patterns.
         if (sawProtoKey && !inPattern && node.type == NodeType.LIT_OBJECT) {
             checkNoDuplicateProtoSetter(node);
@@ -636,6 +641,21 @@ public class JsParser extends BaseParser {
                 throw new ParserException("duplicate __proto__ in an object literal");
             }
             seen = true;
+        }
+    }
+
+    /** Throws on a {@code return} anywhere in a static initialization block's body.
+     *  A nested function is its own return target, so the descent stops there. */
+    private static void checkNoReturnInStaticBlock(Node node) {
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node child = node.get(i);
+            if (child.isToken() || child.type == NodeType.FN_EXPR || child.type == NodeType.FN_ARROW_EXPR) {
+                continue;
+            }
+            if (child.type == NodeType.RETURN_STMT) {
+                throw new ParserException("'return' is not allowed in a class static initialization block");
+            }
+            checkNoReturnInStaticBlock(child);
         }
     }
 
@@ -2667,6 +2687,12 @@ public class JsParser extends BaseParser {
     // A field has no FN_EXPR — an optional `= EXPR` initializer then ASI; eval
     // distinguishes the two by the presence of the trailing FN_EXPR.
     private boolean class_element() {
+        // ES2022 `static { ... }` — the only class element that is not a key +
+        // value. Two-token lookahead because `static` is a contextual keyword:
+        // `static = 1` and `static() {}` are still a field and a method.
+        if (peekIf(IDENT) && "static".equals(peekToken().getText()) && peekAheadIf(1, L_CURLY)) {
+            return class_static_block();
+        }
         enter(NodeType.CLASS_METHOD);
         boolean async = false;
         boolean generator = false;
@@ -2729,6 +2755,15 @@ public class JsParser extends BaseParser {
         fn_body(async, generator);
         exit();
         return exit();
+    }
+
+    // ES2022 static initialization block — the `static` token plus a BLOCK child.
+    // The body runs at class-definition time, interleaved with the static field
+    // initializers in source order (see Interpreter.runStaticBlock).
+    private boolean class_static_block() {
+        enter(NodeType.CLASS_STATIC_BLOCK);
+        consumeNext(); // `static`
+        return exit(block(true), false);
     }
 
     // Public class field tail: optional `= AssignmentExpression`, ended by `;`

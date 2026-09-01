@@ -1079,6 +1079,15 @@ class Interpreter {
         List<ClassMember> members = new ArrayList<>();
         for (int i = 0, n = node.size(); i < n; i++) {
             Node child = node.get(i);
+            if (child.type == NodeType.CLASS_STATIC_BLOCK) {
+                // rides the member list so it interleaves with the static field
+                // initializers in source order
+                ClassMember block = new ClassMember();
+                block.isStatic = true;
+                block.staticBlock = child;
+                members.add(block);
+                continue;
+            }
             if (child.type != NodeType.CLASS_METHOD) {
                 continue; // CLASS / EXTENDS / name / heritage EXPR / braces / semicolons
             }
@@ -1135,7 +1144,20 @@ class Interpreter {
                 }
             }
             ctor.homeObject = proto; // [[HomeObject]] for super.m() inside the constructor
+            // Bound before the members run: the spec's class-scope ClassName binding is
+            // in place while static field initializers and static blocks execute, so
+            // `static { C.x = 1 }` and `static b = C.a` can name the class.
+            if (className != null) {
+                context.put(className, ctor);
+            }
             for (ClassMember cm : members) {
+                if (cm.staticBlock != null) {
+                    runStaticBlock(cm.staticBlock, ctor, context);
+                    if (context.isError()) {
+                        return Terms.UNDEFINED;
+                    }
+                    continue;
+                }
                 PrivateName pn = cm.privateName;
                 Object keyValue = pn == null ? classMemberKeyValue(cm, context) : pn.name;
                 JsSymbol symKey = JsSymbol.keyedBy(keyValue);
@@ -1225,9 +1247,6 @@ class Interpreter {
                     // class methods are writable + configurable, non-enumerable (spec §15.7)
                     target.defineOwn(key, fn, (byte) (PropertySlot.WRITABLE | PropertySlot.CONFIGURABLE));
                 }
-            }
-            if (className != null) {
-                context.put(className, ctor);
             }
             return ctor;
         } finally {
@@ -1468,6 +1487,24 @@ class Interpreter {
         return result;
     }
 
+    // ES2022 `static { ... }`, run at class-definition time in source order with the
+    // other static elements. The body is function-like: its own frame (so `var` and
+    // let/const declared inside stay inside), `this` = the constructor, and a
+    // synthetic JsFunctionNode whose [[HomeObject]] is the constructor — which is what
+    // makes `super.x` resolve against the parent constructor, as for a static method.
+    // The synthetic function is keyed on the CLASS_STATIC_BLOCK node, so its slot-frame
+    // analysis caches separately from the BLOCK the interpreter evaluates.
+    private static void runStaticBlock(Node blockNode, JsFunctionNode ctor, CoreContext context) {
+        Node body = blockNode.getLast();
+        JsFunctionNode blockFn = new JsFunctionNode(false, blockNode, Collections.emptyList(), body, context, true);
+        blockFn.homeObject = ctor;
+        CoreContext blockContext = new CoreContext(context, blockNode, EMPTY_ARGS, context, null);
+        blockContext.strict = true;
+        blockContext.thisObject = ctor;
+        blockContext.activeFunction = blockFn;
+        blockFn.bindArgsAndExecute(blockContext, context, EMPTY_ARGS);
+    }
+
     // Runs a class's public instance-field initializers on a fresh instance, in
     // declaration order. Base class: before the constructor body. Derived class:
     // immediately after super() returns.
@@ -1541,6 +1578,7 @@ class Interpreter {
         String simpleKey;   // resolved literal key, when not computed (else null)
         Node fnExpr;        // the method's params + body (synthetic FN_EXPR); null for a field
         Node initExpr;      // a field's initializer EXPR; null for a method or a bare field
+        Node staticBlock;   // the CLASS_STATIC_BLOCK node; the only non-null field for one
     }
 
     private static ClassMember analyzeClassMember(Node m) {

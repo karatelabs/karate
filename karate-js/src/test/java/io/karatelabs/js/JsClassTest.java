@@ -634,4 +634,78 @@ class JsClassTest extends EvalBase {
                 + "r = new C().m() } r"));
         assertParseError("o: { class C { m() { break o } } }");
     }
+
+    //==== ES2022 class static initialization blocks
+
+    @Test
+    void testStaticBlockRunsAtClassDefinition() {
+        assertEquals(42, eval("class C { static { this.x = 42 } }\nC.x"));
+    }
+
+    @Test
+    void testStaticBlockThisIsTheConstructor() {
+        assertEquals(true, eval("class C { static { this.self = this } }\nC.self === C"));
+    }
+
+    @Test
+    void testStaticBlockCanAssignViaClassName() {
+        assertEquals(7, eval("class C { static { C.x = 7 } }\nC.x"));
+    }
+
+    @Test
+    void testStaticBlockReadsStaticFieldDeclaredAbove() {
+        assertEquals(3, eval("class C { static a = 1; static { this.b = this.a + 2 } }\nC.b"));
+    }
+
+    @Test
+    void testStaticBlocksInterleaveWithStaticFieldsInSourceOrder() {
+        assertEquals("f1,b1,f2,b2", eval("var log = [];\n"
+                + "class C { static a = log.push('f1'); static { log.push('b1') }\n"
+                + "  static b = log.push('f2'); static { log.push('b2') } }\n"
+                + "log.join(',')"));
+    }
+
+    @Test
+    void testMultipleStaticBlocksRunInOrder() {
+        assertEquals("1,2,3", eval("class C { static v = ''; static { C.v += '1' } static { C.v += ',2' } static { C.v += ',3' } }\nC.v"));
+    }
+
+    @Test
+    void testStaticBlockDeclarationsDoNotLeak() {
+        assertEquals("undefined,undefined", eval("var n = 1;\n"
+                + "class C { static { let n = 2; const m = 3; var v = 4; this.n = n } }\n"
+                + "typeof m + ',' + typeof v"));
+        assertEquals(1, eval("var n = 1;\nclass C { static { let n = 2 } }\nn"));
+    }
+
+    @Test
+    void testStaticBlockSeesEnclosingScopeAndPrivateNames() {
+        assertEquals(5, eval("var k = 5;\nclass C { static #p; static { C.#p = k } static get p() { return C.#p } }\nC.p"));
+    }
+
+    @Test
+    void testStaticBlockThrowPropagates() {
+        assertEquals("boom", eval("try { class C { static { throw new Error('boom') } } } catch (e) { e.message }"));
+    }
+
+    @Test
+    void testStaticBlockSuperProperty() {
+        assertEquals(11, eval("class A { static m() { return 11 } }\n"
+                + "class B extends A { static { this.v = super.m() } }\nB.v"));
+    }
+
+    @Test
+    void testReturnInStaticBlockIsSyntaxError() {
+        assertParseError("class C { static { return } }");
+        // a function nested inside the block keeps its own return
+        assertEquals(4, eval("class C { static { this.f = function () { return 4 } } }\nC.f()"));
+    }
+
+    @Test
+    void testStaticBlockIsNotAFieldNamedStatic() {
+        assertEquals("undefined", eval("class C { static { } }\ntypeof C.static"));
+        // `static` with no member name after it is still an ordinary field name
+        assertEquals(1, eval("class C { static = 1 }\nnew C().static"));
+        assertEquals(2, eval("class C { static() { return 2 } }\nnew C().static()"));
+    }
 }
