@@ -1269,9 +1269,18 @@ ride, and `Interpreter.runStaticBlock` executes the body through a synthetic
 inside stay inside), `this` = the constructor, and `[[HomeObject]]` = the
 constructor, which is what makes `super.x` read off the parent constructor as
 it does for a static method. The class's own name is bound *before* the members
-run, so `static { C.x = 1 }` and `static b = C.a` can name the class. Members are
-still installed in one source-order pass, so neither a static block nor a static
-field can see a method declared textually *below* it.
+run, so `static { C.x = 1 }` and `static b = C.a` can name the class.
+
+**`evalClassExpr` follows the spec's two-phase ClassDefinitionEvaluation shape.**
+Phase 1 walks the members in source order, resolving every key (so computed keys
+still evaluate in source order) and installing the methods, accessors and private
+brands — it *runs* nothing. Phase 2 then executes the static elements, field
+initializers and static blocks alike, in source order. That split is what lets a
+static initializer call a method declared textually below it
+(`class C { static v = C.f(); static f() { … } }`), and it is why a computed key
+is resolved before any initializer runs. Instance fields keep their
+at-construction schedule — phase 1 only registers them on
+`JsFunctionNode.instanceFields`.
 
 **A static block is a function-like boundary for the parse-phase early errors**
 (§15.7.1), all of them per-node helpers of the fused `earlyErrors` walk rooted

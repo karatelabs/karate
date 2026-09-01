@@ -702,6 +702,30 @@ class JsClassTest extends EvalBase {
     }
 
     @Test
+    void testStaticBlockCallsAStaticMethodDeclaredBelowIt() {
+        assertEquals(6, eval("class C { static { this.v = C.twice(3) } static twice(n) { return n * 2 } }\nC.v"));
+        assertEquals(1, eval("class C { static { this.v = C.#p() } static #p() { return 1 } }\nC.v"));
+        assertEquals("hi", eval("class C { static { this.v = C.g } static get g() { return 'hi' } }\nC.v"));
+    }
+
+    @Test
+    void testStaticFieldInitializedFromAStaticMethodDeclaredBelowIt() {
+        assertEquals(8, eval("class C { static v = C.twice(4); static twice(n) { return n * 2 } }\nC.v"));
+    }
+
+    @Test
+    void testComputedKeysEvaluateInSourceOrderBeforeStaticInitializers() {
+        assertEquals("a,b,c,d", eval("var log = [];\nfunction k(n) { log.push(n); return n }\n"
+                + "class C { [k('a')]() {} [k('b')] = 1; static [k('c')]() {} static [k('d')] = 2 }\n"
+                + "log.join(',')"));
+        // every computed key resolves before any static field initializer or block runs
+        assertEquals("k1,k2,init,block", eval("var log = [];\nfunction k(n) { log.push(n); return n }\n"
+                + "class C { static [k('k1')] = log.push('init') && 1; static { log.push('block') }\n"
+                + "  static [k('k2')]() {} }\n"
+                + "log.join(',')"));
+    }
+
+    @Test
     void testBreakAndContinueCannotCrossAStaticBlock() {
         assertParseError("label: while (false) { class C { static { break } } }");
         assertParseError("label: while (false) { class C { static { continue } } }");

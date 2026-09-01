@@ -1150,12 +1150,13 @@ class Interpreter {
             if (className != null) {
                 context.put(className, ctor);
             }
+            // Phase 1 (spec ClassDefinitionEvaluation): resolve every member key — so
+            // computed keys still evaluate in source order — and install the methods and
+            // accessors. Nothing is *run* here: the static field initializers and static
+            // blocks are collected and executed in phase 2 below, which is what lets one
+            // of them call a method declared textually further down the class body.
             for (ClassMember cm : members) {
                 if (cm.staticBlock != null) {
-                    runStaticBlock(cm.staticBlock, ctor, context);
-                    if (context.isError()) {
-                        return Terms.UNDEFINED;
-                    }
                     continue;
                 }
                 PrivateName pn = cm.privateName;
@@ -1167,19 +1168,10 @@ class Interpreter {
                 }
                 if (cm.isField) {
                     // Computed name resolved once here; the value is run per-instance
-                    // (instance fields) or now (static fields).
+                    // (instance fields) or in phase 2 (static fields).
                     if (cm.isStatic) {
-                        Object value = evalFieldInitializer(cm.initExpr, ctor, context);
-                        if (context.isError()) {
-                            return Terms.UNDEFINED;
-                        }
-                        if (symKey != null) {
-                            ctor.defineOwnSymbol(symKey, value, PropertySlot.ATTRS_DEFAULT);
-                        } else if (pn == null) {
-                            ctor.putMember(key, value); // public static fields are enumerable own props
-                        } else {
-                            ctor.putPrivate(pn, value);
-                        }
+                        cm.resolvedKey = key;
+                        cm.resolvedSymbol = symKey;
                     } else {
                         if (ctor.instanceFields == null) {
                             ctor.instanceFields = new ArrayList<>();
@@ -1246,6 +1238,29 @@ class Interpreter {
                 } else {
                     // class methods are writable + configurable, non-enumerable (spec §15.7)
                     target.defineOwn(key, fn, (byte) (PropertySlot.WRITABLE | PropertySlot.CONFIGURABLE));
+                }
+            }
+            // Phase 2: the static elements, in source order — a field initializer and a
+            // static block are the same kind of thing to the spec and interleave.
+            for (ClassMember cm : members) {
+                if (cm.staticBlock != null) {
+                    runStaticBlock(cm.staticBlock, ctor, context);
+                } else if (cm.isField && cm.isStatic) {
+                    Object value = evalFieldInitializer(cm.initExpr, ctor, context);
+                    if (!context.isError()) {
+                        if (cm.resolvedSymbol != null) {
+                            ctor.defineOwnSymbol(cm.resolvedSymbol, value, PropertySlot.ATTRS_DEFAULT);
+                        } else if (cm.privateName == null) {
+                            ctor.putMember(cm.resolvedKey, value); // public static fields are enumerable
+                        } else {
+                            ctor.putPrivate(cm.privateName, value);
+                        }
+                    }
+                } else {
+                    continue;
+                }
+                if (context.isError()) {
+                    return Terms.UNDEFINED;
                 }
             }
             return ctor;
@@ -1579,6 +1594,8 @@ class Interpreter {
         Node fnExpr;        // the method's params + body (synthetic FN_EXPR); null for a field
         Node initExpr;      // a field's initializer EXPR; null for a method or a bare field
         Node staticBlock;   // the CLASS_STATIC_BLOCK node; the only non-null field for one
+        String resolvedKey; // a static field's key, resolved in phase 1, installed in phase 2
+        JsSymbol resolvedSymbol; // the same key when it is a symbol (resolvedKey is its toString)
     }
 
     private static ClassMember analyzeClassMember(Node m) {
