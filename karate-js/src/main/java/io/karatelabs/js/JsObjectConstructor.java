@@ -435,7 +435,7 @@ class JsObjectConstructor extends JsFunction {
         for (String key : keys) {
             result.put(key, buildDescriptor(args[0], key, ownAttrs(args[0], key)));
         }
-        return result;
+        return new JsObject(result);
     }
 
     private static boolean isOwnKey(Object obj, String key) {
@@ -450,8 +450,11 @@ class JsObjectConstructor extends JsFunction {
      * lives at {@code key}, return the accessor shape ({@code get / set /
      * enumerable / configurable}); otherwise return the data shape
      * ({@code value / writable / enumerable / configurable}).
+     * <p>
+     * The result is an ordinary {@link JsObject}, not a raw {@link Map} — JS code
+     * routinely probes a descriptor with {@code 'get' in desc}.
      */
-    private static Map<String, Object> buildDescriptor(Object obj, String key, byte attrs) {
+    private static JsObject buildDescriptor(Object obj, String key, byte attrs) {
         Map<String, Object> desc = new LinkedHashMap<>();
         AccessorSlot acc = ownAccessorSlot(obj, key);
         if (acc != null) {
@@ -463,7 +466,7 @@ class JsObjectConstructor extends JsFunction {
         }
         desc.put("enumerable", (attrs & JsObject.ENUMERABLE) != 0);
         desc.put("configurable", (attrs & JsObject.CONFIGURABLE) != 0);
-        return desc;
+        return new JsObject(desc);
     }
 
     /**
@@ -517,7 +520,7 @@ class JsObjectConstructor extends JsFunction {
     }
 
     /** Descriptor for an own symbol-keyed property, read off its slot. */
-    private static Map<String, Object> buildSymbolDescriptor(JsObject obj, JsSymbol sym) {
+    private static JsObject buildSymbolDescriptor(JsObject obj, JsSymbol sym) {
         PropertySlot slot = obj.ownSymbolSlot(sym);
         Map<String, Object> desc = new LinkedHashMap<>();
         if (slot instanceof AccessorSlot acc) {
@@ -529,7 +532,7 @@ class JsObjectConstructor extends JsFunction {
         }
         desc.put("enumerable", slot.isEnumerable());
         desc.put("configurable", slot.isConfigurable());
-        return desc;
+        return new JsObject(desc);
     }
 
     /** Returns the own {@link AccessorSlot} at {@code key} when one exists,

@@ -627,9 +627,63 @@ class JsObjectTest extends EvalBase {
     }
 
     @Test
+    void testGetOwnPropertyDescriptorDataShapeIsOrdinaryObject() {
+        // The descriptor is an ordinary object, so the `in` operator, hasOwnProperty
+        // and spread all work on it.
+        assertEquals(true, eval(
+                "var d = Object.getOwnPropertyDescriptor({a: 1}, 'a');"
+                        + " 'value' in d && 'writable' in d && !('get' in d) && !('set' in d)"));
+        assertEquals(true, eval(
+                "var d = Object.getOwnPropertyDescriptor({a: 1}, 'a');"
+                        + " d.hasOwnProperty('value') && !d.hasOwnProperty('get')"));
+        assertEquals(1, eval(
+                "var d = Object.getOwnPropertyDescriptor({a: 1}, 'a'); var copy = {...d}; copy.value"));
+        // Spec key order for a data descriptor.
+        assertEquals("value,writable,enumerable,configurable", eval(
+                "Object.keys(Object.getOwnPropertyDescriptor({a: 1}, 'a')).join(',')"));
+    }
+
+    @Test
+    void testGetOwnPropertyDescriptorAccessorShapeIsOrdinaryObject() {
+        assertEquals(true, eval(
+                "var o = { get foo() { return 1; } };"
+                        + " var d = Object.getOwnPropertyDescriptor(o, 'foo');"
+                        + " 'get' in d && 'set' in d && !('value' in d) && !('writable' in d)"));
+        assertEquals(true, eval(
+                "var o = { get foo() { return 1; } };"
+                        + " var d = Object.getOwnPropertyDescriptor(o, 'foo');"
+                        + " d.hasOwnProperty('get') && !d.hasOwnProperty('value')"));
+        assertEquals("function", eval(
+                "var o = { get foo() { return 1; } };"
+                        + " var copy = {...Object.getOwnPropertyDescriptor(o, 'foo')}; typeof copy.get"));
+        // Spec key order for an accessor descriptor.
+        assertEquals("get,set,enumerable,configurable", eval(
+                "var o = { get foo() { return 1; } };"
+                        + " Object.keys(Object.getOwnPropertyDescriptor(o, 'foo')).join(',')"));
+    }
+
+    @Test
+    void testGetOwnPropertyDescriptorAbsentIsUndefined() {
+        assertEquals(true, eval("Object.getOwnPropertyDescriptor({a: 1}, 'missing') === undefined"));
+        assertEquals("undefined", eval("typeof Object.getOwnPropertyDescriptor({a: 1}, 'missing')"));
+    }
+
+    @Test
     void testGetOwnPropertyDescriptors() {
         assertEquals(1, eval("Object.getOwnPropertyDescriptors({a: 1, b: 2}).a.value"));
         assertEquals(2, eval("Object.getOwnPropertyDescriptors({a: 1, b: 2}).b.value"));
+        // Each descriptor — and the container — is an ordinary object.
+        assertEquals(true, eval(
+                "var all = Object.getOwnPropertyDescriptors({a: 1});"
+                        + " 'a' in all && 'value' in all.a && all.a.hasOwnProperty('writable')"));
+    }
+
+    @Test
+    void testGetOwnPropertyDescriptorSymbolKeyIsOrdinaryObject() {
+        assertEquals(true, eval(
+                "var s = Symbol('k'); var o = {}; o[s] = 1;"
+                        + " var d = Object.getOwnPropertyDescriptor(o, s);"
+                        + " 'value' in d && !('get' in d)"));
     }
 
     // -------------------------------------------------------------------------
