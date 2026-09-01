@@ -81,6 +81,11 @@ class ContextRoot implements Context {
      */
     final Object thisObject;
 
+    // `performance` is lazily allocated, so its origin has to be stamped here
+    // instead — timings must be relative to engine creation, not first read
+    private final long nanoOrigin = System.nanoTime();
+    private final double timeOrigin = System.currentTimeMillis();
+
     Consumer<String> onConsoleLog;
 
     ContextListener listener;
@@ -156,7 +161,7 @@ class ContextRoot implements Context {
                  "Object", "Promise", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
                  "SyntaxError", "URIError", "EvalError", "AggregateError", "WeakMap", "WeakSet",
                  "TextEncoder", "TextDecoder", "Uint8Array", "globalThis",
-                 "setTimeout", "clearTimeout",
+                 "setTimeout", "clearTimeout", "structuredClone", "performance",
                  "isNaN", "isFinite", "eval", "Symbol", "Reflect" -> true;
             default -> false;
         };
@@ -354,6 +359,8 @@ class ContextRoot implements Context {
             case "JSON" -> new JsJson();
             case "Math" -> new JsMath();
             case "NaN" -> Double.NaN;
+            case "performance" -> new JsPerformance(nanoOrigin, timeOrigin);
+            case "structuredClone" -> new JsBuiltinMethod("structuredClone", 1, JsStructuredClone::call);
             case "TextDecoder" -> new JsTextDecoder();
             case "TextEncoder" -> new JsTextEncoder();
             case "Uint8Array" -> new JsUint8Array(0);

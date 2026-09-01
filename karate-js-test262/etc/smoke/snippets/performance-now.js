@@ -1,0 +1,10 @@
+if (typeof performance !== 'object') throw new Error('typeof');
+if (typeof performance.now !== 'function') throw new Error('now');
+const a = performance.now();
+if (typeof a !== 'number' || a < 0) throw new Error('non-negative ' + a);
+let x = 0;
+for (let i = 0; i < 200000; i++) x += i;
+const b = performance.now();
+if (b <= a) throw new Error('monotonic ' + a + ' ' + b);
+if (x <= 0) throw new Error('loop ' + x);
+if (!(performance.timeOrigin > 0)) throw new Error('timeOrigin');
