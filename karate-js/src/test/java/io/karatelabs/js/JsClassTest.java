@@ -765,6 +765,29 @@ class JsClassTest extends EvalBase {
         assertEquals("3,4", eval("class C { static { var o = { await: 3 }; this.v = o.await + ',' + ({ await() { return 4 } }).await() } }\nC.v"));
         // a function's parameters are [~Await]; only its name is not
         assertEquals(5, eval("class C { static { this.f = function (await) { return await } } }\nC.f(5)"));
+        assertEquals(6, eval("class C { static { var o = { await: 6 }; this.v = o?.await } }\nC.v"));
+        assertEquals(7, eval("class C { static { class D { await = 7 } this.v = new D().await } }\nC.v"));
+    }
+
+    @Test
+    void testEachClassEvaluationGetsItsOwnStaticState() {
+        assertEquals("1,2,2,3", eval("function mk(v) { return class { static x = v; static { this.y = this.x + 1 } } }\n"
+                + "var A = mk(1), B = mk(2);\n[A.x, A.y, B.x, B.y].join(',')"));
+        assertEquals("0,10,20", eval("var r = [];\n"
+                + "for (var i = 0; i < 3; i++) { r.push((class { static x = i; static { this.y = this.x * 10 } }).y) }\n"
+                + "r.join(',')"));
+        // a private static name is a fresh identity per evaluation
+        assertEquals("1,2", eval("function mk(v) { return class { static #p = v; static { this.v = this.#p } } }\n"
+                + "mk(1).v + ',' + mk(2).v"));
+    }
+
+    @Test
+    void testStaticBlockThrowLeavesTheNextClassUnaffected() {
+        assertEquals("p,true", eval("try { class A { static { throw new Error('boom') } } } catch (e) {}\n"
+                + "class P { static m() { return 'p' } }\n"
+                + "class Q extends P { static { this.v = super.m() + ',' + (this === Q) } }\nQ.v"));
+        assertEquals(true, eval("try { class A { static { throw new Error('boom') } } } catch (e) {}\n"
+                + "this === globalThis"));
     }
 
     @Test
