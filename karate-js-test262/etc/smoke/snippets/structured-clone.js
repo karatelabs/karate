@@ -19,6 +19,17 @@ if (!(c.m instanceof Map) || c.m.get('k').deep !== 1 || c.m.get('k') === src.m.g
 if (!(c.set instanceof Set) || c.set.size !== 2 || !c.set.has('two')) throw new Error('set');
 if (!(c.re instanceof RegExp) || c.re.source !== 'ab+c' || c.re.flags !== 'gi') throw new Error('regexp');
 
+const arr = [0, , 2];
+arr.extra = { n: 1 };
+const ac = structuredClone(arr);
+if (ac.length !== 3 || (1 in ac)) throw new Error('sparse');
+if (ac.extra.n !== 1 || ac.extra === arr.extra) throw new Error('array named prop');
+
+// a user subclass keeps `instanceof Error`, not `instanceof AppError`
+class AppError extends Error {}
+const ec = structuredClone(new AppError('boom'));
+if (!(ec instanceof Error) || ec.message !== 'boom') throw new Error('error subclass');
+
 const cyclic = { name: 'root' };
 cyclic.self = cyclic;
 cyclic.kids = [cyclic];

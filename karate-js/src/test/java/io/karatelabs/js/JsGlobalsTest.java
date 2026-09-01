@@ -41,6 +41,27 @@ class JsGlobalsTest extends EvalBase {
     }
 
     @Test
+    void testStructuredCloneArrayOwnProperties() {
+        assertEquals(true, eval("const a = [0]; a.extra = { n: 1 }; const c = structuredClone(a);"
+                + " c.extra.n === 1 && c.extra !== a.extra"));
+        assertEquals(true, eval("const a = [0]; a.self = a; const c = structuredClone(a);"
+                + " c.self === c && c[0] === 0"));
+        assertEquals(2, eval("const a = [0];"
+                + " Object.defineProperty(a, '0', { enumerable: true, configurable: true,"
+                + " get() { return { n: 2 } } });"
+                + " structuredClone(a)[0].n"));
+    }
+
+    @Test
+    void testStructuredCloneSparseArray() {
+        assertEquals(true, eval("const a = [0, , 2]; const c = structuredClone(a);"
+                + " c.length === 3 && (1 in c) === false && c[0] === 0 && c[2] === 2"));
+        // a trailing hole carries no own key, so only length preserves it
+        assertEquals(true, eval("const a = [0]; a.length = 4; const c = structuredClone(a);"
+                + " c.length === 4 && (3 in c) === false"));
+    }
+
+    @Test
     void testStructuredCloneDate() {
         assertEquals(true, eval("const d = new Date(1700000000000); const c = structuredClone({ d: d }).d;"
                 + " c instanceof Date && c !== d && c.getTime() === 1700000000000"));
@@ -56,6 +77,12 @@ class JsGlobalsTest extends EvalBase {
         // an object element keeps its identity relative to the rest of the clone
         assertEquals(true, eval("const o = { x: 1 }; const m = new Map([['a', o], ['b', o]]);"
                 + " const c = structuredClone(m); c.get('a') === c.get('b') && c.get('a') !== o"));
+        // the same source object used as both key and value stays one object
+        assertEquals(true, eval("const o = { x: 1 }; const m = new Map([[o, o]]);"
+                + " const c = structuredClone(m); const k = [...c.keys()][0];"
+                + " k !== o && c.get(k) === k"));
+        assertEquals(true, eval("const m = new Map(); const a = [m]; m.set('back', a);"
+                + " const c = structuredClone(m); c.get('back')[0] === c"));
     }
 
     @Test
@@ -69,6 +96,14 @@ class JsGlobalsTest extends EvalBase {
     void testStructuredCloneError() {
         assertEquals(true, eval("const e = new TypeError('boom'); const c = structuredClone(e);"
                 + " c instanceof TypeError && c !== e && c.name === 'TypeError' && c.message === 'boom'"));
+        // a user subclass clones onto the nearest built-in Error prototype, so
+        // `instanceof AppError` is lost by design while `instanceof Error` holds
+        assertEquals(true, eval("class AppError extends Error {}"
+                + " const e = new AppError('boom'); const c = structuredClone(e);"
+                + " c instanceof Error && !(c instanceof AppError) && c.message === 'boom'"));
+        assertEquals(true, eval("class AppError extends Error { constructor(m, code) { super(m);"
+                + " this.code = code } } const c = structuredClone(new AppError('boom', 42));"
+                + " c instanceof Error && c.code === 42 && c.message === 'boom'"));
     }
 
     @Test

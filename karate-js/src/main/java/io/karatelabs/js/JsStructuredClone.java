@@ -80,8 +80,13 @@ final class JsStructuredClone {
         if (value instanceof JsArray a) {
             JsArray copy = new JsArray(new ArrayList<>(a.list.size()));
             memo.put(value, copy);
-            for (Object e : a.list) {
-                copy.list.add(clone(e, memo, ctx));
+            // jsEntries is the spec own-key walk: holes are skipped, index
+            // accessors resolve through their getter, and named props follow —
+            // reading a.list directly would miss all three
+            copyOwn(a.jsEntries(ctx), copy, memo, ctx);
+            // trailing holes carry no own key, so length has to be restored
+            while (copy.list.size() < a.list.size()) {
+                copy.list.add(JsArray.HOLE);
             }
             return copy;
         }
@@ -91,7 +96,7 @@ final class JsStructuredClone {
             for (Map.Entry<Object, Object> e : m.entries.entrySet()) {
                 copy.setValue(clone(e.getKey(), memo, ctx), clone(e.getValue(), memo, ctx));
             }
-            copyOwn(m, copy, memo, ctx);
+            copyOwn(m.jsEntries(ctx), copy, memo, ctx);
             return copy;
         }
         if (value instanceof JsSet s) {
@@ -100,26 +105,27 @@ final class JsStructuredClone {
             for (Object e : s.elements.keySet()) {
                 copy.addValue(clone(e, memo, ctx));
             }
-            copyOwn(s, copy, memo, ctx);
-            return copy;
-        }
-        if (value instanceof JsError e) {
-            // the prototype carries `name` and `constructor`, so reusing it is
-            // what keeps `instanceof TypeError` true on the clone
-            JsError copy = e.getPrototype() instanceof JsErrorPrototype p
-                    ? new JsError(p) : new JsError(JsErrorPrototype.ERROR);
-            memo.put(value, copy);
-            // `message` is non-enumerable, so it never shows up in copyOwn
-            if (e.isOwnProperty("message")) {
-                copy.defineOwn("message", e.getMember("message"), DATA_ATTRS);
-            }
-            copyOwn(e, copy, memo, ctx);
+            copyOwn(s.jsEntries(ctx), copy, memo, ctx);
             return copy;
         }
         if (value instanceof JsObject o) {
+            JsErrorPrototype ep = builtinErrorPrototype(o);
+            if (ep != null) {
+                // per HTML, an error clones onto the nearest BUILT-IN error
+                // prototype — `class AppError extends Error` legitimately loses
+                // `instanceof AppError`, but `instanceof Error` must hold
+                JsError copy = new JsError(ep);
+                memo.put(value, copy);
+                // `message` is normally non-enumerable, so copyOwn misses it
+                if (o.isOwnProperty("message")) {
+                    copy.defineOwn("message", o.getMember("message"), DATA_ATTRS);
+                }
+                copyOwn(o.jsEntries(ctx), copy, memo, ctx);
+                return copy;
+            }
             JsObject copy = new JsObject();
             memo.put(value, copy);
-            copyOwn(o, copy, memo, ctx);
+            copyOwn(o.jsEntries(ctx), copy, memo, ctx);
             return copy;
         }
         if (value instanceof Map<?, ?> m) {
@@ -146,11 +152,21 @@ final class JsStructuredClone {
         return copy;
     }
 
-    private static void copyOwn(JsObject source, ObjectLike target,
+    private static void copyOwn(Iterable<KeyValue> entries, ObjectLike target,
                                 IdentityHashMap<Object, Object> memo, CoreContext ctx) {
-        for (KeyValue kv : source.jsEntries(ctx)) {
+        for (KeyValue kv : entries) {
             target.putMember(kv.key(), clone(kv.value(), memo, ctx));
         }
+    }
+
+    /** Nearest built-in error prototype on {@code o}'s chain, or null. */
+    private static JsErrorPrototype builtinErrorPrototype(JsObject o) {
+        for (ObjectLike p = o.getPrototype(); p != null; p = p.getPrototype()) {
+            if (p instanceof JsErrorPrototype ep) {
+                return ep;
+            }
+        }
+        return null;
     }
 
     private static Object boxed(JsPrimitive jp) {
