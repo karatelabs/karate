@@ -129,9 +129,11 @@ final class JsStructuredClone {
                 }
                 // jsEntries resolves each value as it yields, which would fire an
                 // enumerable `message` getter the spec never Gets — so the key is
-                // filtered here, before any read
+                // filtered here, before any read. A getter can delete a later key
+                // mid-walk; the snapshot survives, so re-check own-ness (tombstone
+                // aware) before reading, or an absent key would clone as `undefined`
                 for (String key : JsObject.orderedOwnKeys(o.keySet())) {
-                    if ("message".equals(key) || !o.isEnumerable(key)) {
+                    if ("message".equals(key) || !o.isOwnProperty(key) || !o.isEnumerable(key)) {
                         continue;
                     }
                     copy.putMember(key, clone(o.getMember(key, o, ctx), memo, ctx));

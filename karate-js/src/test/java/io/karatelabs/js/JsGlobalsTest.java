@@ -130,6 +130,13 @@ class JsGlobalsTest extends EvalBase {
                 + " Object.defineProperty(e, 'message',"
                 + " { configurable: true, enumerable: true, get() { throw new Error('nope') } });"
                 + " structuredClone(e).message"));
+        // a getter that deletes a later key mid-clone must not leave a phantom
+        // own property on the clone
+        assertEquals(true, eval("const e = new Error();"
+                + " Object.defineProperty(e, 'a',"
+                + " { enumerable: true, configurable: true, get() { delete e.b; return 1 } });"
+                + " e.b = 2; const c = structuredClone(e);"
+                + " c.a === 1 && !Object.hasOwn(c, 'b')"));
     }
 
     @Test
