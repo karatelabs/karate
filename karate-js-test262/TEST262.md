@@ -150,7 +150,7 @@ Each session that touches the engine should:
    `--only` invocation *is* the baseline; pin its run-dir in the commit
    so the next session has a diff target.
 2. **Unit tests:** `mvn -f pom.xml -pl karate-js -o test` →
-   `Tests run: 1265+, Failures: 0, Errors: 0, Skipped: 2` (count grows as
+   `Tests run: 1747+, Failures: 0, Errors: 0, Skipped: 2` (count grows as
    `SpecPinTest` accretes invariants). **If you edited
    `etc/expectations.yaml` or anything under this module's `src/`, also
    run `mvn -f ../pom.xml -pl karate-js-test262 -o test`** — the harness
@@ -269,46 +269,48 @@ repro was independently verified against HEAD before being listed.
 The symbol-store session (`f7a568523`) probed the engine from the outside — a
 downstream prototype ran real JS against the shipped jar — and this is what it
 found, ranked by how often LLM-written or customer JS hits it per hour of fix,
-not by spec distance. Everything here was verified against HEAD; the last
-group is named so it is not picked up by accident.
+not by spec distance. *(2026-09-01: the first five items shipped or closed in
+one sweep — `structuredClone` (cycle-preserving, `DataCloneError` for
+functions/symbols) + `performance.now()` as real globals; the ASI-`[`/`(`
+continuation hint appended to parse errors plus JS-shaped
+`X is not a function` messages replacing the `cannot call: [NODE]` leak;
+`Object.getOwnPropertyDescriptor` returns a real `JsObject` so `'get' in desc`
+works; `JsArray.toMap()` is the honest own-property view (index keys then
+named — `Object.keys`/for-in/JSON unchanged, `ObjectLike` javadoc carries the
+contract: an array's primary host conversion is the `List`); the
+trailing-comment lexer item was found **already fixed** — comment groups
+attach to the EOF token, reachable via `Token.getComments()`. Class static
+initialization blocks shipped the same day — see the class TODO below.)*
 
-1. **`structuredClone()` and `performance.now()` are absent** (P1 — surface
-   LLMs write constantly). Both are `ReferenceError` today; modern LLM output
-   reaches for `structuredClone(x)` as *the* deep copy and `performance.now()`
-   for timing, and a check or rulebook dies on the first line. `structuredClone`
-   over the JSON-safe subset plus `Date`/`Map`/`Set`/`RegExp` with cycle
-   detection (`DataCloneError` for functions/symbols per the HTML spec) is a
-   morning; `performance.now()` is `System.nanoTime()` behind a `performance`
-   object — an hour. Highest value per hour on this list.
-2. **The ASI-`[` / ASI-`(` error message** (P2 — error UX). A line that starts
-   with `[` or `(` continues the previous statement — real JS does the same —
-   but the failure surfaces as a raw parser dump that names neither cause nor
-   fix. LLMs omit semicolons; a downstream drive measured this costing a run
-   three iterations. The message names the line, says "the previous line has no
-   `;` and this line starts with `[`", and shows the fix. Message only — the
-   behaviour is spec.
-3. **`Object.getOwnPropertyDescriptor` returns a raw Java `Map`** (P0 —
-   silent wrong answer): `'get' in desc` throws, `desc.hasOwnProperty` is
-   absent, spreading a descriptor loses it. Real idiom in cloning/decorator
-   code. Small; details under [Engine — spec alignment](#engine--spec-alignment).
-4. **`BaseLexer` drops a comment after the last primary token.** A trailing
-   file comment is unreachable from the token stream; the downstream formatter
-   works around it with a raw-tail scan. Flush to the EOF token. Small.
-5. **`JsArray` is both `ObjectLike` and `List`, and `toMap()` drops the
-   elements** — the Java bridge, not the language: an embedder that inspects a
-   result by `instanceof ObjectLike` first renders an array as `{}` and carries a
-   check-`List`-first workaround forever. Fix the bridge so an array's primary
-   conversion is the list; one contract, every consumer.
-6. **Well-known symbols off their `"@@…"` string keys** — P0 but narrow:
+1. **Well-known symbols off their `"@@…"` string keys** — P0 but narrow:
    `Object.keys` of any object or class instance carrying `[Symbol.iterator]()`
    shows a phantom `"@@iterator"` key. Real code writes iterables; it rarely
    enumerates them. The cost is rewriting the `IterUtils`/`Terms` dispatch that
    is built on the strings — pull it when a real case bites, not for the slice
    counts, and do the `PropertyKey` unification in the same cut.
-7. **Downstream asks, product-driven:** a `COMPARE` event for membership
+2. **Downstream asks, product-driven:** a `COMPARE` event for membership
    (`in`, `.includes()`) so the branch-learning explorer can witness that
    spelling; `Reflect.get/set/has/deleteProperty` only alongside `Proxy` and only
    if a real library needs them.
+
+**From the 2026-09-01 karate-ext embedder audit** (karate-max alone carries
+nine hand-rolled JS→Java walkers, each re-deriving the same dual-identity
+rules; each item below deletes named downstream workarounds):
+
+- **One engine-owned host-conversion API** — JS value → plain
+  `LinkedHashMap`/`ArrayList`, cycle-guarded, functions/symbols refused.
+  `JsStructuredClone`'s walk is the natural seed. The single highest-leverage
+  embedder item.
+- **`JsFunction` must not present as `java.util.Map`** — embedder
+  type-dispatch has to skip functions by hand before every Map arm.
+- **Structured errors** — the unresolved identifier on a ReferenceError, the
+  callee text on a not-a-function TypeError, and an engine-raised-vs-user
+  flag, as accessors on `EngineException`; downstream currently regexes them
+  out of message prose at six sites.
+- **Small API asks:** multi-listener `Engine.addListener` (a tee-listener
+  workaround exists), an `Engine.resolves(name)` binding probe (replaces a
+  `typeof X !== 'undefined'` eval), an eval deadline/interrupt (the embedder
+  wall-clock-boxes eval because the engine offers none).
 
 **Deliberately last — conformance, not real life:** `Symbol.prototype` /
 `description` / the registry, cross-realm well-known identity, `Symbol.species`
@@ -445,10 +447,18 @@ sites — block comments containing a newline count for ASI); rest params
 with destructuring patterns (`f(...[a, b])`, parse + binding via the
 `evalAssign` seam). The unary-base-of-`**` early error (one fused-walk
 arm) shipped in the external-review round-1 commit — all 7
-`exp-operator-syntax-error-*` negatives PASS. Still open from the
-batch: **class static initialization
-blocks** `static { ... }` — parser rejects with "class member name"
-(also the #2 gap inside the class skip-shadow).)*
+`exp-operator-syntax-error-*` negatives PASS. The batch's last item —
+**class static initialization blocks** — shipped 2026-09-01: `static { ... }`
+parses (two-token lookahead, so `static = 1` / `static() {}` keep their
+meaning), blocks interleave with static fields in source order, `this` is the
+constructor, `super.m()` works via `homeObject`, and the block is a
+function-like boundary in the fused early-error walk (`break`/`continue`
+cannot cross it; `await` is reserved inside — `arguments`-in-block rejection
+deliberately skipped). Same landing moved `evalClassExpr` to the spec's
+two-phase ClassDefinitionEvaluation shape: all member keys resolve and
+methods install before any static initializer runs, so a static block can
+call a static method declared below it. Pinned by `JsClassTest`; the batch
+is closed.)*
 *(P1.2 labeled statements shipped 2026-08-12 — LABELLED_STMT node,
 label-aware break/continue via CoreContext.exitLabel, and the full
 label early-error family in the fused walk: undefined/duplicate labels,
@@ -509,10 +519,12 @@ first read; a non-enumerable writable intrinsic, so it stays out of
 become JS values in `evalTryStmt`; `class X extends Error` carries it via
 the copy-shim.)*
 
-- **Harness (principle #3):** thrown non-Error *primitives*
-  (`throw "str"`) classify as `Unknown` in `ErrorUtils` — all 8 current
-  Unknown rows are this, not Java leaks. Add a `ThrownValue` bucket so
-  `Unknown` stays reserved for genuine engine crashes.
+*(Harness `ThrownValue` bucket shipped 2026-09-01: an `EngineException` with
+a JS message but no JS error name — a thrown non-Error value — now classifies
+as `ThrownValue`; the 8 former `Unknown` rows moved over, and `Unknown` is
+reserved for genuine engine crashes. Negative-test matching treats
+`ThrownValue` as leniently as unclassified, so no test moved between pass
+and fail.)*
 
 ### Deprioritized spec-conformance backlog
 
@@ -698,7 +710,11 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   `extends Error`/built-ins via a copy-own-props shim). Covered by `JsClassTest`.
   Private `#x` fields/methods/accessors and derived-class parent-field
   initialization shipped 2026-08-12 (see JS_ENGINE.md § the class section).
-  **Remaining tail:** decorators, static-init blocks, class early-errors,
+  Static initialization blocks shipped 2026-09-01 with the two-phase
+  ClassDefinitionEvaluation shape (methods install before static initializers
+  run; see the P1.2 note under Active priorities).
+  **Remaining tail:** decorators, class early-errors (`arguments` inside a
+  static block among them),
   object-literal-method `super` (needs object [[HomeObject]]), two super edge
   cases (`this`-TDZ before `super()`, `super()` return-override),
   numeric/string-literal method-name canonicalization (`get 0x10(){}` → key
@@ -785,17 +801,6 @@ Observably non-spec; pick up when the owning slice surfaces them.
 - **`ToPropertyKey` no-ctx callers** — `JsObjectConstructor.hasOwn` and
   `getOwnPropertyDescriptor` still on the no-ctx path. Migrate when a
   workload passes non-string keys.
-- **`Object.getOwnPropertyDescriptor` returns a raw Java `Map`, not a
-  `JsObject`** (`JsObjectConstructor.buildDescriptor`), so `'get' in desc`
-  throws `Cannot use 'in' operator` and `desc.hasOwnProperty` is absent —
-  string and symbol keys alike. Return a `JsObject` built through the ordinary
-  path; one test per descriptor shape.
-- **`BaseLexer.tokenize` drops a comment after the last primary token** —
-  the comment buffer is attached to the *next* primary token and is never
-  flushed at EOF, so a trailing file comment is unreachable from the token
-  stream. Flush to the EOF token (it is primary). The consumer that needs it
-  is a source formatter in a downstream repo, which scans the raw tail until
-  this lands.
 - **Integer-index accessors beyond `JsArray.list.size()`** — high-index
   accessor via `defineProperty` is missed by `jsEntries`. Current
   workaround: `defineOwnAccessor` HOLE-pads. Real fix: merge integer-index
@@ -1151,7 +1156,7 @@ lookups (one test, one symbol) — run those inline.
 
 ### Real-world smoke battery
 
-A ~64-snippet battery of idiomatic modern JS (the constructs LLMs actually
+A ~67-snippet battery of idiomatic modern JS (the constructs LLMs actually
 emit: arrows, destructuring, spread, optional chaining, classes, async,
 generators, regex named groups, …), each snippet self-checking and throwing
 on a wrong result. Lives in [`etc/smoke/`](etc/smoke/) — `Smoke.java` evals
