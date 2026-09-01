@@ -12,7 +12,8 @@ import io.karatelabs.js.EngineException;
  * {@code JavaUtils.java}, {@code Prototype.java}, {@code JsNumberPrototype.java}).
  * <p>
  * Returns one of:
- * {@code "SyntaxError" | "TypeError" | "ReferenceError" | "RangeError" | "URIError" | "EvalError" | "Error"}
+ * {@code "SyntaxError" | "TypeError" | "ReferenceError" | "RangeError" | "URIError" | "EvalError" | "Error"
+ * | "ThrownValue"}
  * — or {@code null} if nothing recognizable is found.
  */
 public final class ErrorUtils {
@@ -24,17 +25,37 @@ public final class ErrorUtils {
             "RangeError", "URIError", "EvalError", "Error"
     };
 
+    /**
+     * Bucket for a JS {@code throw} of a value that is not an Error object —
+     * {@code throw 'str'}, {@code throw 42}, {@code throw {}}. A real JS-origin
+     * failure with no error constructor name to report, so it must not land in
+     * the unclassified bucket reserved for genuine engine crashes.
+     */
+    public static final String THROWN_VALUE = "ThrownValue";
+
     /** @return canonical error type name, or {@code null} if unrecognized. */
     public static String classify(Throwable t) {
         // Walk the cause chain for any EngineException carrying a structured JS error name.
+        // An EngineException with no name but a JS-side message is the thrown-non-Error
+        // case: Interpreter.errorAsException fills jsMessage from the thrown value itself
+        // and leaves jsErrorName null, whereas a Java-origin crash has both null.
+        boolean thrownValue = false;
         Throwable cur = t;
         while (cur != null) {
-            if (cur instanceof EngineException ee && ee.getJsErrorName() != null) {
-                return canonicalize(ee.getJsErrorName());
+            if (cur instanceof EngineException ee) {
+                if (ee.getJsErrorName() != null) {
+                    return canonicalize(ee.getJsErrorName());
+                }
+                if (ee.getJsMessage() != null) {
+                    thrownValue = true;
+                }
             }
             Throwable next = cur.getCause();
             if (next == cur) break;
             cur = next;
+        }
+        if (thrownValue) {
+            return THROWN_VALUE;
         }
         // Fallback: message-prefix scan (catches engine-origin "TypeError: ..." etc.).
         cur = t;

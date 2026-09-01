@@ -1,5 +1,6 @@
 package io.karatelabs.js.test262;
 
+import io.karatelabs.js.Engine;
 import io.karatelabs.js.EngineException;
 import org.junit.jupiter.api.Test;
 
@@ -79,6 +80,49 @@ class ErrorUtilsTest {
         Throwable inner = new RuntimeException("TypeError: deep");
         Throwable outer = new RuntimeException("generic wrapper", inner);
         assertEquals("TypeError", ErrorUtils.classify(outer));
+    }
+
+    @Test
+    void testClassifyThrownNonErrorValue() {
+        // A JS-side message with no error name is a thrown non-Error value.
+        EngineException ee = new EngineException("js failed: boom", null, null, "boom");
+        assertEquals("ThrownValue", ErrorUtils.classify(ee));
+    }
+
+    @Test
+    void testClassifyThrownValueWalksCauseChain() {
+        EngineException inner = new EngineException("js failed: 42", null, null, "42");
+        assertEquals("ThrownValue", ErrorUtils.classify(new RuntimeException("wrapped", inner)));
+    }
+
+    @Test
+    void testStructuredNameBeatsThrownValue() {
+        EngineException ee = new EngineException("js failed: x", null, "TypeError", "x");
+        assertEquals("TypeError", ErrorUtils.classify(ee));
+    }
+
+    @Test
+    void testEngineCrashStaysUnclassified() {
+        // Neither name nor JS-side message — a Java-origin crash, not a JS throw.
+        assertNull(ErrorUtils.classify(new EngineException("something weird happened", null)));
+    }
+
+    @Test
+    void testClassifyThrownStringFromEngine() {
+        Throwable t = assertThrows(Throwable.class, () -> new Engine().eval("throw 'boom'"));
+        assertEquals("ThrownValue", ErrorUtils.classify(t));
+    }
+
+    @Test
+    void testClassifyThrownNumberFromEngine() {
+        Throwable t = assertThrows(Throwable.class, () -> new Engine().eval("throw 42"));
+        assertEquals("ThrownValue", ErrorUtils.classify(t));
+    }
+
+    @Test
+    void testClassifyThrownErrorFromEngineKeepsItsName() {
+        Throwable t = assertThrows(Throwable.class, () -> new Engine().eval("throw new TypeError('x')"));
+        assertEquals("TypeError", ErrorUtils.classify(t));
     }
 
     @Test

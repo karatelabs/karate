@@ -525,8 +525,13 @@ public final class Test262Runner {
             // for non-EngineException throwables (parser errors and host exceptions).
             String msg = ErrorUtils.firstLine(re, type, 200);
             if (neg != null) {
+                // ThrownValue carries no error-constructor name to compare against
+                // neg.type(), so it stays exactly as lenient as the unclassified case
+                // it was split out of — the split renames the bucket, it does not
+                // change which negative tests pass.
                 if (!"parse".equals(neg.phase())
-                        && (neg.type() == null || neg.type().equals(type) || type == null)) {
+                        && (neg.type() == null || neg.type().equals(type) || type == null
+                        || ErrorUtils.THROWN_VALUE.equals(type))) {
                     return ResultRecord.pass(path);
                 }
                 // A parse-phase negative test that parsed (we're in the runtime catch,
