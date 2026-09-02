@@ -37,6 +37,10 @@ class RequestHandlerTest {
         resources.put("api/session.js", "context.init(); response.body = { sessionId: context.sessionId }");
         resources.put("api/check-session.js", "response.body = { hasSession: !!session, sessionId: context.sessionId }");
         resources.put("api/redirect.js", "context.redirect('/other')");
+        // response.body is a live view — an in-place mutation of what was read is served
+        resources.put("api/overlay.js", "response.body = { name: 'a' }; response.body.status = 'PENDING'");
+        resources.put("api/overlay-assign.js",
+                "response.body = { name: 'a' }; var b = response.body; b.status = 'PENDING'; response.body = b");
         resources.put("pub/app.js", "console.log('app');");
         resources.put("pub/style.css", "body { color: red; }");
 
@@ -111,6 +115,28 @@ class RequestHandlerTest {
         String body = response.getBodyString();
         assertTrue(body.contains("hello"));
         assertTrue(body.contains("world"));
+    }
+
+    @Test
+    void testApiHandlerMutatesResponseBodyInPlace() {
+        // the overlay idiom: take the pre-filled body and tweak one field
+        HttpResponse response = get("/api/overlay");
+
+        assertEquals(200, response.getStatus());
+        String body = response.getBodyString();
+        assertTrue(body.contains("\"status\":\"PENDING\""), body);
+        assertTrue(body.contains("\"name\":\"a\""), body);
+    }
+
+    @Test
+    void testApiHandlerAssignsBodyBack() {
+        // read / change / assign back stays valid — the same served result
+        HttpResponse response = get("/api/overlay-assign");
+
+        assertEquals(200, response.getStatus());
+        String body = response.getBodyString();
+        assertTrue(body.contains("\"status\":\"PENDING\""), body);
+        assertTrue(body.contains("\"name\":\"a\""), body);
     }
 
     @Test

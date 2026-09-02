@@ -64,6 +64,15 @@ public class HttpResponse implements ObjectLike {
     // this response — the `response` variable, JS member access, evidence toMap() — converts
     // identically. Default false = the V1-compatible lenient sniff.
     private boolean strictParsing;
+    // the converted body, cached on first read so that `response.body` is a LIVE view: an in-place
+    // mutation in a handler (response.body.x = 1) is seen by every later read AND by the bytes served.
+    // Only a mutable shape (Map / List / XML Node) is cached — a String or a number cannot be changed
+    // in place, so it stays a plain per-read conversion.
+    private Object bodyConverted;
+    // what bodyConverted serialized to at conversion time — the mutation check used by syncBody().
+    // A parse/serialize round-trip is not identity (whitespace, key order), so an untouched body must
+    // keep its original bytes on the wire.
+    private byte[] bodyConvertedBytes;
 
     public ResourceType getResourceType() {
         if (resourceType == null) {
@@ -184,15 +193,41 @@ public class HttpResponse implements ObjectLike {
     }
 
     public Object getBody() {
+        syncBody();
         return body;
     }
 
     public byte[] getBodyBytes() {
+        syncBody();
         return Json.toBytes(body);
     }
 
     public String getBodyString() {
+        syncBody();
         return FileUtils.toString(Json.toBytes(body));
+    }
+
+    /**
+     * Fold an in-place mutation of the cached converted body back into the raw bytes, so every
+     * path that produces bytes — the wire, the log, {@code bodyString} — sees it. Bytes are
+     * re-serialized only when the object no longer matches what it was parsed from, so a caller
+     * that never mutates keeps its original bytes exactly.
+     */
+    private void syncBody() {
+        if (bodyConverted == null) {
+            return;
+        }
+        byte[] now = Json.toBytes(bodyConverted);
+        if (!Arrays.equals(now, bodyConvertedBytes)) {
+            body = now;
+            bodyConvertedBytes = now;
+        }
+    }
+
+    /** Drop the cached converted body — any write of the raw bytes or of what drives the conversion. */
+    private void invalidateBodyConverted() {
+        bodyConverted = null;
+        bodyConvertedBytes = null;
     }
 
     /**
@@ -206,6 +241,7 @@ public class HttpResponse implements ObjectLike {
     public void setBody(byte[] body, ResourceType type) {
         this.body = body;
         this.resourceType = type;
+        invalidateBodyConverted();
         if (type != null) {
             setContentType(applyCharset(type));
         }
@@ -239,10 +275,17 @@ public class HttpResponse implements ObjectLike {
         if (rt != null && rt.isBinary()) {
             return body;
         }
-        if (strictParsing) {
-            return HttpUtils.fromBytesDeclared(body, rt);
+        if (bodyConverted != null) {
+            return bodyConverted;
         }
-        return HttpUtils.fromBytes(body, false, rt);
+        Object converted = strictParsing
+                ? HttpUtils.fromBytesDeclared(body, rt)
+                : HttpUtils.fromBytes(body, false, rt);
+        if (converted instanceof Map || converted instanceof List || converted instanceof Node) {
+            bodyConverted = converted;
+            bodyConvertedBytes = Json.toBytes(converted);
+        }
+        return converted;
     }
 
     public boolean isStrictParsing() {
@@ -251,6 +294,7 @@ public class HttpResponse implements ObjectLike {
 
     public void setStrictParsing(boolean strictParsing) {
         this.strictParsing = strictParsing;
+        invalidateBodyConverted();
     }
 
     public long getResponseTime() {
@@ -263,6 +307,7 @@ public class HttpResponse implements ObjectLike {
 
     public void setResourceType(ResourceType resourceType) {
         this.resourceType = resourceType;
+        invalidateBodyConverted();
     }
 
     public int getDelay() {
@@ -431,7 +476,7 @@ public class HttpResponse implements ObjectLike {
             case "headerValues" -> headerValues();
             case "body" -> getBodyConverted();
             case "bodyString" -> getBodyString();
-            case "bodyBytes" -> Json.toBytes(body);
+            case "bodyBytes" -> getBodyBytes();
             case "request" -> request;
             default ->
                 // logger.warn("get - unexpected key: {}", key);
