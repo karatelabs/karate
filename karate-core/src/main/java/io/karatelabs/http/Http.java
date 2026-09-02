@@ -49,6 +49,7 @@ public class Http {
     private final HttpClient client;
     private final HttpRequestBuilder builder;
     private final KarateConfig config = new KarateConfig();
+    private boolean quiet;
 
     public static Http to(String url) {
         return new Http(url);
@@ -103,6 +104,12 @@ public class Http {
         return this;
     }
 
+    /** Callers that treat a 4xx/5xx as a normal outcome and do their own logging. */
+    public Http quiet() {
+        quiet = true;
+        return this;
+    }
+
     public HttpResponse method(String method, Object body) {
         if (body != null) {
             builder.body(body instanceof Json ? ((Json) body).value() : body);
@@ -110,8 +117,13 @@ public class Http {
         builder.method(method);
         HttpResponse response = builder.invoke();
         if (response.getStatus() >= 400) {
-            logger.warn("http response code: {}, response: {}, url: {}",
-                    response.getStatus(), response.getBodyString(), builder.getUri());
+            if (quiet) {
+                logger.debug("http response code: {}, response: {}, url: {}",
+                        response.getStatus(), response.getBodyString(), builder.getUri());
+            } else {
+                logger.warn("http response code: {}, response: {}, url: {}",
+                        response.getStatus(), response.getBodyString(), builder.getUri());
+            }
         }
         return response;
     }

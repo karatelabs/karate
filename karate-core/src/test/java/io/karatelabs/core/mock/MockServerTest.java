@@ -241,6 +241,15 @@ class MockServerTest {
     }
 
     @Test
+    void testHttpToQuiet() {
+        Http http = Http.to(server.getUrl()).configure("ssl", true);
+        assertSame(http, http.quiet());
+        HttpResponse response = http.path("/nope").get();
+        assertEquals(404, response.getStatus());
+        assertNotNull(response.getBodyString());
+    }
+
+    @Test
     void testHttpToWithHeader() {
         HttpResponse response = Http.to(server.getUrl())
                 .configure("ssl", true)
