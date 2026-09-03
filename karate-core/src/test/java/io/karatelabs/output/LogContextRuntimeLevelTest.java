@@ -48,8 +48,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Covers {@link LogContext#setRuntimeLogLevel} fanning the console level out to every
  * {@code karate.*} category, so {@code configure logging = { console: ... }} actually
- * silences HTTP — even though the bundled logback.xml pins {@code karate.http} to an
- * explicit level (issue #2917). Also covers the {@code off}/{@code none} aliases and
+ * silences HTTP — even when a user's logback.xml pins {@code karate.http} to an
+ * explicit level, as the per-category recipes tell them to (issue #2917). Also covers the
+ * {@code off}/{@code none} aliases and
  * that report capture is independent of the console level.
  */
 class LogContextRuntimeLevelTest {
@@ -99,12 +100,12 @@ class LogContextRuntimeLevelTest {
         LogContext.clear();
     }
 
-    // The crux of #2917: karate.http is pinned to an explicit level (DEBUG in the
-    // shipped logback.xml), which in Logback overrides the "karate" parent. The
+    // The crux of #2917: a karate.http pinned to an explicit level (a user's logback.xml;
+    // the bundled one used to as well) overrides the "karate" parent in Logback. The
     // console knob must override the child too, not just the parent.
     @Test
     void consoleLevelOverridesPinnedChildLogger() {
-        httpLogger.setLevel(Level.DEBUG); // simulate logback.xml's karate.http=DEBUG
+        httpLogger.setLevel(Level.DEBUG); // a user's logback.xml pinning karate.http=DEBUG
         LogContext.setRuntimeLogLevel("warn");
         assertEquals(Level.WARN, httpLogger.getLevel());
         assertEquals(Level.WARN, karateParent.getLevel());

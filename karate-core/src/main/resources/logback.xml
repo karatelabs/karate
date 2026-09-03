@@ -12,10 +12,11 @@
         </encoder>
     </appender>
 
+    <!-- Parents only: the karate.* categories (runtime, http, scenario, mock, server, console)
+         inherit INFO, which for karate.http is the one-line request summary the docs describe
+         as the default. Pin a child yourself to change one category. -->
+    <logger name="karate" level="INFO"/>
     <logger name="io.karatelabs" level="INFO"/>
-    <logger name="karate.runtime" level="INFO"/>
-    <logger name="karate.http" level="DEBUG"/>
-    <logger name="karate.scenario" level="INFO"/>
 
     <!-- Suppress noisy logs -->
     <logger name="io.netty" level="WARN"/>
