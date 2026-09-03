@@ -246,6 +246,18 @@ final class GeneratorActivation implements Runnable {
         return new ResumeSignal(resumeKind, resumeValue);
     }
 
+    /** Final outcome of the body: retire BEFORE publishing. The driver wakes
+     *  on the publish and takes jsLock the moment runBody's finally releases
+     *  it — if DONE were left to run()'s finally, an immediate next() could
+     *  land in between and read RUNNING. (A cancellation that interrupts a
+     *  parked yield arrives here without the lock; the ordering alone is what
+     *  the driver relies on.) */
+    private void publishFinal(OutcomeKind kind, Object value) {
+        state.set(State.DONE);
+        deregister();
+        publish(kind, value);
+    }
+
     private void publish(OutcomeKind kind, Object value) {
         AtomicReference<StepOutcome> cell = stepCell;
         if (cell != null && cell.compareAndSet(null, new StepOutcome(kind, value))) {
@@ -309,22 +321,22 @@ final class GeneratorActivation implements Runnable {
             if (functionContext.isError()) {
                 Object reason = functionContext.getErrorThrown();
                 functionContext.reset();
-                publish(OutcomeKind.THREW, reason);
+                publishFinal(OutcomeKind.THREW, reason);
             } else {
-                publish(OutcomeKind.RETURNED, result);
+                publishFinal(OutcomeKind.RETURNED, result);
             }
         } catch (StackOverflowError e) {
-            publish(OutcomeKind.THREW,
+            publishFinal(OutcomeKind.THREW,
                     JsErrorException.rangeError("Maximum call stack size exceeded").payload);
         } catch (Throwable e) {
             if (e instanceof FlowControlSignal || AsyncSupport.isHostCancellation(e)) {
                 // host cancellation never becomes a catchable JS error
-                publish(OutcomeKind.HOST_CANCELLED, null);
+                publishFinal(OutcomeKind.HOST_CANCELLED, null);
             } else if (e instanceof Error err) {
-                publish(OutcomeKind.HOST_CANCELLED, null);
+                publishFinal(OutcomeKind.HOST_CANCELLED, null);
                 throw err;
             } else {
-                publish(OutcomeKind.THREW, AsyncSupport.reasonOf(e));
+                publishFinal(OutcomeKind.THREW, AsyncSupport.reasonOf(e));
             }
         } finally {
             Engine.exit(previous);

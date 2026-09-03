@@ -70,6 +70,20 @@ class JsGeneratorTest extends EvalBase {
     }
 
     @Test
+    void testNextImmediatelyAfterCompletionNeverSeesRunning() {
+        // the body's final outcome must retire the generator before the
+        // driver can take the lock back — a next() issued the instant the
+        // completing step returns used to race the DONE transition and throw
+        // "already running" (timing-dependent, so many rounds)
+        assertEquals(true, eval("function* g() { yield 1 }\n"
+                + "for (var i = 0; i < 2000; i++) {\n"
+                + "  var it = g(); it.next(); it.next();\n"
+                + "  var r = it.next();\n"
+                + "  if (r.value !== undefined || r.done !== true) throw new Error('round ' + i);\n"
+                + "}\ntrue"));
+    }
+
+    @Test
     void testReturnOnFreshGeneratorRunsNoBody() {
         assertEquals(true, eval("var ran = false;\nfunction* g() { ran = true; yield 1 }\n"
                 + "var it = g();\nvar r = it.return(7);\n"
