@@ -148,20 +148,52 @@ public class LogReplayer {
     /**
      * Render a feature's captured per-step output as it would have appeared on the console, framed
      * so multiple features stay distinguishable in one log, with a header per scenario that produced
-     * output so multiple scenarios in one feature stay distinguishable too. ANSI colour and the
-     * report-only body sentinels are stripped — this is written to a log file, not a terminal.
-     * Returns null when the feature produced no output at all (no HTTP call, no {@code print}).
+     * output so multiple scenarios in one feature stay distinguishable too. Called features are
+     * rendered in place, under the step that called them, indented one level per call depth — the
+     * HTML report descends into {@link StepResult#getCallResults()} the same way, and it is the only
+     * place a callee's output lives (it is never folded into the caller's step log). ANSI colour
+     * and the report-only body sentinels are stripped — this is written to a log file, not a
+     * terminal. Returns null when the feature produced no output at all (no HTTP call, no
+     * {@code print}, none in anything it called).
      */
     static String render(String featurePath, FeatureResult result) {
         StringBuilder sb = new StringBuilder();
+        appendScenarios(sb, result, "");
+        if (sb.isEmpty()) {
+            return null;
+        }
+        String status = result.isFailed() ? "failed" : "passed";
+        return ">>> karate: " + featurePath + " [" + status + "]\n"
+                + sb + "<<< karate: " + featurePath;
+    }
+
+    private static void appendScenarios(StringBuilder sb, FeatureResult result, String indent) {
         for (ScenarioResult sr : result.getScenarioResults()) {
             StringBuilder steps = new StringBuilder();
             for (StepResult step : sr.getStepResults()) {
                 String stepLog = step.getLog();
-                if (stepLog == null || stepLog.isBlank()) {
+                if (stepLog != null && !stepLog.isBlank()) {
+                    appendIndented(steps, Console.stripSentinels(Console.stripAnsi(stepLog)).stripTrailing(), indent);
+                }
+                List<FeatureResult> calls = step.getCallResults();
+                if (calls == null) {
                     continue;
                 }
-                steps.append(Console.stripSentinels(Console.stripAnsi(stepLog)).stripTrailing()).append('\n');
+                for (FeatureResult called : calls) {
+                    StringBuilder nested = new StringBuilder();
+                    appendScenarios(nested, called, indent + "  ");
+                    if (nested.isEmpty()) {
+                        continue;
+                    }
+                    String name = called.getDisplayName();
+                    if (called.getLoopIndex() >= 0) {
+                        name = name + " #" + called.getLoopIndex();
+                    }
+                    steps.append(indent).append(">>> call: ").append(name)
+                            .append(called.isFailed() ? " [failed]" : " [passed]").append('\n')
+                            .append(nested)
+                            .append(indent).append("<<< call: ").append(name).append('\n');
+                }
             }
             if (steps.isEmpty()) {
                 continue;
@@ -170,17 +202,21 @@ public class LogReplayer {
             if (scenario != null) {
                 // the same [section:line] reference the HTML report and the KO message use, so an
                 // outline example is told apart from its siblings and the line is one search away
-                sb.append("--- scenario ").append(scenario.getRefId()).append(' ').append(scenario.getName())
-                        .append(sr.isFailed() ? " [failed]" : " [passed]").append('\n');
+                sb.append(indent).append("--- scenario ").append(scenario.getRefId()).append(' ')
+                        .append(scenario.getName()).append(sr.isFailed() ? " [failed]" : " [passed]").append('\n');
             }
             sb.append(steps);
         }
-        if (sb.isEmpty()) {
-            return null;
+    }
+
+    private static void appendIndented(StringBuilder sb, String text, String indent) {
+        if (indent.isEmpty()) {
+            sb.append(text).append('\n');
+            return;
         }
-        String status = result.isFailed() ? "failed" : "passed";
-        return ">>> karate: " + featurePath + " [" + status + "]\n"
-                + sb + "<<< karate: " + featurePath;
+        for (String line : text.split("\n", -1)) {
+            sb.append(indent).append(line).append('\n');
+        }
     }
 
     /**

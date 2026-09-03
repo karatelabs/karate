@@ -1036,6 +1036,9 @@ public class FeatureRuntime implements Callable<FeatureResult> {
 
     public void setLoopIndex(int loopIndex) {
         this.loopIndex = loopIndex;
+        // the result is built in the constructor, before the caller knows this is a loop call;
+        // the report writers and the gatling replay read the index from the result, not from here
+        result.setLoopIndex(loopIndex);
     }
 
     public ScenarioRuntime getLastExecuted() {

@@ -219,6 +219,11 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
         // captureStepLogs stays the user's to set.
         if (logReplay != KarateLogReplay.OFF) {
             runner.captureStepLogs(true);
+            // A called feature's output lives only on its own StepResults, reachable through the
+            // caller's call results — which this lane otherwise releases at scenario end. Replay
+            // renders after the feature returns, so the tree has to survive that long, and no
+            // longer: KarateExecutor.execute() releases it right after the replay has rendered.
+            runner.retainCallResults(true);
         }
         KarateProtocol protocol = new KarateProtocol(uriPatterns, runner);
         if (nameResolver != null) {

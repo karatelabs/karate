@@ -141,6 +141,14 @@ public class KarateExecutor {
 
         // fold this feature's captured output into the virtual user's buffer, replaying on failure
         LogReplayer.Buffer nextBuffer = replayer.after(logBuffer, featurePath, result);
+        // Replay was the last reader of the call tree and the step logs, which this lane retains
+        // only for it (KarateProtocolBuilder.build). Drop them here rather than trust the result
+        // to become garbage: a JS function among the result variables just copied into the
+        // session — or cached by callSingle across virtual users — keeps its runtime, and through
+        // it this result, reachable for as long as the simulation runs. Logs first: that release
+        // recurses into the call tree, and would have nothing to recurse into once the tree is cut.
+        result.releaseStepLogs();
+        result.releaseCallResults();
 
         return new ExecutionResult(success, karateVars, nextBuffer);
     }

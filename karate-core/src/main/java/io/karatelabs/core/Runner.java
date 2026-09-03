@@ -200,6 +200,9 @@ public final class Runner {
             if (template.getCaptureStepLogs() != null) {
                 builder.captureStepLogs(template.getCaptureStepLogs());
             }
+            // same reader: replay descends into called features, so their results must outlive
+            // the scenario-end release that is otherwise right for this lane
+            builder.retainCallResults(template.isRetainCallResults());
         }
         if (tags != null && !tags.isEmpty()) {
             builder.tags(tags.toArray(new String[0]));

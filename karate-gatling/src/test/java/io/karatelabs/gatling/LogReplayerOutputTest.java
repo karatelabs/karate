@@ -112,9 +112,13 @@ class LogReplayerOutputTest {
 
     /** Run one feature the way the Gatling action does. silent=true: no stats reporter needed. */
     private void run(KarateProtocol protocol) {
+        run(protocol, FEATURE);
+    }
+
+    private void run(KarateProtocol protocol, String featurePath) {
         Map<String, Object> gatlingVars = new HashMap<>();
         gatlingVars.put("name", "ReplayKitty");
-        new KarateExecutor(FEATURE, null, protocol, true)
+        new KarateExecutor(featurePath, null, protocol, true)
                 .execute(gatlingVars, new HashMap<>(), null, null, "test", NO_GROUPS);
     }
 
@@ -202,5 +206,100 @@ class LogReplayerOutputTest {
         assertEquals(1, events.size(), "expected the explanation, got: " + events);
         assertTrue(events.get(0).contains("captured no output to replay"), events.get(0));
         assertTrue(events.get(0).contains("report: 'info'"), events.get(0));
+    }
+
+    /**
+     * Output from a called feature is output the user wrote and expects to see. A replay that stops
+     * at the calling scenario's own steps explains half of a failure — the print and the HTTP call
+     * that actually built the request are in the callee.
+     */
+    @Test
+    void replayCarriesTheOutputOfACalledFeature() {
+        run(karateProtocol().logReplay(KarateLogReplay.FAILED).build(),
+                "classpath:features/replay-call-direct.feature");
+
+        List<String> events = replayed();
+        assertEquals(1, events.size(), "expected one replay event: " + events);
+        String replay = events.get(0);
+        assertTrue(replay.contains("TOP-MARKER"), "the calling scenario's print must be replayed: " + replay);
+        assertTrue(replay.contains("CALLED-MARKER"), "the called feature's print must be replayed: " + replay);
+        assertTrue(replay.contains("POST http://localhost"),
+                "the called feature's request block must be replayed: " + replay);
+        // framed and indented under the calling step, so the log reads as the call tree it was
+        assertTrue(replay.contains(">>> call: ") && replay.contains("replay-called.feature [passed]"),
+                "the callee is framed as a call with its outcome: " + replay);
+        assertTrue(replay.contains("\n  --- scenario [1:") && replay.contains("\n  CALLED-MARKER"),
+                "the callee's scenario header and output are indented one level: " + replay);
+        assertTrue(replay.indexOf("TOP-MARKER") < replay.indexOf(">>> call: ")
+                        && replay.indexOf("<<< call: ") < replay.indexOf("<<< karate: "),
+                "the call frame sits between the caller's output and the feature frame: " + replay);
+    }
+
+    /**
+     * The same call, reached the way a shared helper usually is: a function defined in
+     * karate-config.js, handed a lambda that does the {@code karate.call()}. Under Gatling every
+     * execution builds its own Suite, so the helper's bridge belongs to the scenario that is
+     * running — the route to the callee differs, what the replay carries must not.
+     */
+    @Test
+    void replayCarriesTheOutputOfAFeatureCalledFromAConfigHelper() {
+        KarateProtocolBuilder builder = karateProtocol().logReplay(KarateLogReplay.FAILED);
+        builder.runner.karateEnv("replaycall");
+
+        run(builder.build(), "classpath:features/replay-call-via-config.feature");
+
+        List<String> events = replayed();
+        assertEquals(1, events.size(), "expected one replay event: " + events);
+        String replay = events.get(0);
+        assertTrue(replay.contains("TOP-MARKER"), "the calling scenario's print must be replayed: " + replay);
+        assertTrue(replay.contains("CALLED-MARKER"), "the called feature's print must be replayed: " + replay);
+    }
+
+    /**
+     * The whole shape of the rendering, pinned character for character on a tree of prints — no HTTP,
+     * so the text is deterministic. Three levels of nesting, a call loop whose results are told apart
+     * by their loop index, and a callee that produced nothing and therefore gets no frame at all.
+     * <p>
+     * Currently FAILS on the loop index alone: the two iterations of the leaf call render as two
+     * identical frames with no {@code #0} / {@code #1} suffix. {@code FeatureResult.setLoopIndex} is
+     * never called anywhere in main — {@code StepExecutor.runNestedFeature} puts the index on the
+     * nested {@code FeatureRuntime} and it is never copied onto the result — so
+     * {@code FeatureResult.getLoopIndex()} is always -1 and the suffix branch in
+     * {@code LogReplayer.appendScenarios} is unreachable. The same dead branch is in
+     * {@code CucumberJsonWriter.displayName}, so the report loses its {@code [0] } prefix too.
+     */
+    @Test
+    void replayRendersTheWholeCallTree() {
+        run(karateProtocol().logReplay(KarateLogReplay.FAILED).build(),
+                "classpath:features/replay-tree-top.feature");
+
+        List<String> events = replayed();
+        assertEquals(1, events.size(), "expected one replay event: " + events);
+        String expected = """
+                >>> karate: classpath:features/replay-tree-top.feature [failed]
+                --- scenario [1:3] top [failed]
+                L0
+                >>> call: features/replay-tree-mid.feature [passed]
+                  --- scenario [1:3] mid [passed]
+                  L1
+                  >>> call: features/replay-tree-leaf.feature [passed]
+                    --- scenario [1:3] leaf [passed]
+                    L2
+                  <<< call: features/replay-tree-leaf.feature
+                <<< call: features/replay-tree-mid.feature
+                >>> call: features/replay-tree-leaf.feature #0 [passed]
+                  --- scenario [1:3] leaf [passed]
+                  L2
+                <<< call: features/replay-tree-leaf.feature #0
+                >>> call: features/replay-tree-leaf.feature #1 [passed]
+                  --- scenario [1:3] leaf [passed]
+                  L2
+                <<< call: features/replay-tree-leaf.feature #1
+                >>> call: features/replay-tree-failing.feature [failed]
+                  --- scenario [1:3] failing [failed]
+                  L1-FAIL
+                <<< call: features/replay-tree-failing.feature
+                <<< karate: classpath:features/replay-tree-top.feature""";
+        assertEquals(expected, events.get(0));
     }
 }

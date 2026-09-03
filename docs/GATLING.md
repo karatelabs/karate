@@ -1346,6 +1346,27 @@ failure that happened three features into a scenario.
   report uses, so a feature with several scenarios (or an outline) reads unambiguously and the line
   is one search away. A scenario with no captured output gets no header; the KO message already
   names where it failed.
+- **Called features are rendered in place**, under the step that called them, as
+  `>>> call: relative/path.feature [status]` … `<<< call: …` (with ` #i` for a call loop), indented
+  two spaces per call depth. A callee's output lives only on its own `StepResult`s, reachable through
+  the caller's `StepResult.getCallResults()` — it is never folded into the caller's step log, and
+  the HTML report descends the same way. Two things had to change for that to work under Gatling:
+  `LogReplayer.render` recurses, and `KarateProtocolBuilder.build()` sets
+  `runner.retainCallResults(true)` alongside `captureStepLogs(true)`, since this lane otherwise
+  releases call trees at scenario end (`FeatureRuntime.releaseCallResultsIfUnwatched`) — before
+  the replay, which runs after `Runner.runFeature` returns, could read them. The lifetime is
+  bounded explicitly, not by trusting garbage collection: `KarateExecutor.execute()` calls
+  `releaseCallResults()` and `releaseStepLogs()` on the result right after `LogReplayer.after`
+  has rendered. That matters because the result is *not* necessarily unreachable once `execute()`
+  returns — a JS function among the result variables copied into the Gatling session (or cached
+  by `callSingle` across virtual users) keeps its runtime, and through it the `FeatureResult`,
+  alive for the simulation; before this change the scenario-end release had already emptied that
+  tree, so the retention must not quietly undo it. `Runner.runFeature` propagates the flag from the
+  template like it does `captureStepLogs`. The
+  route to the callee — a `call` step, `karate.call()`, or a lambda handed to a helper defined in
+  karate-config.js — makes no difference: `StepExecutor.addCallResult` attaches to the live
+  scenario's in-flight step either way. `LogReplayerOutputTest` covers the direct and the
+  config-helper routes.
 - **What it carries is everything the report buffer had**, not just HTTP: `print`, `karate.log()`
   and `karate.logger.info()` enter the buffer at INFO through `LogWriter` (the other
   `karate.logger.*` methods at their own level), the same path as the request and response
