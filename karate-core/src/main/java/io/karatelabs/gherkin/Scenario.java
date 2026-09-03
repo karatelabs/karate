@@ -299,11 +299,13 @@ public class Scenario {
                 .anyMatch((t) -> t.equals(Tag.SETUP));
     }
 
+    /**
+     * Returns true if this scenario (or its feature) has the @fail tag.
+     */
     public boolean isFail() {
-        return getTags() != null && getTags()
-                .stream()
+        return getTagsEffective().stream()
                 .map(Tag::getName)
-                .anyMatch((t) -> t.equals(Tag.FAIL));
+                .anyMatch(Tag.FAIL::equals);
     }
 
     /**

@@ -61,6 +61,48 @@ class ScenarioRuntimeTest {
     }
 
     @Test
+    void testFailTagOnFeature() {
+        // a feature-level @fail applies to every scenario, exactly like @ignore does
+        ScenarioRuntime sr = runFeature("""
+            @fail
+            Feature:
+            Scenario:
+            * def a = 1 + 2
+            * match a == 4
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testFailTagOnFeatureAppliesToEveryScenario() throws Exception {
+        Path feature = tempDir.resolve("fail-tag.feature");
+        Files.writeString(feature, """
+            @fail
+            Feature:
+
+            Scenario Outline:
+            * def a = 1 + 2
+            * match a == <expected>
+
+            Examples:
+            | expected |
+            | 4        |
+            | 5        |
+
+            Scenario:
+            * def a = 1 + 2
+            * match a == 4
+            """);
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputHtmlReport(false)
+                .parallel(1);
+        assertEquals(3, result.getScenarioCount());
+        assertEquals(0, result.getScenarioFailedCount());
+    }
+
+    @Test
     void testKarateFail() {
         // karate.fail() should fail the scenario with custom message
         ScenarioRuntime sr = run("""
