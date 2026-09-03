@@ -315,7 +315,11 @@ class PropertyAccess {
                 // which is after the RHS has been evaluated.
                 Object value = Interpreter.eval(rhsNode, context);
                 if (context.isStopped()) yield value;
-                context.update(node.getText(), value, trackingNode);
+                // Same slot-or-name routing as set(): a scope-confined let/const
+                // is reachable only through its stamped slot — it has no byName
+                // entry, so a name-keyed update would miss it and fall through to
+                // an outer binding or an implicit global.
+                set(node, context, value, trackingNode);
                 yield value;
             }
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {

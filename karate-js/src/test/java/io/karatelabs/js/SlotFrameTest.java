@@ -227,6 +227,23 @@ class SlotFrameTest {
         assertEquals(3, evalBoth("function f() { for (let i = 0; i < 99; i++) { if (i >= 3) return i; } } f()"));
     }
 
+    @Test
+    void scopedLetPlainAssignmentWritesTheSlot() {
+        // a plain `=` to a let confined to a loop body, a nested block or a
+        // for-init has only the stamped slot to reach it — the name-keyed
+        // update path never held it, and would fall through to an outer
+        // binding or an implicit global (compound `+=` always wrote the slot)
+        assertEquals("zz", evalBoth("function f() { let acc = ''; let n = 0; while (n < 2) { let s = 'a'; s = 'z'; acc += s; n++; } return acc; } f()"));
+        assertEquals("zz", evalBoth("function f() { let acc = ''; let n = 0; while (n < 2) { let s = 'a'; if (true) { s = 'z'; } acc += s; n++; } return acc; } f()"));
+        assertEquals("z0z1", evalBoth("function f() { let acc = ''; for (let i = 0; i < 2; i++) { let s = 'a'; s = 'z'; acc += s + i; } return acc; } f()"));
+        // loop-free body: the slot table is built on the second call, and the
+        // write must land the same way after it exists
+        assertEquals("zzz", evalBoth("function f() { if (true) { let s = 'a'; s = 'z'; return s; } } f() + f() + f()"));
+        // the missed write must not leak: no implicit global, no clobbered outer binding
+        assertEquals("g", evalBoth("var s = 'g'; function f() { let n = 0; while (n < 1) { let s = 'a'; s = 'z'; n++; } return s; } f()"));
+        assertEquals("undefined", evalBoth("function f() { let n = 0; while (n < 1) { let s = 'a'; s = 'z'; n++; } return typeof s; } f()"));
+    }
+
     //=== behavior parity (flag on == flag off) ========================================================================
 
     @Test
