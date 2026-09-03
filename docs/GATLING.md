@@ -1341,6 +1341,25 @@ failure that happened three features into a scenario.
   excluded from the `__gatling` map.
 - The buffer is immutable and bounded; it is cleared after every replay, and a replay states how
   many entries the cap dropped.
+- Inside the `>>> karate: path [status]` frame, every scenario that produced output is headed by
+  `--- scenario [section:line] name [status]` — the same `[1:12]` / `[1.3:12]` reference the HTML
+  report uses, so a feature with several scenarios (or an outline) reads unambiguously and the line
+  is one search away. A scenario with no captured output gets no header; the KO message already
+  names where it failed.
+- **What it carries is everything the report buffer had**, not just HTTP: `print`, `karate.log()`
+  and `karate.logger.info()` enter the buffer at INFO through `LogWriter` (the other
+  `karate.logger.*` methods at their own level), the same path as the request and response
+  blocks. `LogReplayerOutputTest` pins this, and the configuration it exists for — `karate`,
+  `karate.scenario`, `karate.http`, `karate.runtime` and `io.karatelabs` at ERROR in Logback so a
+  load run stays quiet, with the user's output visible only in the replay of what failed. The
+  children are pinned individually because a Logback logger with an explicit level ignores its
+  parent's. The replay logger is a child of `io.karatelabs` and emits at ERROR by default, which is
+  exactly the level that pin lets through.
+- Two ways to lose it by accident, both now called out in the docs: `logging.report` above `info`
+  filters out the INFO-level prints and HTTP blocks (the replayer's hint names this), and — not the
+  replay's fault but the same symptom — following the old advice that `report: 'warn'` is the v2
+  `printEnabled = false`. It is not: `LogWriter`'s SLF4J call is unconditional, so `report` never
+  silences a print on the console; only the Logback level of `karate.scenario` (or `console`) does.
 
 ---
 

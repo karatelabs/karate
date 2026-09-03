@@ -282,7 +282,7 @@ Two channels, two thresholds. **The HTML report has full bodies by default — y
 |---------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
 | `configure logPrettyRequest = true/false`               | `configure logging = { pretty: true/false }` — single boolean for both directions                   |
 | `configure logPrettyResponse = true/false`              | `configure logging = { pretty: true/false }` — same single boolean                                  |
-| `configure printEnabled = false`                        | `configure logging = { report: 'warn' }` — raise threshold to drop INFO `print`/`karate.log` lines  |
+| `configure printEnabled = false`                        | No direct equivalent. `print`/`karate.log` go to SLF4J category `karate.scenario` at INFO: set that logger to `WARN` in `logback.xml` to keep them off the console (they still land in the HTML report), or `configure logging = { console: 'warn' }` to quiet all Karate console output for the scenario. `report: 'warn'` is **not** it — that drops them from the report and the Gatling replay, not from the console |
 | `configure lowerCaseResponseHeaders = true`             | **Dropped.** `match header X-Foo` is already case-insensitive; use `karate.lowerCase(responseHeaders)` for direct map access |
 | `configure logModifier = MyImpl`                        | `configure logging = { mask: {...} }` — declarative map, no Java class needed                        |
 | Manual `LoggerFactory.getLogger('com.intuit.karate').setLevel(...)` for mid-test silencing | `* configure logging = { console: 'error' }` — auto-restored at scenario end |
@@ -311,6 +311,37 @@ To keep only your prints, the HTTP traffic, and Gatling feature-failure errors i
 <logger name="karate.http"     level="TRACE" additivity="false"><appender-ref ref="FILE"/></logger>
 <logger name="io.karatelabs.gatling.KarateExecutor" level="ERROR" additivity="false"><appender-ref ref="FILE"/></logger>
 ```
+
+**Do not set `logging.console` alongside a Logback recipe like this.** Karate never touches Logback
+levels unless `logging.console` is set (karate-config.js, `configure`, `--log-console`,
+`karate-pom.json`). When it is, that one level is written onto `karate`, every built-in Karate
+category (`karate.runtime`, `karate.http`, `karate.scenario`, `karate.mock`, `karate.server`,
+`karate.console`) and `io.karatelabs`, replacing whatever your `logback.xml` pinned for those names. From
+karate-config.js it is applied every time the config is evaluated — every scenario — and nothing
+puts the old levels back, so treat it as run-wide (in a JUnit-embedded run it outlives the Karate
+run). A `configure logging = { console: ... }` step *inside* a scenario is the one case that is
+restored at scenario exit. It is a runtime override, not a default: the `info` shown for it in the
+tables above is only what `karate.get('config')` reports, nothing applies it. If `logback.xml` is
+your source of truth for per-category levels, leave `console` out.
+
+**Prints only when something fails (Gatling).** Pin the live log to errors and let the replay carry
+the rest:
+
+```xml
+<logger name="karate" level="ERROR"/>
+<logger name="karate.scenario" level="ERROR"/>
+<logger name="karate.http" level="ERROR"/>
+<logger name="karate.runtime" level="ERROR"/>
+<logger name="io.karatelabs" level="ERROR"/>
+```
+
+with `karateProtocol().logReplay(KarateLogReplay.FAILED)`. The children are listed explicitly
+because a Logback logger with its own level ignores its parent's — a `karate.http` or
+`karate.scenario` line left over from the recipe above would otherwise keep that output live.
+`print` / `karate.log()` and the HTTP blocks stay out of the live log and appear, together, in the
+single event a failed feature emits on `io.karatelabs.gatling.LogReplayer` at `ERROR`. Leave
+`logging.report` at its default (`debug`): raising it above `info` filters out the prints and HTTP
+blocks, which enter the capture at INFO, and usually leaves the replay empty.
 
 **No ANSI escape codes in log files.** The SLF4J/console mirror keeps colour only when a
 colour-capable console is detected (a TTY, or `FORCE_COLOR`). Under Gatling, CI, or with

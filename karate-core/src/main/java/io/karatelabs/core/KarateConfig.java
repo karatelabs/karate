@@ -438,8 +438,9 @@ public class KarateConfig implements SimpleObject {
                 logger.warn("configure '{}' is deprecated; use 'configure logging = {{ pretty: true|false }}'", key);
             }
             case "printEnabled" -> {
-                logger.warn("configure 'printEnabled' is deprecated; raise the log threshold with "
-                        + "'configure logging = {{ report: \"warn\" }}' to silence print/karate.log");
+                logger.warn("configure 'printEnabled' is deprecated; print/karate.log go to the 'karate.scenario' "
+                        + "SLF4J category - set its level to WARN in logback.xml to keep them off the console, "
+                        + "or 'configure logging = {{ console: \"warn\" }}' to quiet all karate console output");
             }
             case "lowerCaseResponseHeaders" -> {
                 logger.warn("configure 'lowerCaseResponseHeaders' is deprecated; "

@@ -26,6 +26,7 @@ package io.karatelabs.gatling;
 import io.karatelabs.core.FeatureResult;
 import io.karatelabs.core.ScenarioResult;
 import io.karatelabs.core.StepResult;
+import io.karatelabs.gherkin.Scenario;
 import io.karatelabs.output.Console;
 import io.karatelabs.output.LogLevel;
 import org.slf4j.Logger;
@@ -123,10 +124,12 @@ public class LogReplayer {
             // the feature genuinely produced no output (it failed before its first request), or the
             // report threshold filtered it — HTTP blocks and print enter the report buffer at INFO,
             // so a perf config with `report: 'warn'` empties it. We cannot tell which from here (the
-            // per-scenario threshold is restored by the time this runs), so name both.
+            // per-scenario threshold is restored by the time this runs), so name both. Worded so it
+            // does not read as "set report: 'info' to enable replay" — the default already captures.
             emit("karate log replay: " + featurePath + " captured no output to replay"
-                    + " — if that is unexpected, the report log threshold is filtering it"
-                    + " (configure logging = { report: 'info' })");
+                    + " — the feature failed before its first request or print, or a"
+                    + " 'configure logging = { report: ... }' above 'info' is filtering the capture"
+                    + " (the default 'debug' keeps everything; replay needs report: 'info' or lower)");
         }
         // start the next iteration clean — the failure this output explains has been logged
         return Buffer.EMPTY;
@@ -144,20 +147,33 @@ public class LogReplayer {
 
     /**
      * Render a feature's captured per-step output as it would have appeared on the console, framed
-     * so multiple features stay distinguishable in one log. ANSI colour and the report-only body
-     * sentinels are stripped — this is written to a log file, not a terminal. Returns null when the
-     * feature produced no output at all (no HTTP call, no {@code print}).
+     * so multiple features stay distinguishable in one log, with a header per scenario that produced
+     * output so multiple scenarios in one feature stay distinguishable too. ANSI colour and the
+     * report-only body sentinels are stripped — this is written to a log file, not a terminal.
+     * Returns null when the feature produced no output at all (no HTTP call, no {@code print}).
      */
     static String render(String featurePath, FeatureResult result) {
         StringBuilder sb = new StringBuilder();
         for (ScenarioResult sr : result.getScenarioResults()) {
+            StringBuilder steps = new StringBuilder();
             for (StepResult step : sr.getStepResults()) {
                 String stepLog = step.getLog();
                 if (stepLog == null || stepLog.isBlank()) {
                     continue;
                 }
-                sb.append(Console.stripSentinels(Console.stripAnsi(stepLog)).stripTrailing()).append('\n');
+                steps.append(Console.stripSentinels(Console.stripAnsi(stepLog)).stripTrailing()).append('\n');
             }
+            if (steps.isEmpty()) {
+                continue;
+            }
+            Scenario scenario = sr.getScenario();
+            if (scenario != null) {
+                // the same [section:line] reference the HTML report and the KO message use, so an
+                // outline example is told apart from its siblings and the line is one search away
+                sb.append("--- scenario ").append(scenario.getRefId()).append(' ').append(scenario.getName())
+                        .append(sr.isFailed() ? " [failed]" : " [passed]").append('\n');
+            }
+            sb.append(steps);
         }
         if (sb.isEmpty()) {
             return null;
