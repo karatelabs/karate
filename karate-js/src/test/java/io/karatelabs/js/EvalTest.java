@@ -1418,6 +1418,14 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testLetWithoutInitializerBindsUndefined() {
+        assertEquals(true, eval("let y; y === undefined"));
+        assertEquals(true, eval("function f() { let y; return y === undefined } f()"));
+        assertEquals(true, eval("let ok = false; { let y; ok = y === undefined } ok"));
+        assertEquals(3, eval("let y; y = 3; y"));
+    }
+
+    @Test
     void testConstReassign() {
         try {
             eval("const a = 1; a = 2");

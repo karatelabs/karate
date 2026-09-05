@@ -206,8 +206,9 @@ class SlotFrameTest {
 
     @Test
     void tdzAndConstSemantics() {
-        // uninitialized let: read throws until first assignment
-        assertEquals("caught", evalBoth("function f() { let x; try { return x + 1; } catch (e) { } return 'caught'; } f()"));
+        // the TDZ ends AT the declaration: a read before it throws, 'let x;' itself binds undefined
+        assertEquals("caught", evalBoth("function f() { try { return x + 1; } catch (e) { } let x; return 'caught'; } f()"));
+        assertEquals(true, evalBoth("function f() { let x; return x === undefined; } f()"));
         assertEquals(5, evalBoth("function f() { let x; x = 5; return x; } f()"));
         // const reassignment throws; catch proves it's the typeError path
         assertEquals("caught", evalBoth("function f() { const c = 1; try { c = 2; } catch (e) { return 'caught'; } return 'no'; } f()"));

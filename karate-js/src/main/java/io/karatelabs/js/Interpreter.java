@@ -3247,8 +3247,11 @@ class Interpreter {
                 value = eval(child.get(2), context);
                 initialized = true;
             } else {
+                // §14.3.1.2: a let (or var) declarator with no initializer INITIALIZES the binding to
+                // undefined — the TDZ ends at the declaration, it does not outlive it; only a const
+                // declarator stays uninitialized (a missing const initializer is a syntax error)
                 value = Terms.UNDEFINED;
-                initialized = false;
+                initialized = bindScope != BindScope.CONST;
             }
             evalAssign(binding, context, bindScope, value, initialized);
             lastValue = value;

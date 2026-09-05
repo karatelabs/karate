@@ -150,7 +150,9 @@ class ProgramFrameTest {
 
     @Test
     void tdzAndConstSemantics() {
-        assertEquals("caught", evalBoth("var r; { let x; try { r = x + 1; } catch (e) { r = 'caught'; } } r;"));
+        // the TDZ ends AT the declaration: a read before it throws, 'let x;' itself binds undefined
+        assertEquals("caught", evalBoth("var r; { try { r = x + 1; } catch (e) { r = 'caught'; } let x; } r;"));
+        assertEquals(true, evalBoth("var r; { let x; r = x === undefined; } r;"));
         assertEquals(5, evalBoth("var r; { let x; x = 5; r = x; } r;"));
         assertEquals("caught", evalBoth("var r = 'no'; { const c = 1; try { c = 2; } catch (e) { r = 'caught'; } } r;"));
         assertEquals("caught", evalBoth("var r = 'no'; try { for (const i = 0; i < 3; i++) { } } catch (e) { r = 'caught'; } r;"));
