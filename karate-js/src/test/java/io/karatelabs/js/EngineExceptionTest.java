@@ -315,4 +315,37 @@ class EngineExceptionTest {
         assertEquals("RangeError", ex.getJsErrorName());
     }
 
+    @Test
+    void testAuthoredThrowCarriesTheValueAndTheThrowLine() {
+        EngineException ex = assertThrowsEngineException("var a = 1;\nthrow 'no vehicles';");
+        assertTrue(ex.isAuthoredThrow());
+        assertEquals("no vehicles", ex.getThrownValue());
+        assertEquals(2, ex.getThrowLine());
+        assertEquals("no vehicles", ex.getJsMessage());
+    }
+
+    @Test
+    void testAuthoredThrowInsideAFunctionKeepsItsOwnLine() {
+        EngineException ex = assertThrowsEngineException("function f() {\n  throw new Error('boom');\n}\nf();");
+        assertTrue(ex.isAuthoredThrow());
+        assertEquals(2, ex.getThrowLine());
+        assertInstanceOf(ObjectLike.class, ex.getThrownValue());
+        assertEquals("Error", ex.getJsErrorName());
+    }
+
+    @Test
+    void testRuntimeErrorIsNotAuthored() {
+        EngineException ex = assertThrowsEngineException("var a = 1;\nnull.x;");
+        assertEquals("TypeError", ex.getJsErrorName());
+        assertFalse(ex.isAuthoredThrow());
+        assertNull(ex.getThrownValue());
+        assertEquals(0, ex.getThrowLine());
+    }
+
+    @Test
+    void testFailureEvaluatingTheThrowOperandIsNotAuthored() {
+        EngineException ex = assertThrowsEngineException("throw noSuchFunction();");
+        assertFalse(ex.isAuthoredThrow());
+    }
+
 }

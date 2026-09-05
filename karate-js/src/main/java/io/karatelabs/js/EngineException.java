@@ -27,6 +27,9 @@ public class EngineException extends RuntimeException {
 
     private final String jsErrorName;
     private final String jsMessage;
+    private final boolean authoredThrow;
+    private final Object thrownValue;
+    private final int throwLine;
 
     public EngineException(String message, Throwable cause) {
         this(message, cause, null, null);
@@ -50,9 +53,23 @@ public class EngineException extends RuntimeException {
      *                    Pass {@code null} when no JS-origin message is available.
      */
     public EngineException(String message, Throwable cause, String jsErrorName, String jsMessage) {
+        this(message, cause, jsErrorName, jsMessage, false, null, 0);
+    }
+
+    /**
+     * @param authoredThrow true only when a {@code throw} statement the script author wrote is the
+     *                      completion that escaped — never for an engine-raised error
+     * @param thrownValue   the JS value that {@code throw} carried ({@code null} when not authored)
+     * @param throwLine     the 1-based line of that {@code throw} statement ({@code 0} when not authored)
+     */
+    public EngineException(String message, Throwable cause, String jsErrorName, String jsMessage,
+                           boolean authoredThrow, Object thrownValue, int throwLine) {
         super(message, cause);
         this.jsErrorName = jsErrorName;
         this.jsMessage = jsMessage;
+        this.authoredThrow = authoredThrow;
+        this.thrownValue = thrownValue;
+        this.throwLine = throwLine;
     }
 
     /**
@@ -73,6 +90,26 @@ public class EngineException extends RuntimeException {
      */
     public String getJsMessage() {
         return jsMessage;
+    }
+
+    /**
+     * @return true when a {@code throw} statement in the script is what escaped — the discriminator
+     *         is the statement reached, never the thrown value's type ({@code throw 'x'} and
+     *         {@code throw new Error('x')} are both authored, a {@code TypeError} the engine raised
+     *         is not)
+     */
+    public boolean isAuthoredThrow() {
+        return authoredThrow;
+    }
+
+    /** @return the JS value the authored {@code throw} carried, or {@code null} when not authored. */
+    public Object getThrownValue() {
+        return thrownValue;
+    }
+
+    /** @return the 1-based line of the authored {@code throw} statement, or {@code 0} when not authored. */
+    public int getThrowLine() {
+        return throwLine;
     }
 
 }

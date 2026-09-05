@@ -2561,7 +2561,9 @@ class Interpreter {
             rawMessage = errorName + ": " + rawMessage;
         }
         String message = node.toStringError(rawMessage);
-        return new EngineException(message, null, errorName, jsMessage);
+        boolean authored = context.isErrorAuthored();
+        return new EngineException(message, null, errorName, jsMessage,
+                authored, authored ? errorThrown : null, authored ? context.getErrorAuthoredLine() : 0);
     }
 
     private static Object evalRefExpr(Node node, CoreContext context) {
@@ -2837,7 +2839,7 @@ class Interpreter {
         if (context.isError()) {
             return result;
         }
-        return context.stopAndThrow(result);
+        return context.stopAndThrowAuthored(result, node.getFirstToken().line + 1);
     }
 
     /**
@@ -3178,6 +3180,8 @@ class Interpreter {
             String savedLabel = context.getExitLabel();
             Object savedReturn = context.getReturnValue();
             Object savedError = context.getErrorThrown();
+            boolean savedAuthored = context.isErrorAuthored();
+            int savedAuthoredLine = context.getErrorAuthoredLine();
             if (savedExit != null) {
                 context.reset();
             }
@@ -3195,7 +3199,8 @@ class Interpreter {
             // in here the one that propagates. It used to be raised as a Java RuntimeException
             // instead, which no JS `catch` could ever see.
             if (context.getExitType() == null && savedExit != null) {
-                context.restoreCompletion(savedExit, savedLabel, savedReturn, savedError);
+                context.restoreCompletion(savedExit, savedLabel, savedReturn, savedError,
+                        savedAuthored, savedAuthoredLine);
             }
         }
         return tryValue;

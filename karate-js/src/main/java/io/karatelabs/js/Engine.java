@@ -537,7 +537,10 @@ public class Engine {
             // the JS-side message stays unframed so callers don't have to parse.
             String jsErrorName = e instanceof EngineException ee ? ee.getJsErrorName() : null;
             String jsMessage = e instanceof EngineException ee ? ee.getJsMessage() : null;
-            throw new EngineException(message, e, jsErrorName, jsMessage);
+            boolean authored = e instanceof EngineException ee && ee.isAuthoredThrow();
+            Object thrownValue = authored ? ((EngineException) e).getThrownValue() : null;
+            int throwLine = authored ? ((EngineException) e).getThrowLine() : 0;
+            throw new EngineException(message, e, jsErrorName, jsMessage, authored, thrownValue, throwLine);
         }
     }
 

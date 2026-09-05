@@ -629,12 +629,19 @@ class CoreContext implements Context {
     // The label of a `break foo` / `continue foo`, null for the unlabelled forms. Only a
     // BREAK or CONTINUE can carry one; every other completion clears it.
     private String exitLabel;
+    // Provenance of a THROW completion: true only for a `throw` statement the author wrote, so the
+    // host can tell a rulebook's deliberate refusal from an error the engine raised. Every other
+    // path into stopAndThrow leaves it false.
+    private boolean errorAuthored;
+    private int errorAuthoredLine;
 
     Object stopAndBreak(String label) {
         exitType = ExitType.BREAK;
         exitLabel = label;
         returnValue = null;
         errorThrown = null;
+        errorAuthored = false;
+        errorAuthoredLine = 0;
         return null;
     }
 
@@ -643,6 +650,16 @@ class CoreContext implements Context {
         exitLabel = null;
         returnValue = null;
         errorThrown = error;
+        errorAuthored = false;
+        errorAuthoredLine = 0;
+        return error;
+    }
+
+    /** {@link #stopAndThrow} from an authored {@code throw} statement at {@code line} (1-based). */
+    Object stopAndThrowAuthored(Object error, int line) {
+        stopAndThrow(error);
+        errorAuthored = true;
+        errorAuthoredLine = line;
         return error;
     }
 
@@ -651,6 +668,8 @@ class CoreContext implements Context {
         exitLabel = null;
         returnValue = value;
         errorThrown = null;
+        errorAuthored = false;
+        errorAuthoredLine = 0;
         return value;
     }
 
@@ -659,6 +678,8 @@ class CoreContext implements Context {
         exitLabel = label;
         returnValue = null;
         errorThrown = null;
+        errorAuthored = false;
+        errorAuthoredLine = 0;
         return null;
     }
 
@@ -679,6 +700,8 @@ class CoreContext implements Context {
         exitLabel = null;
         returnValue = null;
         errorThrown = null;
+        errorAuthored = false;
+        errorAuthoredLine = 0;
     }
 
     /**
@@ -688,11 +711,14 @@ class CoreContext implements Context {
      * same null return value and are different completions, and BREAK and CONTINUE carry no value
      * to derive anything from at all.
      */
-    void restoreCompletion(ExitType savedExit, String savedLabel, Object savedReturn, Object savedError) {
+    void restoreCompletion(ExitType savedExit, String savedLabel, Object savedReturn, Object savedError,
+                           boolean savedAuthored, int savedAuthoredLine) {
         exitType = savedExit;
         exitLabel = savedLabel;
         returnValue = savedReturn;
         errorThrown = savedError;
+        errorAuthored = savedAuthored;
+        errorAuthoredLine = savedAuthoredLine;
     }
 
     boolean isError() {
@@ -717,10 +743,20 @@ class CoreContext implements Context {
         return errorThrown;
     }
 
+    boolean isErrorAuthored() {
+        return errorAuthored;
+    }
+
+    int getErrorAuthoredLine() {
+        return errorAuthoredLine;
+    }
+
     void updateFrom(CoreContext childContext) {
         exitType = childContext.exitType;
         exitLabel = childContext.exitLabel;
         errorThrown = childContext.errorThrown;
+        errorAuthored = childContext.errorAuthored;
+        errorAuthoredLine = childContext.errorAuthoredLine;
         returnValue = childContext.returnValue;
     }
 
