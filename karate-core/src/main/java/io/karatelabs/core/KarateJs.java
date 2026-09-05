@@ -651,9 +651,9 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 // Do an equals comparison and return { pass, message }
                 Object actual = args[0];
                 Object expected = args[1];
-                Value value = Match.evaluate(actual, null, null);
-                Result result = value._equals(expected);
-                return result.toMap();
+                try (Value value = Match.evaluate(actual, null, null)) {
+                    return value._equals(expected).toMap();
+                }
             } else {
                 // One-argument string form: karate.match("foo == expected").
                 // Delegate to the same evaluator the `match` keyword uses so both operands

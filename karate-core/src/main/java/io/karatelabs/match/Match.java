@@ -70,19 +70,20 @@ public class Match {
     }
 
     public static Result execute(Engine engine, Type matchType, Object actual, Object expected, boolean matchEachEmptyAllowed) {
-        Value actualValue = new Value(actual);
-        Value expectedValue = new Value(expected);
-        Operation op = new Operation(engine, matchType, actualValue, expectedValue, matchEachEmptyAllowed);
-        op.execute();
-        return op.getResult();
+        try (Value actualValue = new Value(actual); Value expectedValue = new Value(expected)) {
+            Operation op = new Operation(engine, matchType, actualValue, expectedValue, matchEachEmptyAllowed);
+            op.execute();
+            return op.getResult();
+        }
     }
 
     public static Result execute(Engine engine, Type matchType, Object actual, Object expected, long memoryThreshold) {
-        Value actualValue = new Value(actual, null, null, true, memoryThreshold);
-        Value expectedValue = new Value(expected, null, null, true, memoryThreshold);
-        Operation op = new Operation(engine, matchType, actualValue, expectedValue);
-        op.execute();
-        return op.getResult();
+        try (Value actualValue = new Value(actual, null, null, true, memoryThreshold);
+             Value expectedValue = new Value(expected, null, null, true, memoryThreshold)) {
+            Operation op = new Operation(engine, matchType, actualValue, expectedValue);
+            op.execute();
+            return op.getResult();
+        }
     }
 
 }

@@ -38,7 +38,7 @@ import java.lang.reflect.Array;
 import java.util.*;
 import java.util.function.BiConsumer;
 
-public class Value implements SimpleObject {
+public class Value implements SimpleObject, AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(Value.class);
 
@@ -246,7 +246,9 @@ public class Value implements SimpleObject {
 
     /**
      * Closes any resources held by this value (e.g., disk-backed stores).
+     * The in-memory value remains readable afterwards.
      */
+    @Override
     public void close() {
         if (largeStore != null) {
             largeStore.close();
@@ -315,9 +317,12 @@ public class Value implements SimpleObject {
     }
 
     public Result is(Match.Type matchType, Object expected) {
-        Operation op = new Operation(matchType, this, new Value(parseIfJsonOrXmlString(expected), context, onResult));
-        op.execute();
-        Result result = op.getResult();
+        Result result;
+        try (Value expectedValue = new Value(parseIfJsonOrXmlString(expected), context, onResult)) {
+            Operation op = new Operation(matchType, this, expectedValue);
+            op.execute();
+            result = op.getResult();
+        }
         if (onResult != null) {
             onResult.accept(context, result);
         }

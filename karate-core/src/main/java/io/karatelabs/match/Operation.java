@@ -151,8 +151,11 @@ public class Operation {
                     for (int i = 0; i < count; i++) {
                         Object o = actual.getListElement(i);
                         context.engine.put("_$", o);
-                        Operation mo = new Operation(context.descend(i), nestedMatchType, new Value(o), expected, matchEachEmptyAllowed);
-                        mo.execute();
+                        Operation mo;
+                        try (Value element = new Value(o)) {
+                            mo = new Operation(context.descend(i), nestedMatchType, element, expected, matchEachEmptyAllowed);
+                            mo.execute();
+                        }
                         context.engine.remove("_$");
                         if (!mo.pass) {
                             failedIndices.add(i);
@@ -200,18 +203,22 @@ public class Operation {
                 case CONTAINS_ANY_DEEP:
                     // don't tamper with strings on the RHS that represent arrays or objects
                     if (!expected.isList() && !(expected.isString() && expected.isArrayObjectOrReference())) {
-                        Operation mo = new Operation(context, type, actual, new Value(Collections.singletonList(expected.getValue())), matchEachEmptyAllowed);
-                        mo.execute();
-                        return mo.pass ? pass() : fail(mo.failReason);
+                        try (Value wrapped = new Value(Collections.singletonList(expected.getValue()))) {
+                            Operation mo = new Operation(context, type, actual, wrapped, matchEachEmptyAllowed);
+                            mo.execute();
+                            return mo.pass ? pass() : fail(mo.failReason);
+                        }
                     }
                     break;
                 case WITHIN:
                 case NOT_WITHIN:
                     // for WITHIN, if actual is not a list but expected is, wrap actual in a list
                     if (!actual.isList() && !(actual.isString() && actual.isArrayObjectOrReference())) {
-                        Operation mo = new Operation(context, type, new Value(Collections.singletonList(actual.getValue())), expected, matchEachEmptyAllowed);
-                        mo.execute();
-                        return mo.pass ? pass() : fail(mo.failReason);
+                        try (Value wrapped = new Value(Collections.singletonList(actual.getValue()))) {
+                            Operation mo = new Operation(context, type, wrapped, expected, matchEachEmptyAllowed);
+                            mo.execute();
+                            return mo.pass ? pass() : fail(mo.failReason);
+                        }
                     }
                     break;
                 default:
@@ -297,13 +304,14 @@ public class Operation {
                     Value expectedValue = new Value(evalResult);
                     int failuresBeforeSearch = failures.size();
                     for (int i = 0; i < actual.getListSize(); i++) {
-                        Value elem = new Value(actual.getListElement(i));
-                        Operation mo = new Operation(context.descend(i), searchType, elem, expectedValue, matchEachEmptyAllowed);
-                        if (mo.execute()) {
-                            if (negated) {
-                                return fail("an array element matches expected");
+                        try (Value elem = new Value(actual.getListElement(i))) {
+                            Operation mo = new Operation(context.descend(i), searchType, elem, expectedValue, matchEachEmptyAllowed);
+                            if (mo.execute()) {
+                                if (negated) {
+                                    return fail("an array element matches expected");
+                                }
+                                return true;
                             }
-                            return true;
                         }
                     }
                     if (negated) { // no element matched, discard the per-element search failures
@@ -314,8 +322,10 @@ public class Operation {
                     }
                     return fail("no array element matches expected");
                 }
-                Operation mo = new Operation(context, nestedType, actual, new Value(evalResult), matchEachEmptyAllowed);
-                return mo.execute();
+                try (Value evalValue = new Value(evalResult)) {
+                    Operation mo = new Operation(context, nestedType, actual, evalValue, matchEachEmptyAllowed);
+                    return mo.execute();
+                }
             } else if (macro.startsWith("[")) {
                 int closeBracketPos = macro.indexOf(']');
                 if (closeBracketPos != -1) { // array, match each
@@ -359,8 +369,10 @@ public class Operation {
                                 int startPos = matchTypeToStartPos(nestedType);
                                 macro = macro.substring(startPos);
                                 Object evalResult = context.engine.eval(macro);
-                                Operation mo = new Operation(context, nestedType, actual, new Value(evalResult), matchEachEmptyAllowed);
-                                return mo.execute();
+                                try (Value evalValue = new Value(evalResult)) {
+                                    Operation mo = new Operation(context, nestedType, actual, evalValue, matchEachEmptyAllowed);
+                                    return mo.execute();
+                                }
                             }
                         }
                     }
@@ -469,12 +481,13 @@ public class Operation {
                 }
                 List<Integer> failedListIndices = new ArrayList<>();
                 for (int i = 0; i < actListCount; i++) {
-                    Value actListValue = new Value(actual.getListElement(i));
-                    Value expListValue = new Value(expected.getListElement(i));
-                    Operation mo = new Operation(context.descend(i), Match.Type.EQUALS, actListValue, expListValue, matchEachEmptyAllowed);
-                    mo.execute();
-                    if (!mo.pass) {
-                        failedListIndices.add(i);
+                    try (Value actListValue = new Value(actual.getListElement(i));
+                         Value expListValue = new Value(expected.getListElement(i))) {
+                        Operation mo = new Operation(context.descend(i), Match.Type.EQUALS, actListValue, expListValue, matchEachEmptyAllowed);
+                        mo.execute();
+                        if (!mo.pass) {
+                            failedListIndices.add(i);
+                        }
                     }
                 }
                 if (!failedListIndices.isEmpty()) {
@@ -536,17 +549,19 @@ public class Operation {
                 }
                 continue;
             }
-            Value childActValue = new Value(actMap.get(key));
-            Match.Type childMatchType;
-            if (type == Match.Type.CONTAINS_DEEP) {
-                childMatchType = childActValue.isMapOrListOrXml() ? Match.Type.CONTAINS_DEEP : Match.Type.EQUALS;
-            } else if (type == Match.Type.CONTAINS_ONLY_DEEP) {
-                childMatchType = childActValue.isMapOrListOrXml() ? Match.Type.CONTAINS_ONLY_DEEP : Match.Type.EQUALS;
-            } else {
-                childMatchType = Match.Type.EQUALS;
+            Operation mo;
+            try (Value childActValue = new Value(actMap.get(key)); Value childExpValue = new Value(childExp)) {
+                Match.Type childMatchType;
+                if (type == Match.Type.CONTAINS_DEEP) {
+                    childMatchType = childActValue.isMapOrListOrXml() ? Match.Type.CONTAINS_DEEP : Match.Type.EQUALS;
+                } else if (type == Match.Type.CONTAINS_ONLY_DEEP) {
+                    childMatchType = childActValue.isMapOrListOrXml() ? Match.Type.CONTAINS_ONLY_DEEP : Match.Type.EQUALS;
+                } else {
+                    childMatchType = Match.Type.EQUALS;
+                }
+                mo = new Operation(context.descend(key), childMatchType, childActValue, childExpValue, matchEachEmptyAllowed);
+                mo.execute();
             }
-            Operation mo = new Operation(context.descend(key), childMatchType, childActValue, new Value(childExp), matchEachEmptyAllowed);
-            mo.execute();
             if (mo.pass) {
                 if (type == Match.Type.CONTAINS_ANY || type == Match.Type.CONTAINS_ANY_DEEP) {
                     return true; // exit early
@@ -615,56 +630,58 @@ public class Operation {
                 List<String> notFoundItems = new ArrayList<>();
                 for (int j = 0; j < expListCount; j++) { // for each item in the expected list
                     boolean found = false;
-                    Value expListValue = new Value(expected.getListElement(j));
-                    int failuresBeforeSearch = failures.size(); // track failures before this search
-                    for (int i = 0; i < actListCount; i++) {
-                        Value actListValue = new Value(actual.getListElement(i));
-                        Match.Type childMatchType;
-                        switch (type) {
-                            case CONTAINS_DEEP:
-                                childMatchType = actListValue.isMapOrListOrXml() ? Match.Type.CONTAINS_DEEP : Match.Type.EQUALS;
-                                break;
-                            case CONTAINS_ONLY_DEEP:
-                                childMatchType = actListValue.isMapOrListOrXml() ? Match.Type.CONTAINS_ONLY_DEEP : Match.Type.EQUALS;
-                                break;
-                            case CONTAINS_ANY_DEEP:
-                                childMatchType = actListValue.isMapOrListOrXml() ? Match.Type.CONTAINS_ANY : Match.Type.EQUALS;
-                                break;
-                            default:
-                                childMatchType = Match.Type.EQUALS;
-                        }
-                        Operation mo = new Operation(context.descend(i), childMatchType, actListValue, expListValue, matchEachEmptyAllowed);
-                        mo.execute();
-                        if (mo.pass) {
-                            if (type == Match.Type.CONTAINS_ANY || type == Match.Type.CONTAINS_ANY_DEEP) {
-                                return true; // exit early
-                            }
-                            // contains only : If element is found also check its occurrence in actVisitedList
-                            // the deep variant differs only in how nested elements compare, so it has
-                            // to account for multiplicity the same way
-                            else if (type == Match.Type.CONTAINS_ONLY || type == Match.Type.CONTAINS_ONLY_DEEP) {
-                                // if not yet visited
-                                if (!actVisitedList[i]) {
-                                    // mark it visited
-                                    actVisitedList[i] = true;
-                                    found = true;
-                                    break; // next item in expected list
+                    try (Value expListValue = new Value(expected.getListElement(j))) {
+                        int failuresBeforeSearch = failures.size(); // track failures before this search
+                        for (int i = 0; i < actListCount; i++) {
+                            try (Value actListValue = new Value(actual.getListElement(i))) {
+                                Match.Type childMatchType;
+                                switch (type) {
+                                    case CONTAINS_DEEP:
+                                        childMatchType = actListValue.isMapOrListOrXml() ? Match.Type.CONTAINS_DEEP : Match.Type.EQUALS;
+                                        break;
+                                    case CONTAINS_ONLY_DEEP:
+                                        childMatchType = actListValue.isMapOrListOrXml() ? Match.Type.CONTAINS_ONLY_DEEP : Match.Type.EQUALS;
+                                        break;
+                                    case CONTAINS_ANY_DEEP:
+                                        childMatchType = actListValue.isMapOrListOrXml() ? Match.Type.CONTAINS_ANY : Match.Type.EQUALS;
+                                        break;
+                                    default:
+                                        childMatchType = Match.Type.EQUALS;
                                 }
-                                // else do nothing does not consider it a match
-                            } else {
-                                found = true;
-                                break; // next item in expected list
+                                Operation mo = new Operation(context.descend(i), childMatchType, actListValue, expListValue, matchEachEmptyAllowed);
+                                mo.execute();
+                                if (mo.pass) {
+                                    if (type == Match.Type.CONTAINS_ANY || type == Match.Type.CONTAINS_ANY_DEEP) {
+                                        return true; // exit early
+                                    }
+                                    // contains only : If element is found also check its occurrence in actVisitedList
+                                    // the deep variant differs only in how nested elements compare, so it has
+                                    // to account for multiplicity the same way
+                                    else if (type == Match.Type.CONTAINS_ONLY || type == Match.Type.CONTAINS_ONLY_DEEP) {
+                                        // if not yet visited
+                                        if (!actVisitedList[i]) {
+                                            // mark it visited
+                                            actVisitedList[i] = true;
+                                            found = true;
+                                            break; // next item in expected list
+                                        }
+                                        // else do nothing does not consider it a match
+                                    } else {
+                                        found = true;
+                                        break; // next item in expected list
+                                    }
+                                }
                             }
                         }
-                    }
-                    if (found) {
-                        // Remove search failures - they were just "not this one, keep looking"
-                        while (failures.size() > failuresBeforeSearch) {
-                            failures.removeLast();
+                        if (found) {
+                            // Remove search failures - they were just "not this one, keep looking"
+                            while (failures.size() > failuresBeforeSearch) {
+                                failures.removeLast();
+                            }
                         }
-                    }
-                    if (!found && type != Match.Type.CONTAINS_ANY && type != Match.Type.CONTAINS_ANY_DEEP) {
-                        notFoundItems.add(expListValue.getAsString());
+                        if (!found && type != Match.Type.CONTAINS_ANY && type != Match.Type.CONTAINS_ANY_DEEP) {
+                            notFoundItems.add(expListValue.getAsString());
+                        }
                     }
                 }
                 if (!notFoundItems.isEmpty()) {
@@ -707,23 +724,25 @@ public class Operation {
                 // for each item in actual, check if it exists in expected
                 for (int i = 0; i < actListCount; i++) {
                     boolean found = false;
-                    Value actListValue = new Value(actual.getListElement(i));
-                    int failuresBeforeSearch = failures.size();
-                    for (int j = 0; j < expListCount; j++) {
-                        Value expListValue = new Value(expected.getListElement(j));
-                        Operation mo = new Operation(context.descend(i), Match.Type.EQUALS, actListValue, expListValue, matchEachEmptyAllowed);
-                        mo.execute();
-                        if (mo.pass) {
-                            found = true;
-                            break;
+                    try (Value actListValue = new Value(actual.getListElement(i))) {
+                        int failuresBeforeSearch = failures.size();
+                        for (int j = 0; j < expListCount; j++) {
+                            try (Value expListValue = new Value(expected.getListElement(j))) {
+                                Operation mo = new Operation(context.descend(i), Match.Type.EQUALS, actListValue, expListValue, matchEachEmptyAllowed);
+                                mo.execute();
+                                if (mo.pass) {
+                                    found = true;
+                                    break;
+                                }
+                            }
                         }
-                    }
-                    // Remove search failures - they are just "not this one, keep looking"
-                    while (failures.size() > failuresBeforeSearch) {
-                        failures.removeLast();
-                    }
-                    if (!found) {
-                        notFoundItems.add(actListValue.getAsString());
+                        // Remove search failures - they are just "not this one, keep looking"
+                        while (failures.size() > failuresBeforeSearch) {
+                            failures.removeLast();
+                        }
+                        if (!found) {
+                            notFoundItems.add(actListValue.getAsString());
+                        }
                     }
                 }
                 if (!notFoundItems.isEmpty()) {
@@ -744,12 +763,12 @@ public class Operation {
                     if (!expMap.containsKey(key)) {
                         missingKeys.add(key);
                     } else {
-                        Value actValue = new Value(actEntry.getValue());
-                        Value expValue = new Value(expMap.get(key));
-                        Operation mo = new Operation(context.descend(key), Match.Type.EQUALS, actValue, expValue, matchEachEmptyAllowed);
-                        mo.execute();
-                        if (!mo.pass) {
-                            failedKeys.add(key);
+                        try (Value actValue = new Value(actEntry.getValue()); Value expValue = new Value(expMap.get(key))) {
+                            Operation mo = new Operation(context.descend(key), Match.Type.EQUALS, actValue, expValue, matchEachEmptyAllowed);
+                            mo.execute();
+                            if (!mo.pass) {
+                                failedKeys.add(key);
+                            }
                         }
                     }
                 }

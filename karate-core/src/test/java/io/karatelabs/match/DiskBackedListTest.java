@@ -25,6 +25,7 @@ package io.karatelabs.match;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
@@ -166,6 +167,27 @@ class DiskBackedListTest {
         // Test failure case with low threshold
         result = Match.execute(null, Match.Type.EQUALS, actual, List.of("x", "y", "z"), 1L);
         assertFalse(result.pass);
+    }
+
+    private static Set<String> matchTempFiles() {
+        File tmpDir = new File(System.getProperty("java.io.tmpdir"));
+        String[] names = tmpDir.list((dir, name) -> name.startsWith("karate-match-") && name.endsWith(".jsonl"));
+        return names == null ? Set.of() : Set.of(names);
+    }
+
+    @Test
+    void testMatchExecuteClosesDiskBackedStore() {
+        List<Object> actual = List.of("a", "b", "c", "d", "e");
+        Value probe = new Value(actual, null, null, true, 1L);
+        assertTrue(probe.isLargeCollection());
+        probe.close();
+
+        Set<String> before = matchTempFiles();
+        Result result = Match.execute(null, Match.Type.EQUALS, actual, List.of("a", "b", "c", "d", "e"), 1L);
+        assertTrue(result.pass, result.message);
+        Set<String> leaked = new HashSet<>(matchTempFiles());
+        leaked.removeAll(before);
+        assertEquals(Set.of(), leaked, "temp files left behind after match");
     }
 
     @Test

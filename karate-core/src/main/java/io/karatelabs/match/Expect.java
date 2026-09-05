@@ -155,9 +155,15 @@ public class Expect implements SimpleObject {
         }
     }
 
+    private static Result evaluate(Object actual, Match.Type type, Object expected) {
+        try (Value value = Match.evaluate(actual, null, null)) {
+            return value.is(type, expected);
+        }
+    }
+
     private JavaCallable match(Match.Type type) {
         return (context, args) -> {
-            Result result = Match.evaluate(subject, null, null).is(type, args[0]);
+            Result result = evaluate(subject, type, args[0]);
             handleResult(context, result);
             return null;
         };
@@ -165,7 +171,7 @@ public class Expect implements SimpleObject {
 
     private JavaCallable matchChainable(Match.Type type) {
         return (context, args) -> {
-            Result result = Match.evaluate(subject, null, null).is(type, args[0]);
+            Result result = evaluate(subject, type, args[0]);
             handleResult(context, result);
             return new Expect(subject, false, onResult, throwOnFailure, contextSupplier);
         };
@@ -266,7 +272,7 @@ public class Expect implements SimpleObject {
                 yield new Expect(subject, false, onResult, throwOnFailure, contextSupplier);
             }
             case "oneOf" -> (JavaCallable) (context, args) -> {
-                Result result = Match.evaluate(args[0], null, null).contains(subject);
+                Result result = evaluate(args[0], Match.Type.CONTAINS, subject);
                 handleResult(context, result);
                 return new Expect(subject, false, onResult, throwOnFailure, contextSupplier);
             };
@@ -328,7 +334,7 @@ public class Expect implements SimpleObject {
             case "keys" -> (JavaCallable) (context, args) -> {
                 Result result;
                 if (subject instanceof Map<?, ?> map) {
-                    result = Match.evaluate(map.keySet(), null, null).contains(args[0]);
+                    result = evaluate(map.keySet(), Match.Type.CONTAINS, args[0]);
                 } else {
                     result = Result.fail("not an object");
                 }
@@ -345,7 +351,7 @@ public class Expect implements SimpleObject {
             case "keys" -> (JavaCallable) (context, args) -> {
                 Result result;
                 if (subject instanceof Map<?, ?> map) {
-                    result = Match.evaluate(map.keySet(), null, null).containsAny(args[0]);
+                    result = evaluate(map.keySet(), Match.Type.CONTAINS_ANY, args[0]);
                 } else {
                     result = Result.fail("not an object");
                 }
@@ -372,7 +378,7 @@ public class Expect implements SimpleObject {
                     Result result;
                     if (args.length > 1) {
                         Object actual = json.get(path, null);
-                        result = Match.evaluate(actual, null, null)._equals(args[1]);
+                        result = evaluate(actual, Match.Type.EQUALS, args[1]);
                     } else {
                         result = json.pathExists(path) ? Result.PASS : Result.fail("expected to have property: " + path);
                     }
@@ -416,7 +422,7 @@ public class Expect implements SimpleObject {
                         if (map.containsKey(k)) {
                             Object v = map.get(k);
                             propertyValue = v;
-                            result = Match.evaluate(v, null, null)._equals(args[1]);
+                            result = evaluate(v, Match.Type.EQUALS, args[1]);
                         } else {
                             result = Result.fail("property " + k + " not found");
                         }
@@ -438,7 +444,7 @@ public class Expect implements SimpleObject {
             case "keys" -> (JavaCallable) (context, args) -> {
                 Result result;
                 if (subject instanceof Map<?, ?> map) {
-                    result = Match.evaluate(map.keySet(), null, null).containsOnly(args[0]);
+                    result = evaluate(map.keySet(), Match.Type.CONTAINS_ONLY, args[0]);
                 } else {
                     result = Result.fail("not an object");
                 }
