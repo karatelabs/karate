@@ -343,6 +343,27 @@ class EngineExceptionTest {
     }
 
     @Test
+    void testAuthoredThrowOfNullKeepsItsProvenance() {
+        // `throw null` is a legal authored throw carrying the null value — the conversion must not
+        // dereference it (an NPE would replace the JS failure with a host crash and lose the line).
+        EngineException ex = assertThrowsEngineException("var a = 1;\nthrow null;");
+        assertTrue(ex.isAuthoredThrow());
+        assertNull(ex.getThrownValue());
+        assertEquals(2, ex.getThrowLine());
+        assertEquals("null", ex.getJsMessage());
+        assertTrue(ex.getMessage().contains("null"), ex.getMessage());
+    }
+
+    @Test
+    void testAuthoredThrowOfUndefinedKeepsItsProvenance() {
+        EngineException ex = assertThrowsEngineException("var a = 1;\nthrow undefined;");
+        assertTrue(ex.isAuthoredThrow());
+        assertEquals(JsUndefined.INSTANCE, ex.getThrownValue());
+        assertEquals(2, ex.getThrowLine());
+        assertEquals("undefined", ex.getJsMessage());
+    }
+
+    @Test
     void testFailureEvaluatingTheThrowOperandIsNotAuthored() {
         EngineException ex = assertThrowsEngineException("throw noSuchFunction();");
         assertFalse(ex.isAuthoredThrow());

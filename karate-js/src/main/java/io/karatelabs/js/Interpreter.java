@@ -2549,10 +2549,13 @@ class Interpreter {
         }
         // jsMessage is the unframed JS-side surface — what `e.message` in a
         // JS catch would see. Prefer the structured payload .message; fall
-        // back to errorThrown.toString() for non-Error throws (`throw 42`,
-        // `throw "x"`). No "<Name>: " prefix here — that's a getMessage()
-        // logging convenience, not the JS-side .message contract.
-        String jsMessage = errorMessage == null ? errorThrown.toString() : errorMessage;
+        // back to String.valueOf(errorThrown) for non-Error throws (`throw 42`,
+        // `throw "x"`, and `throw null` — a legal authored throw whose value is
+        // null, so dereferencing it here would turn the JS failure into a host
+        // NPE and lose the authored-throw provenance). No "<Name>: " prefix
+        // here — that's a getMessage() logging convenience, not the JS-side
+        // .message contract.
+        String jsMessage = errorMessage == null ? String.valueOf(errorThrown) : errorMessage;
         String rawMessage = jsMessage;
         // Keep a readable prefix in the host-facing message for logging,
         // but the structured errorName is what callers (like the test262
