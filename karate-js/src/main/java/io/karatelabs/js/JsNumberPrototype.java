@@ -110,27 +110,7 @@ class JsNumberPrototype extends Prototype {
         if (args.length > 0 && args[0] != Terms.UNDEFINED) {
             digits = toIntegerArg(args[0], context);
         }
-        if (digits < 0 || digits > 100) {
-            throw JsErrorException.rangeError("toFixed() digits argument must be between 0 and 100");
-        }
-        if (Double.isNaN(d)) return "NaN";
-        if (d == Double.POSITIVE_INFINITY) return "Infinity";
-        if (d == Double.NEGATIVE_INFINITY) return "-Infinity";
-        // Spec: |x| ≥ 10^21 falls back to ToString(x); BigDecimal of such doubles
-        // produces a noisy decimal expansion (e.g. 1e21 -> "1000000000000000040000")
-        // that doesn't match JS's "1e+21" canonical form.
-        if (Math.abs(d) >= 1e21) {
-            return Terms.numberToString(d);
-        }
-        BigDecimal bd = BigDecimal.valueOf(d);
-        bd = bd.setScale(digits, RoundingMode.HALF_UP);
-        StringBuilder pattern = new StringBuilder("0");
-        if (digits > 0) {
-            pattern.append(".");
-            pattern.append("0".repeat(digits));
-        }
-        DecimalFormat df = new DecimalFormat(pattern.toString());
-        return df.format(bd.doubleValue());
+        return JsScalars.toFixed(d, digits);
     }
 
     private Object toPrecision(Context context, Object[] args) {

@@ -181,19 +181,7 @@ class JsMath extends JsObject {
         });
         installMethod("pow", 2, math(Math::pow));
         installMethod("random", 0, (JsInvokable) args -> Math.random());
-        installMethod("round", 1, math(x -> {
-            // Spec §21.3.2.28: NaN/±Inf/±0/integer unchanged; (0, 0.5) -> +0;
-            // [-0.5, 0) -> -0; otherwise floor(x + 0.5). Note this is
-            // "round half toward +Infinity", NOT "round half away from zero":
-            // Math.round(-1.5) === -1, NOT -2. The integer short-circuit is
-            // load-bearing near MAX_SAFE_INTEGER (ulp ≥ 1), where x + 0.5
-            // rounds to a different integer than x.
-            if (Double.isNaN(x) || Double.isInfinite(x) || x == 0) return x;
-            if (x == Math.floor(x)) return x;
-            if (x > 0 && x < 0.5) return 0.0;
-            if (x < 0 && x >= -0.5) return -0.0;
-            return Math.floor(x + 0.5);
-        }));
+        installMethod("round", 1, math(JsScalars::round));
         installMethod("sign", 1, math(x -> {
             if (Double.isNaN(x)) return Double.NaN;
             if (x == 0) return x; // ±0 preserved
