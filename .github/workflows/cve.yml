@@ -203,7 +203,7 @@ jobs:
 
       - name: Email CVE & SBOM report
         if: always() && github.event_name == 'schedule'
-        uses: dawidd6/action-send-mail@94de994a9f6fffee200243214e17002e2920bb59 # v18
+        uses: dawidd6/action-send-mail@ca8dbb4d4f91ca7f75e7f2feea5339e76ce70c90 # v20
         with:
           server_address: ${{ secrets.SMTP_SERVER }}
           server_port: 465
