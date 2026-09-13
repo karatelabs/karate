@@ -27,6 +27,7 @@ import io.karatelabs.common.Resource;
 import io.karatelabs.gherkin.Feature;
 import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpResponse;
+import io.karatelabs.match.Match;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -45,7 +46,7 @@ class RunListenerTest {
     void testRunEventTypeValues() {
         // Verify all expected event types exist
         RunEventType[] types = RunEventType.values();
-        assertEquals(13, types.length);  // Added OUTLINE_ENTER
+        assertEquals(14, types.length);  // Added OUTLINE_ENTER, MATCH_EXIT
 
         // Verify specific types
         assertNotNull(RunEventType.SUITE_ENTER);
@@ -621,6 +622,62 @@ class RunListenerTest {
         assertEquals(RunEventType.HTTP_EXIT, exitEvent.type());
         assertTrue(exitEvent.response().isSkipped());
         assertEquals(0, exitEvent.response().getStatus());
+    }
+
+    // ========== Match Event Tests ==========
+
+    @Test
+    void testMatchEventsAreFiredDuringExecution() {
+        List<MatchRunEvent> matchEvents = new ArrayList<>();
+
+        String featureText = """
+            Feature: Match Events Test
+              Scenario: assertions
+                * def x = { a: 1 }
+                * match x == { a: 1 }
+                * assert x.a == 1
+                * match x == { a: 2 }
+            """;
+        Feature feature = Feature.read(Resource.text(featureText));
+
+        Suite suite = Runner.builder()
+            .features(feature)
+            .outputHtmlReport(false)
+            .outputConsoleSummary(false)
+            .backupOutputDir(false)
+            .listener(event -> {
+                if (event instanceof MatchRunEvent e) {
+                    matchEvents.add(e);
+                }
+                return true;
+            })
+            .buildSuite();
+
+        SuiteResult result = suite.run();
+
+        assertTrue(result.isFailed(), "the last match is expected to fail");
+        assertEquals(3, matchEvents.size(), "one MATCH_EXIT per match / assert");
+
+        MatchRunEvent passed = matchEvents.get(0);
+        assertEquals(RunEventType.MATCH_EXIT, passed.getType());
+        assertEquals(Match.Type.EQUALS, passed.matchType());
+        assertEquals("x", passed.actualExpr());
+        assertEquals("{ a: 1 }", passed.expectedExpr());
+        assertTrue(passed.result().pass);
+
+        MatchRunEvent asserted = matchEvents.get(1);
+        assertNull(asserted.matchType(), "the assert keyword has no match type");
+        assertEquals("x.a == 1", asserted.actualExpr());
+        assertNull(asserted.expectedExpr());
+        assertEquals(true, asserted.actual());
+        assertTrue(asserted.result().pass);
+
+        // the keyword path fires BEFORE it throws, so a failed match still carries its evidence
+        MatchRunEvent failed = matchEvents.get(2);
+        assertEquals(Match.Type.EQUALS, failed.matchType());
+        assertFalse(failed.result().pass);
+        assertNotNull(failed.actual());
+        assertNotNull(failed.expected());
     }
 
     @Test

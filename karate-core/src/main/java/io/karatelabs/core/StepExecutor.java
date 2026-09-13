@@ -1360,7 +1360,27 @@ public class StepExecutor {
         }
         Match.Type matchType = Match.Type.valueOf(expr.getMatchTypeName());
         boolean matchEachEmptyAllowed = runtime.getConfig().isMatchEachEmptyAllowed();
-        return Match.execute(runtime.getEngine(), matchType, actual, expected, matchEachEmptyAllowed);
+        Result result = Match.execute(runtime.getEngine(), matchType, actual, expected, matchEachEmptyAllowed);
+        String expectedExpr = docString != null && (expr.getExpectedExpr() == null || expr.getExpectedExpr().isEmpty())
+                ? docString : expr.getExpectedExpr();
+        // fired before the caller throws, so a failed match still carries its evidence
+        fireMatchEvent(matchType, expr.getActualExpr(), expectedExpr, actual, expected, result);
+        return result;
+    }
+
+    /** Best-effort — {@link Suite#fireEvent} does not shield the caller from a listener, and an
+     *  evidence listener must never fail the assertion it is observing. */
+    private void fireMatchEvent(Match.Type matchType, String actualExpr, String expectedExpr,
+                                Object actual, Object expected, Result result) {
+        Suite suite = getSuite();
+        if (suite == null) {
+            return;
+        }
+        try {
+            suite.fireEvent(MatchRunEvent.exit(matchType, actualExpr, expectedExpr, actual, expected, result, runtime));
+        } catch (Exception e) {
+            logger.debug("match event listener failed: {}", e.getMessage());
+        }
     }
 
     /**
@@ -1898,8 +1918,10 @@ public class StepExecutor {
     private void executeAssert(Step step) {
         Object result = runtime.eval(step.getText());
         if (result instanceof Boolean b) {
+            String message = "assert failed: " + step.getText();
+            fireMatchEvent(null, step.getText(), null, b, null, b ? Result.PASS : Result.fail(message));
             if (!b) {
-                throw new AssertionError(withCommentLabel(step, "assert failed: " + step.getText()));
+                throw new AssertionError(withCommentLabel(step, message));
             }
         } else {
             throw new RuntimeException("assert expression must return boolean: " + step.getText());

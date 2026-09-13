@@ -42,6 +42,9 @@ public enum RunEventType {
     STEP_EXIT,
     HTTP_ENTER,
     HTTP_EXIT,
+    // MATCH_EXIT fires after every match / assert is evaluated, pass or fail — on failure
+    // before the step throws, so a failed assertion still reaches its listeners.
+    MATCH_EXIT,
     ERROR,
     PROGRESS
 }
