@@ -1682,6 +1682,29 @@ class ExternalBridgeTest extends EvalBase {
     }
 
     @Test
+    void testJsPropertyHoldingNullShadowsAJavaMapMember() {
+        // a raw Map receiver probes Object.prototype; an inherited null must
+        // read as null, not fall through to Map.size / Map.isEmpty on the Java side
+        try {
+            engine = new Engine();
+            engine.setExternalBridge(bridge);
+            engine.put("map", new java.util.HashMap<>(java.util.Map.of("a", 1)));
+            assertNull(engine.eval("Object.prototype.size = null; map.size"));
+            assertNull(engine.eval("Object.prototype.isEmpty = undefined; map.isEmpty"));
+            Exception ex = assertThrows(Exception.class, () -> engine.eval("map.size()"));
+            assertTrue(ex.getMessage().contains("is not a function"), ex.getMessage());
+            assertEquals(1, engine.eval("map.get('a')"));
+        } finally {
+            eval("delete Object.prototype.size; delete Object.prototype.isEmpty");
+        }
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("map", new java.util.HashMap<>(java.util.Map.of("a", 1)));
+        assertEquals(1, engine.eval("map.size()"));
+        assertEquals(false, engine.eval("map.isEmpty()"));
+    }
+
+    @Test
     void testNewOnAJavaTypeReachedByValue() {
         // the callee is a parenthesised expression, not a name, so it arrives
         // as the raw Java type rather than through the named wrap sites

@@ -1021,6 +1021,9 @@ class PropertyAccess {
             // receiver passed along is still the real map.
             Object result = PROTOTYPE_PROBE.getMember(name, receiver, context);
             if (result != null) return result;
+            // an inherited null reads the same as a miss; only a slot walk tells
+            // it apart before the bridge would resolve the Java member instead
+            if (context.root.bridge != null && chainHasSlot(PROTOTYPE_PROBE, name)) return result;
         } else {
             ObjectLike ol = Terms.toObjectLike(object);
             if (ol != null) {
