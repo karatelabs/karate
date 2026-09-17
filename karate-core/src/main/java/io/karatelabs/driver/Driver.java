@@ -24,6 +24,7 @@
 package io.karatelabs.driver;
 
 import io.karatelabs.js.JavaCallable;
+import io.karatelabs.js.JsFunction;
 import io.karatelabs.js.SimpleObject;
 
 import java.time.Duration;
@@ -655,8 +656,9 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     default Object script(Object expression) {
         String js = Locators.toFunction(expression);
-        // If it's a function, wrap in IIFE to invoke it
-        if (js.contains("=>") || js.startsWith("function")) {
+        // a function value is invoked; a value expression (including an IIFE that already
+        // invokes itself) goes to the browser verbatim
+        if (expression instanceof JsFunction || Locators.isFunctionDefinition(js)) {
             js = "(" + js + ")()";
         }
         return script(js);

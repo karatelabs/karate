@@ -23,8 +23,12 @@
  */
 package io.karatelabs.driver;
 
+import io.karatelabs.js.Engine;
 import io.karatelabs.js.JsFunction;
+import io.karatelabs.parser.Node;
+import io.karatelabs.parser.NodeType;
 
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -232,6 +236,74 @@ public class Locators {
     // ========== Shorthand Expression to Function ==========
 
     /**
+     * True when the whole JS source is one function definition rather than a value
+     * expression: a single statement that is a {@code function} (named or anonymous, the
+     * parser accepts both at statement position) or an arrow function, optionally
+     * {@code async} and optionally wrapped in grouping parentheses. Decided on the
+     * karate-js AST, so comments, string / template / regex literals and every other
+     * lexical detail are the parser's concern. An expression that merely contains an
+     * arrow deeper in, such as an invoked IIFE {@code (() => 1)()} or
+     * {@code list.filter(x => x.ok)} and a function declaration followed by further
+     * statements are values and must reach the browser verbatim — appending an
+     * invocation would call the result or fail to parse. Browser JS the karate-js parser
+     * rejects (syntax it does not interpret, e.g. async generators, {@code for await})
+     * falls back to a best-effort look at the leading tokens, so a function that merely
+     * contains such syntax is still invoked.
+     */
+    public static boolean isFunctionDefinition(String js) {
+        Node program;
+        try {
+            program = Engine.parse(js);
+        } catch (RuntimeException e) {
+            return looksLikeFunctionDefinition(js);
+        }
+        List<Node> statements = program.findImmediateChildren(NodeType.STATEMENT);
+        return statements.size() == 1 && isFunctionNode(onlyChild(statements.get(0)));
+    }
+
+    private static final Pattern FUNCTION_DEFINITION_FALLBACK = Pattern.compile(
+            "^\\s*(async\\s*)?(function\\b|\\([^()]*\\)\\s*=>|[A-Za-z_$][\\w$]*\\s*=>)");
+
+    // leading tokens only; a function keyword must also end the text with its body's
+    // brace, which a declaration followed by more statements does not
+    private static boolean looksLikeFunctionDefinition(String js) {
+        Matcher m = FUNCTION_DEFINITION_FALLBACK.matcher(js);
+        if (!m.find()) {
+            return false;
+        }
+        return !m.group(2).startsWith("function") || js.stripTrailing().endsWith("}");
+    }
+
+    private static boolean isFunctionNode(Node node) {
+        if (node == null) {
+            return false;
+        }
+        return switch (node.type) {
+            case FN_EXPR, FN_ARROW_EXPR -> true;
+            // x => ... parses as a REF_EXPR carrying the arrow
+            case REF_EXPR -> !node.findImmediateChildren(NodeType.FN_ARROW_EXPR).isEmpty();
+            case EXPR_LIST, EXPR, PAREN_EXPR -> isFunctionNode(onlyChild(node));
+            default -> false;
+        };
+    }
+
+    // the single non-token child, or null when there are none or several
+    private static Node onlyChild(Node node) {
+        Node only = null;
+        for (int i = 0; i < node.size(); i++) {
+            Node child = node.get(i);
+            if (child.isToken()) {
+                continue;
+            }
+            if (only != null) {
+                return null;
+            }
+            only = child;
+        }
+        return only;
+    }
+
+    /**
      * Convert shorthand expression to a function.
      * <ul>
      *   <li>JsFunction: arrow functions like {@code _ => _.value} are serialized to source</li>
@@ -256,7 +328,7 @@ public class Locators {
             return "_ => _";
         }
         // Already an arrow function or full function
-        if (expr.contains("=>") || expr.startsWith("function")) {
+        if (isFunctionDefinition(expr)) {
             return expr;
         }
         char first = expr.charAt(0);

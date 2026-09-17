@@ -365,6 +365,31 @@ Object script(String locator, String expression) // JS on element (_ = element)
 List<Object> scriptAll(String locator, String expression)
 ```
 
+**Function-vs-value rule (`Driver.script(Object)`, `Locators.toFunction`).** The
+Gherkin/JS entry point accepts either a value expression or a function. A karate-js
+function object (`driver.script(() => document.title)`) is always serialized and
+invoked. A *string* is invoked only when `Locators.isFunctionDefinition` says the whole
+text **is** one function definition — a single statement that is `function [name](params)
+{ body }`, `(params) => ...` or `x => ...`, optionally `async`, or any of these in
+grouping parentheses — otherwise it reaches the browser verbatim. The check is made on
+the karate-js AST (`Engine.parse`, no evaluation): one `STATEMENT` whose expression
+bottoms out in `FN_EXPR` / `FN_ARROW_EXPR` through `EXPR_LIST` / `EXPR` / `PAREN_EXPR` /
+`REF_EXPR` wrappers. Not a regex or hand-rolled scan — comments, string / template /
+regex literals, `async()=>`, generators and line terminators are all the parser's
+problem. karate-js rejects syntax it does not interpret (async generators, `for await`),
+so a string that does not parse falls back to a best-effort look at the leading tokens
+(`function`, `(params) =>`, `x =>`; a `function` text must also end with its body's
+closing brace, which rules out a declaration followed by a call): a function that merely
+*contains* such syntax is still invoked, and genuinely broken text reaches the browser so
+it reports the real error. Merely *containing* an arrow is not enough: `(() => { return true; })()`
+is already an IIFE (`FN_CALL_EXPR`) whose value is a boolean, and `list.filter(x =>
+x.ok)` is a value, so appending `()` would call the result (`TypeError: (intermediate
+value)(...) is not a function`). A declaration followed by statements
+(`function f(){..}; f()`) is two statements and likewise sent verbatim — wrapping it in
+`(...)()` would not parse. The same predicate
+decides whether `toFunction` leaves a `_`/`!` shorthand alone: `_.items.filter(x => x.ok)`
+becomes `_ => _.items.filter(x => x.ok)`, not a bare expression referencing an unbound `_`.
+
 ### Screenshot
 ```java
 byte[] screenshot()                              // PNG bytes
@@ -434,6 +459,20 @@ Element locate(String locator)
 List<Element> locateAll(String locator)
 Element optional(String locator)                 // No throw if missing
 ```
+
+**`optional()` and `MissingElement`.** `locate()` returns a `BaseElement` whose every
+action and read first runs `assertExists()`, so a missing element throws
+`element not found` at the *operation*, not at lookup. `optional()` is the v1-compatible
+null-object variant: when nothing matches it returns a `MissingElement` (subclass of
+`BaseElement`, `isPresent()` false) whose actions — `click()`, `input()`, `clear()`,
+`select()`, `scroll()`, … — are no-ops returning itself, whose reads — `text()`,
+`value()`, `attribute()`, `position()`, `script()` — return null (`enabled()` /
+`matches()` false, `locateAll()` empty, `locate()` / `closest()` another missing
+element), and whose `waitFor()` / `waitForText()` / `waitForEnabled()` / `waitUntil()`
+delegate to the driver and return the *real* element once it appears. `retry()` is the
+same kind of explicit opt-in: it hands `click()` / `input()` to the driver's auto-wait,
+so a target that never appears throws after the retry budget, exactly as a wait times
+out. This is what makes `* optional('#dismiss').click()` a safe "click if present" step.
 
 ### Element Navigation
 ```java

@@ -197,6 +197,13 @@ Feature: Element Tests
     * def notExists = optional('#nonexistent')
     * match notExists.isPresent() == false
 
+  Scenario: Optional element actions are no-ops when it does not exist
+    * optional('#nonexistent').click()
+    * optional('#nonexistent').input('x')
+    * optional('#nonexistent').clear()
+    * match optional('#nonexistent').text() == null
+    * match optional('#username').isPresent() == true
+
   # ========== LocateAll ==========
 
   Scenario: Locate all elements
@@ -296,6 +303,19 @@ Feature: Element Tests
     # Must NOT be interpreted as multiple arguments to an outer call
     * def result = script("(1, 2, 3)")
     * match result == 3
+
+  Scenario: script() with a self-invoking arrow function
+    # already invoked — wrapping it again would call its result
+    * def actual = driver.script('(() => { return true; })()')
+    * match actual == true
+
+  Scenario: script() with a self-invoking arrow function returning an object
+    * def actual = driver.script('(() => { return {value: 42}; })()')
+    * match actual == { value: 42 }
+
+  Scenario: script() with a self-invoking function expression
+    * def actual = driver.script('(function(){ return true; })()')
+    * match actual == true
 
   Scenario: script() returns value for value-producing expressions
     * def result = script("document.title")

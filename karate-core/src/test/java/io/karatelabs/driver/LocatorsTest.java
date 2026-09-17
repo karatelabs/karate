@@ -295,11 +295,120 @@ class LocatorsTest {
         assertEquals("() => { return document.title }", Locators.toFunction(fn));
     }
 
+    // ========== isFunctionDefinition ==========
+
+    @Test
+    void testIsFunctionDefinition() {
+        assertTrue(Locators.isFunctionDefinition("function(){ return 1 }"));
+        assertTrue(Locators.isFunctionDefinition("function foo(){}"));
+        assertTrue(Locators.isFunctionDefinition("() => 1"));
+        assertTrue(Locators.isFunctionDefinition("(a, b) => a + b"));
+        assertTrue(Locators.isFunctionDefinition("_ => _.value"));
+        assertTrue(Locators.isFunctionDefinition("async () => 1"));
+        assertTrue(Locators.isFunctionDefinition("  () => 1"));
+        assertTrue(Locators.isFunctionDefinition("\n  function(){ return 1 }"));
+    }
+
+    @Test
+    void testIsFunctionDefinitionFalseForValueExpressions() {
+        // an IIFE is a value: it has already invoked itself
+        assertFalse(Locators.isFunctionDefinition("(() => { return true; })()"));
+        assertFalse(Locators.isFunctionDefinition("(function(){ return true; })()"));
+        assertFalse(Locators.isFunctionDefinition("document.body != null"));
+        // an arrow nested in a call argument does not make the expression a function
+        assertFalse(Locators.isFunctionDefinition("list.filter(x => x.ok)"));
+        assertFalse(Locators.isFunctionDefinition("_.items.filter(x => x.ok)"));
+    }
+
+    @Test
+    void testIsFunctionDefinitionParamsAndModifiers() {
+        assertTrue(Locators.isFunctionDefinition("(a = Math.max(1, 2)) => a"));
+        assertTrue(Locators.isFunctionDefinition("({value}) => value"));
+        // the paren lives in a string literal, so it is not an unbalanced bracket
+        assertTrue(Locators.isFunctionDefinition("(a = ')') => a"));
+        assertTrue(Locators.isFunctionDefinition("_ /* element */ => _.value"));
+        assertTrue(Locators.isFunctionDefinition("async (x) => x"));
+        assertTrue(Locators.isFunctionDefinition("async function f(){ return 1 }"));
+        assertTrue(Locators.isFunctionDefinition("function* gen(){ yield 1 }"));
+    }
+
+    @Test
+    void testIsFunctionDefinitionGroupedNotInvoked() {
+        // grouping parens around a function still leave a function, a trailing "()" does not
+        assertTrue(Locators.isFunctionDefinition("(() => 42)"));
+        assertTrue(Locators.isFunctionDefinition("(function(){ return 1 })"));
+        assertFalse(Locators.isFunctionDefinition("(x => x)(5)"));
+        assertFalse(Locators.isFunctionDefinition("(document.body)"));
+    }
+
+    @Test
+    void testIsFunctionDefinitionMultiLine() {
+        assertTrue(Locators.isFunctionDefinition("""
+
+                function answer(){
+                  return 42;
+                }
+                """));
+        // a declaration followed by a call is a value expression
+        assertFalse(Locators.isFunctionDefinition("""
+
+                function answer(){ return 42; }
+                answer();
+                """));
+        assertFalse(Locators.isFunctionDefinition("function f(){ return 1 }; f()"));
+    }
+
+    @Test
+    void testIsFunctionDefinitionFalseForCalls() {
+        assertFalse(Locators.isFunctionDefinition("async(1)"));
+        assertFalse(Locators.isFunctionDefinition("list.map(x => x.id).join(',')"));
+    }
+
+    @Test
+    void testIsFunctionDefinitionLexicalLiterals() {
+        // braces and parens inside regex, string and template literals are not structure
+        assertTrue(Locators.isFunctionDefinition("function(){ return /}/.test('}'); }"));
+        assertTrue(Locators.isFunctionDefinition("(s = /[)]/) => s.test(')')"));
+        assertTrue(Locators.isFunctionDefinition("function(){ return `${`}`}`; }"));
+        assertTrue(Locators.isFunctionDefinition("function(){ return '}' }"));
+    }
+
+    @Test
+    void testIsFunctionDefinitionWhitespaceAndComments() {
+        assertTrue(Locators.isFunctionDefinition("async()=>42"));
+        // a line comment ended by a carriage return alone
+        assertTrue(Locators.isFunctionDefinition("function(){ // comment\r return 42; }"));
+    }
+
+    @Test
+    void testIsFunctionDefinitionFalseForCommaAndMultipleStatements() {
+        assertFalse(Locators.isFunctionDefinition("x => x, 5"));
+        assertFalse(Locators.isFunctionDefinition("() => {}; foo()"));
+    }
+
+    @Test
+    void testIsFunctionDefinitionUnparseableFallsBackToLeadingTokens() {
+        assertFalse(Locators.isFunctionDefinition(""));
+        assertFalse(Locators.isFunctionDefinition("class {"));
+        // syntax karate-js does not interpret: the browser still gets an invoked function
+        assertTrue(Locators.isFunctionDefinition("function(){ window.chunks = async function*(){ yield 42; }; return true; }"));
+        assertTrue(Locators.isFunctionDefinition("async () => { for await (const x of y) {} }"));
+        assertFalse(Locators.isFunctionDefinition("(async function*(){ yield 1 })()"));
+        assertEquals("_ => { async function* chunks(){ yield 42; } return _.value; }",
+                Locators.toFunction("_ => { async function* chunks(){ yield 42; } return _.value; }"));
+        String body = "async function* chunks(){ yield 42; }\n  return 42;\n";
+        assertTrue(Locators.isFunctionDefinition("\nfunction answer(){\n  " + body + "}\n"));
+        assertFalse(Locators.isFunctionDefinition("\nfunction answer(){\n  " + body + "}\nanswer();"));
+        assertFalse(Locators.isFunctionDefinition("\nfunction answer(){\n  " + body + "}\nanswer()"));
+        // genuinely broken text: the browser reports the error either way
+        assertFalse(Locators.isFunctionDefinition("function("));
+    }
+
     // ========== toFunction: Regression ==========
     // Plain string expressions must pass through toFunction() untouched.
-    // Driver.script(Object) only wraps in IIFE when the result contains "=>"
-    // or starts with "function", so anything toFunction() returns unchanged
-    // here reaches the browser verbatim.
+    // Driver.script(Object) only wraps in IIFE when the result is a function
+    // definition (see isFunctionDefinition), so anything toFunction() returns
+    // unchanged here reaches the browser verbatim.
 
     @Test
     void testToFunctionVoidMethodCallPassThrough() {
@@ -328,6 +437,27 @@ class LocatorsTest {
         assertEquals("let x = 1; window.y = x", Locators.toFunction("let x = 1; window.y = x"));
         assertEquals("const x = 1; window.y = x", Locators.toFunction("const x = 1; window.y = x"));
         assertEquals("window.a = 1; window.b = 2", Locators.toFunction("window.a = 1; window.b = 2"));
+    }
+
+    @Test
+    void testToFunctionUnderscoreWithNestedArrow() {
+        // the nested arrow belongs to filter() — the whole expression is still an
+        // element shorthand and must become a function, or the generated
+        // "var fun = _.items..." would dereference an undefined "_"
+        assertEquals("_ => _.items.filter(x => x.ok)", Locators.toFunction("_.items.filter(x => x.ok)"));
+    }
+
+    @Test
+    void testToFunctionArrowWithComment() {
+        String arrow = "_ /* element */ => _.value";
+        assertEquals(arrow, Locators.toFunction(arrow));
+    }
+
+    @Test
+    void testToFunctionUnderscoreWithArrowArgument() {
+        // a leading "_" is always the element shorthand, whatever an arrow nested in the call means
+        assertEquals("_ => _.partial((p, e) => p + e.value, 'x')",
+                Locators.toFunction("_.partial((p, e) => p + e.value, 'x')"));
     }
 
     @Test

@@ -59,7 +59,7 @@ public class BaseElement implements Element {
 
     public static BaseElement optional(Driver driver, String locator) {
         boolean exists = driver.exists(locator);
-        return new BaseElement(driver, locator, exists);
+        return exists ? new BaseElement(driver, locator, true) : new MissingElement(driver, locator);
     }
 
     /**
@@ -265,7 +265,7 @@ public class BaseElement implements Element {
      * {@link Locators#wrapInFunctionInvoke}. Distinguished from XPath (which starts
      * with {@code (//}) and from wildcard/CSS.
      */
-    private static boolean isPureJsLocator(String locator) {
+    protected static boolean isPureJsLocator(String locator) {
         return locator.startsWith("(") && !locator.startsWith("(//");
     }
 
