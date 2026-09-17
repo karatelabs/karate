@@ -319,25 +319,25 @@ Feature: Element Tests
     * script("document.getElementById('username').dispatchEvent(new Event('focus'))")
 
   Scenario: script() with void sessionStorage.setItem()
-    * script("sessionStorage.setItem('k2803', 'v2803')")
-    * match script("sessionStorage.getItem('k2803')") == 'v2803'
+    * script("sessionStorage.setItem('scriptKey', 'scriptValue')")
+    * match script("sessionStorage.getItem('scriptKey')") == 'scriptValue'
 
   Scenario: script() with semicolon-separated statements
-    * script("window.__t1_2803 = 1; window.__t2_2803 = 2")
-    * match script("window.__t1_2803") == 1
-    * match script("window.__t2_2803") == 2
+    * script("window.__stmt1 = 1; window.__stmt2 = 2")
+    * match script("window.__stmt1") == 1
+    * match script("window.__stmt2") == 2
 
   Scenario: script() with var declaration
-    * script("var x = 42; window.__tvar_2803 = x")
-    * match script("window.__tvar_2803") == 42
+    * script("var x = 42; window.__fromVar = x")
+    * match script("window.__fromVar") == 42
 
   Scenario: script() with let declaration
-    * script("let x = 43; window.__tlet_2803 = x")
-    * match script("window.__tlet_2803") == 43
+    * script("let x = 43; window.__fromLet = x")
+    * match script("window.__fromLet") == 43
 
   Scenario: script() with const declaration
-    * script("const x = 44; window.__tconst_2803 = x")
-    * match script("window.__tconst_2803") == 44
+    * script("const x = 44; window.__fromConst = x")
+    * match script("window.__fromConst") == 44
 
   Scenario: script() with comma operator in parens returns last expression
     # Must NOT be interpreted as multiple arguments to an outer call

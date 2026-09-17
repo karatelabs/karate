@@ -1059,7 +1059,7 @@ configure driver = { type: 'chromedriver', webDriverUrl: 'http://localhost:9515'
 - Port arg format is `--port=%d` for every browser in `W3cBrowserType`:
   `ProcessBuilder.command().add(String)` doesn't split on whitespace, so
   `"--port %d"` would be passed as a single argv token the executable
-  doesn't recognise (the source of issue #2884). `W3cBrowserTypeTest` is
+  doesn't recognise, so the driver process came up without a port. `W3cBrowserTypeTest` is
   parameterized over the enum to enforce this invariant for any future row.
 
 **CDP-only operations (throw `UnsupportedOperationException`):**
@@ -1081,7 +1081,7 @@ the main `build` job:
 
 - `W3cDriverFeatureTest` — main suite, CDP-only scenarios tagged `@cdp` and excluded.
 - `W3cFrameFeatureTest` — frames in a dedicated container, single-threaded (frame switching mutates global browser state).
-- `W3cGridE2eTest` — wire-format regression against a real Selenium Grid (hub + node-chromium); intentionally narrow, runs `navigation.feature` only — its job is to catch protocol-level regressions that the standalone container's lenient filter chain would miss (e.g. issue #2883 — missing `charset=utf-8` on POST /session).
+- `W3cGridE2eTest` — wire-format regression against a real Selenium Grid (hub + node-chromium); intentionally narrow, runs `navigation.feature` only — its job is to catch protocol-level regressions that the standalone container's lenient filter chain would miss (a missing `charset=utf-8` on POST /session once broke session creation on a real grid only).
 
 **What works:**
 - [x] Session creation and lifecycle (POST /session, DELETE /session)
