@@ -32,6 +32,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -64,12 +65,14 @@ class CucumberJsonWriterTest {
 
         Path reportDir = tempDir.resolve("reports");
 
+        long before = System.currentTimeMillis();
         SuiteResult result = Runner.path(feature.toString())
                 .workingDir(tempDir)
                 .outputDir(reportDir)
                 .outputCucumberJson(true)
                 .outputConsoleSummary(false)
                 .parallel(1);
+        long after = System.currentTimeMillis();
 
         assertTrue(result.isPassed());
 
@@ -100,6 +103,16 @@ class CucumberJsonWriterTest {
         assertEquals("Passing scenario", scenario1.get("name"));
         assertEquals("Scenario", scenario1.get("keyword"));
         assertEquals("scenario", scenario1.get("type"));
+
+        // start_timestamp: ISO-8601 UTC with millis, and within the run window —
+        // report tools derive suite timing from it, so it must be present and real
+        for (Map<String, Object> element : elements) {
+            String ts = (String) element.get("start_timestamp");
+            assertNotNull(ts, "scenario element should carry start_timestamp");
+            assertTrue(ts.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z"), ts);
+            long millis = Instant.parse(ts).toEpochMilli();
+            assertTrue(millis >= before && millis <= after, ts);
+        }
 
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> steps1 = (List<Map<String, Object>>) scenario1.get("steps");

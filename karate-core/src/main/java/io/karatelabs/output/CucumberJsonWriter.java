@@ -36,6 +36,9 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -56,6 +59,7 @@ import java.util.Map;
  *     "keyword": "Feature",
  *     "elements": [
  *       {
+ *         "start_timestamp": "2026-09-16T14:52:02.919Z",
  *         "id": "feature-id;scenario-id",
  *         "name": "Scenario Name",
  *         "keyword": "Scenario",
@@ -76,6 +80,11 @@ import java.util.Map;
 public final class CucumberJsonWriter {
 
     private static final Logger logger = LoggerFactory.getLogger("karate.runtime");
+
+    // Always three fraction digits, unlike ISO_INSTANT which drops a zero millisecond part
+    private static final DateTimeFormatter START_TIMESTAMP_FORMAT = DateTimeFormatter
+            .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+            .withZone(ZoneOffset.UTC);
 
     private CucumberJsonWriter() {
     }
@@ -186,6 +195,13 @@ public final class CucumberJsonWriter {
         String scenarioId = toId(scenario.getName());
         String fullId = featureId + ";" + scenarioId;
 
+        // Cucumber JSON carries the scenario start as an ISO-8601 UTC instant; report
+        // consumers (cucumber-reporting, Allure, ReportPortal) derive suite timing from it,
+        // and without it they fall back to "now" and mis-compute the run duration.
+        long startTime = sr.getStartTime();
+        if (startTime > 0) {
+            map.put("start_timestamp", START_TIMESTAMP_FORMAT.format(Instant.ofEpochMilli(startTime)));
+        }
         map.put("id", fullId);
         map.put("name", scenario.getName() != null ? scenario.getName() : "");
         map.put("description", scenario.getDescription() != null ? scenario.getDescription() : "");
