@@ -220,8 +220,6 @@ public class RunCommand implements Callable<Integer> {
         String effectiveWorkingDir = resolveWorkingDir();
         int effectiveThreads = resolveThreads();
         boolean effectiveClean = resolveClean();
-        boolean effectiveDryRun = resolveDryRun();
-        boolean effectiveBackup = resolveBackup();
 
         // Clean output directory if requested
         if (effectiveClean) {
@@ -239,91 +237,8 @@ public class RunCommand implements Callable<Integer> {
 
         // Build and run
         try {
-            Runner.Builder builder = Runner.builder();
-
-            // Apply pom settings first (if present)
-            if (pom != null) {
-                pom.applyTo(builder);
-            }
-
-            // CLI options override pom
-            builder.path(effectivePaths);
-            builder.outputDir(effectiveOutputDir);
-
-            if (effectiveDryRun) {
-                builder.dryRun(true);
-            }
-
-            if (env != null) {
-                builder.karateEnv(env);
-            } else if (pom != null && pom.getEnv() != null) {
-                builder.karateEnv(pom.getEnv());
-            }
-
-            if (tags != null && !tags.isEmpty()) {
-                builder.tags(tags.toArray(new String[0]));
-            } else if (pom != null && !pom.getTags().isEmpty()) {
-                builder.tags(pom.getTags().toArray(new String[0]));
-            }
-
-            if (scenarioName != null) {
-                builder.scenarioName(scenarioName);
-            } else if (pom != null && pom.getScenarioName() != null) {
-                builder.scenarioName(pom.getScenarioName());
-            }
-
-            if (configDir != null) {
-                builder.configDir(configDir);
-            } else if (pom != null && pom.getConfigDir() != null) {
-                builder.configDir(pom.getConfigDir());
-            }
-
-            if (effectiveWorkingDir != null) {
-                builder.workingDir(effectiveWorkingDir);
-            }
-
-            builder.backupOutputDir(effectiveBackup);
-
-            // Log levels (CLI overrides pom)
-            String effectiveLogReport = resolveLogReport();
-            if (effectiveLogReport != null) {
-                builder.logLevel(effectiveLogReport);
-            }
-            String effectiveLogConsole = resolveLogConsole();
-            if (effectiveLogConsole != null) {
-                builder.consoleLevel(effectiveLogConsole);
-            }
-
-            // Output formats (HTML is default on, others default off)
-            // CLI -f flag overrides pom settings
-            if (formats != null) {
-                builder.outputHtmlReport(isFormatEnabled("html", true));
-                builder.outputCucumberJson(isFormatEnabled("cucumber:json", false));
-                builder.outputJunitXml(isFormatEnabled("junit:xml", false));
-                builder.outputJsonLines(isFormatEnabled("karate:jsonl", false));
-            }
-
-            // Listeners (CLI overrides pom)
-            List<String> effectiveListeners = resolveListeners();
-            if (effectiveListeners != null) {
-                for (String className : effectiveListeners) {
-                    builder.listenerFactory(className);  // handles both RunListener and RunListenerFactory
-                }
-            }
-
-            List<String> effectiveListenerFactories = resolveListenerFactories();
-            if (effectiveListenerFactories != null) {
-                for (String className : effectiveListenerFactories) {
-                    builder.listenerFactory(className);
-                }
-            }
-
-            // Run tests
-            SuiteResult result = builder.parallel(effectiveThreads);
-
-            // Return exit code based on test results
+            SuiteResult result = toBuilder().parallel(effectiveThreads);
             return result.isFailed() ? 1 : 0;
-
         } catch (Exception e) {
             Console.println(Console.fail("Error: " + e.getMessage()));
             e.printStackTrace();
@@ -331,7 +246,95 @@ public class RunCommand implements Callable<Integer> {
         }
     }
 
-    private void loadPom() {
+    /**
+     * The merged CLI + pom configuration, every field resolved here with the CLI value winning.
+     * The pom is deliberately not applied wholesale via KaratePom.applyTo first: path() and
+     * listenerFactory() accumulate, so a pom path or listener would then be registered twice.
+     */
+    Runner.Builder toBuilder() {
+        Runner.Builder builder = Runner.builder();
+        builder.path(resolvePaths());
+        builder.outputDir(resolveOutputDir());
+
+        if (resolveDryRun()) {
+            builder.dryRun(true);
+        }
+
+        if (env != null) {
+            builder.karateEnv(env);
+        } else if (pom != null && pom.getEnv() != null) {
+            builder.karateEnv(pom.getEnv());
+        }
+
+        if (tags != null && !tags.isEmpty()) {
+            builder.tags(tags.toArray(new String[0]));
+        } else if (pom != null && !pom.getTags().isEmpty()) {
+            builder.tags(pom.getTags().toArray(new String[0]));
+        }
+
+        if (scenarioName != null) {
+            builder.scenarioName(scenarioName);
+        } else if (pom != null && pom.getScenarioName() != null) {
+            builder.scenarioName(pom.getScenarioName());
+        }
+
+        if (configDir != null) {
+            builder.configDir(configDir);
+        } else if (pom != null && pom.getConfigDir() != null) {
+            builder.configDir(pom.getConfigDir());
+        }
+
+        String effectiveWorkingDir = resolveWorkingDir();
+        if (effectiveWorkingDir != null) {
+            builder.workingDir(effectiveWorkingDir);
+        }
+
+        builder.backupOutputDir(resolveBackup());
+
+        // Log levels (CLI overrides pom)
+        String effectiveLogReport = resolveLogReport();
+        if (effectiveLogReport != null) {
+            builder.logLevel(effectiveLogReport);
+        }
+        String effectiveLogConsole = resolveLogConsole();
+        if (effectiveLogConsole != null) {
+            builder.consoleLevel(effectiveLogConsole);
+        }
+
+        // Output formats (HTML is default on, others default off)
+        // CLI -f flag overrides pom settings
+        if (formats != null) {
+            builder.outputHtmlReport(isFormatEnabled("html", true));
+            builder.outputCucumberJson(isFormatEnabled("cucumber:json", false));
+            builder.outputJunitXml(isFormatEnabled("junit:xml", false));
+            builder.outputJsonLines(isFormatEnabled("karate:jsonl", false));
+        } else if (pom != null) {
+            KaratePom.OutputPom output = pom.getOutput();
+            builder.outputHtmlReport(output.isHtml());
+            builder.outputCucumberJson(output.isCucumberJson());
+            builder.outputJunitXml(output.isJunitXml());
+            builder.outputJsonLines(output.isJsonLines());
+        }
+
+        // Listeners (CLI overrides pom)
+        List<String> effectiveListeners = resolveListeners();
+        if (effectiveListeners != null) {
+            for (String className : effectiveListeners) {
+                builder.listenerFactory(className);  // handles both RunListener and RunListenerFactory
+            }
+        }
+
+        List<String> effectiveListenerFactories = resolveListenerFactories();
+        if (effectiveListenerFactories != null) {
+            for (String className : effectiveListenerFactories) {
+                builder.listenerFactory(className);
+            }
+        }
+
+        return builder;
+    }
+
+    void loadPom() {
         String file = pomFile != null ? pomFile : DEFAULT_POM_FILE;
         Path pomPath;
 

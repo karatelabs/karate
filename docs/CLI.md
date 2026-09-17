@@ -78,7 +78,7 @@ karate run [options] [paths...]
 
 ### Behavior
 
-1. **With paths:** Run specified feature files/directories (inherits other settings from pom)
+1. **With paths:** Run specified feature files/directories (inherits other settings from pom). Positional paths and `-P` **replace** the pom's `paths` — they are never added to them, so each feature runs exactly once
 2. **Without paths:** Look for `karate-pom.json` in current directory
 3. **With `--pom`:** Use specified project file
 4. **With `--no-pom`:** Ignore `karate-pom.json` even if present

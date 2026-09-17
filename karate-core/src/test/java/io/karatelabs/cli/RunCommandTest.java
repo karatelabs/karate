@@ -5,8 +5,15 @@
  */
 package io.karatelabs.cli;
 
+import io.karatelabs.core.RunEvent;
+import io.karatelabs.core.RunListener;
+import io.karatelabs.core.Suite;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -86,4 +93,60 @@ class RunCommandTest {
         assertEquals("b", cmd.pathOptions.get(1));
         assertEquals("c", cmd.pathOptions.get(2));
     }
+
+    public static class NoopListener implements RunListener {
+        @Override
+        public boolean onEvent(RunEvent event) {
+            return true;
+        }
+    }
+
+    private static Path writeFeature(Path dir, String name) throws Exception {
+        return Files.writeString(dir.resolve(name), """
+            Feature: minimal
+
+            Scenario: one
+              * def x = 1
+              * match x == 1
+            """);
+    }
+
+    private static String json(Path path) {
+        return path.toString().replace("\\", "\\\\");
+    }
+
+    @Test
+    void testPomPathsAndListenersRegisteredOnce(@TempDir Path dir) throws Exception {
+        Path feature = writeFeature(dir, "minimal.feature");
+        Files.writeString(dir.resolve(RunCommand.DEFAULT_POM_FILE), """
+            {
+              "paths": ["%s"],
+              "listeners": ["%s"]
+            }
+            """.formatted(json(feature), NoopListener.class.getName()));
+        RunCommand cmd = new RunCommand();
+        new CommandLine(cmd).parseArgs("-w", dir.toString());
+        cmd.loadPom();
+        Suite suite = cmd.toBuilder().buildSuite();
+        assertEquals(1, suite.features.size());
+        assertEquals(1, suite.listeners.size());
+    }
+
+    @Test
+    void testCliPathsReplacePomPaths(@TempDir Path dir) throws Exception {
+        Path fromPom = writeFeature(dir, "from-pom.feature");
+        Path fromCli = writeFeature(dir, "from-cli.feature");
+        Files.writeString(dir.resolve(RunCommand.DEFAULT_POM_FILE), """
+            {
+              "paths": ["%s"]
+            }
+            """.formatted(json(fromPom)));
+        RunCommand cmd = new RunCommand();
+        new CommandLine(cmd).parseArgs("-w", dir.toString(), fromCli.toString());
+        cmd.loadPom();
+        Suite suite = cmd.toBuilder().buildSuite();
+        assertEquals(1, suite.features.size());
+        assertEquals(fromCli, suite.features.get(0).getResource().getPath());
+    }
+
 }
