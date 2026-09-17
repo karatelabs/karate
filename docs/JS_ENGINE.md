@@ -397,21 +397,24 @@ their boxed argument.
 interpreter dispatch paths — `invokeCallable` (Java methods and **Java
 constructors**, since `JsConstructor.isExternal()` is true), tagged-template
 invocation and `invokeAsConstructor` (`Reflect.construct`) — all call the
-same helper. A path that skipped it would run reflective overload resolution
-against wrappers — `new java.lang.String(bytes, 'UTF-8')` wouldn't match
-`String(byte[], String)` while `bytes` was still a `JsUint8Array`. A new
-external entry point is therefore one call, not a copy of the loop. Known
-gap: `Reflect.apply` and `Function.prototype.call/apply/bind` forward their
-argument list to an external callable without this step, so
-`Reflect.apply(java.util.Objects.isNull, null, [undefined])` hands the Java
-side `undefined` rather than `null`.
+same helper, and so do the forwarding built-ins that bypass the interpreter's
+call site — `Function.prototype.call/apply/bind` and `Reflect.apply`. A path
+that skipped it would run reflective overload resolution against wrappers —
+`new java.lang.String(bytes, 'UTF-8')` wouldn't match `String(byte[], String)`
+while `bytes` was still a `JsUint8Array`, and
+`Reflect.apply(Objects.isNull, null, [undefined])` would hand Java `undefined`
+rather than `null`. A new external entry point is therefore one call, not a
+copy of the loop. The helper rewrites in place, so a forwarding path that
+receives a caller-owned array (`Reflect.apply` with a raw `Object[]`) copies
+it first.
 
 **A Java type is constructable however it is reached.** The named paths in
 `PropertyAccess` (`new java.lang.String(…)`, `new JString(…)`) wrap the
 `ExternalAccess` in a `JsConstructor`; `Interpreter.evalFnCall` does the same
 for a callee that arrives by value (`new (Java.type('x'))(…)`,
-`new (cond ? A : B)(…)`). `Reflect.construct` still requires a `JsCallable`
-target, so it does not accept a Java type.
+`new (cond ? A : B)(…)`), and so does `Reflect.construct` for a Java-type
+target. All of it is gated on an installed bridge; without one a Java type is
+not a constructor.
 
 ### Java members on JS primitives — the bridge fallback
 
@@ -431,11 +434,14 @@ server, absent in a standalone `Engine` unless `setExternalBridge` is called,
 and never in the test262 runner — so with no bridge a miss is plain
 `undefined`. It is *resolution* only, not a property: `'abc'.foo` is
 `undefined`, `'hashCode' in Object('abc')` is `false`, and
-`String.prototype`'s own keys are unchanged. One edge is shared with every
-bridge-backed value: presence is judged by the looked-up value, so a
-prototype property deliberately set to `undefined` or `null` under a
-Java-only name (`String.prototype.hashCode = undefined`) does not suppress
-the fallback.
+`String.prototype`'s own keys are unchanged. Presence, not value, decides a
+miss: a JS property that legitimately holds `undefined` / `null`, or a getter
+that returns one, under a Java member's name (`String.prototype.hashCode =
+undefined`) still shadows the Java member. `PropertyAccess.chainHasSlot`
+walks the prototype chain for a slot after the lookup missed, so the getter
+is not invoked twice; the walk only happens on a miss and only with a bridge
+installed. The one shape it cannot see is a getter that deletes itself while
+running, since the walk inspects the chain as the getter left it.
 
 **Receiver shape at the seam.** `PropertyAccess.getByName` reaches the bridge
 for a raw Java value, but the call path boxes the receiver first, so

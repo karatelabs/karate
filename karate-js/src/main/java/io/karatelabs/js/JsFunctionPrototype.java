@@ -81,6 +81,16 @@ class JsFunctionPrototype extends Prototype {
                 this.args = list;
             }
         }
+
+        // an apply() array list is the JsArray's own backing list, so a
+        // sparse array's holes must read as undefined here as they do for spread
+        Object[] argArray() {
+            Object[] out = args.toArray(new Object[0]);
+            for (int i = 0; i < out.length; i++) {
+                out[i] = JsArray.unwrapHole(out[i]);
+            }
+            return out;
+        }
     }
 
     private Object callMethod(Context context, Object[] args) {
@@ -92,7 +102,19 @@ class JsFunctionPrototype extends Prototype {
         if (context instanceof CoreContext cc) {
             cc.thisObject = bindForCall(callable, thisArgs.thisObject, cc);
         }
-        return callable.call(context, thisArgs.args.toArray(new Object[0]));
+        return callable.call(context, forwardArgs(callable, thisArgs.argArray()));
+    }
+
+    // forwarding paths bypass Interpreter.invokeCallable, so the boundary
+    // marshalling has to happen here for a Java target; on a copy, since a
+    // bound function reached from Java is handed the host's own array
+    private static Object[] forwardArgs(JsCallable callable, Object[] args) {
+        if (!callable.isExternal()) {
+            return args;
+        }
+        Object[] copy = Arrays.copyOf(args, args.length, Object[].class);
+        Interpreter.marshalExternalArgs(copy);
+        return copy;
     }
 
     // Spec OrdinaryCallBindThis (§9.2.1.2): the null/undefined → globalThis
@@ -118,7 +140,7 @@ class JsFunctionPrototype extends Prototype {
         if (context instanceof CoreContext cc) {
             cc.thisObject = bindForCall(callable, thisArgs.thisObject, cc);
         }
-        return callable.call(context, thisArgs.args.toArray(new Object[0]));
+        return callable.call(context, forwardArgs(callable, thisArgs.argArray()));
     }
 
     // Spec: Function.prototype.bind(thisArg, ...preBound) returns a new callable
@@ -149,7 +171,7 @@ class JsFunctionPrototype extends Prototype {
                 if (ctx instanceof CoreContext cc) {
                     cc.thisObject = boundThis;
                 }
-                return target.call(ctx, all);
+                return target.call(ctx, forwardArgs(target, all));
             }
         };
         // Spec: bound function's name is "bound " + target.name

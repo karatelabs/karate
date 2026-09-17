@@ -953,6 +953,9 @@ class PropertyAccess {
             // an original returns UNDEFINED here — bridge access on a JS-only
             // object would expose wrapper internals and shadow the
             // intentionally-undefined property.
+            if (object instanceof JsValue && context.root.bridge != null && chainHasSlot(jsObj, name)) {
+                return result;
+            }
             if (object instanceof JsPrimitive prim) {
                 // A boxed primitive that missed its prototype is the call-site
                 // shape of a raw primitive (the call path boxes the receiver
@@ -1018,17 +1021,12 @@ class PropertyAccess {
             // receiver passed along is still the real map.
             Object result = PROTOTYPE_PROBE.getMember(name, receiver, context);
             if (result != null) return result;
-        } else if (object instanceof List) {
-            ObjectLike ol = Terms.toObjectLike(object);
-            if (ol != null) {
-                Object result = ol.getMember(name, receiver, context);
-                if (isFound(result)) return result;
-            }
         } else {
             ObjectLike ol = Terms.toObjectLike(object);
             if (ol != null) {
                 Object result = ol.getMember(name, receiver, context);
                 if (isFound(result)) return result;
+                if (context.root.bridge != null && chainHasSlot(ol, name)) return result;
             }
         }
 
@@ -1382,6 +1380,19 @@ class PropertyAccess {
             current = current.getPrototype();
         }
         return null;
+    }
+
+    /** True when {@code start} or something on its prototype chain owns a
+     *  slot for {@code name}. The bridge fallback treats a nullish lookup
+     *  result as a miss; this tells a genuine miss apart from a slot that
+     *  legitimately holds {@code undefined} / {@code null} or a getter that
+     *  returned one, so a JS-defined property under a Java member's name
+     *  still shadows the Java member. */
+    static boolean chainHasSlot(ObjectLike start, String name) {
+        for (ObjectLike o = start; o != null; o = o.getPrototype()) {
+            if (ownSlot(o, name) != null) return true;
+        }
+        return false;
     }
 
     /** Single-signature own-slot lookup across the three slot-bearing

@@ -712,6 +712,15 @@ class JsFunctionTest extends EvalBase {
         assertEquals(6, eval("Reflect.apply(function(a,b){ return this.x + a + b }, { x: 1 }, [2, 3])"));
     }
 
+    @Test
+    void testHolesInArgumentsListAreUndefined() {
+        // a sparse argumentsList reads its holes as undefined, as spread does
+        assertEquals("undefined", eval("Reflect.apply(function(x){ return typeof x }, null, [,])"));
+        assertEquals(true, eval("Reflect.apply(function(x){ return x === undefined }, null, [,])"));
+        assertEquals("undefined", eval("(function(x){ return typeof x }).apply(null, new Array(1))"));
+        assertEquals("undefined", eval("Reflect.construct(function(x){ this.t = typeof x }, [,]).t"));
+    }
+
 
     @Test
     void testFunctionLengthStopsAtDefaultOrRest() {

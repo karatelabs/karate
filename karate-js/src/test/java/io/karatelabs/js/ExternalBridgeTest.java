@@ -1616,6 +1616,72 @@ class ExternalBridgeTest extends EvalBase {
     }
 
     @Test
+    void testForwardingPathsMarshalJavaMethodArgs() {
+        // call / apply / bind / Reflect.apply bypass the interpreter's call
+        // site, so `undefined` has to become null on each of them too
+        String isNull = "var isNull = Java.type('java.util.Objects').isNull; ";
+        assertEquals(true, eval(isNull + "isNull.call(null, undefined)"));
+        assertEquals(true, eval(isNull + "isNull.apply(null, [undefined])"));
+        assertEquals(true, eval(isNull + "isNull.bind(null, undefined)()"));
+        assertEquals(true, eval(isNull + "isNull.bind(null)(undefined)"));
+        assertEquals(true, eval(isNull + "Reflect.apply(isNull, null, [undefined])"));
+        assertEquals(false, eval(isNull + "Reflect.apply(isNull, null, ['x'])"));
+        // a hole in the argument array is undefined, so null on the Java side
+        assertEquals(true, eval(isNull + "isNull.apply(null, new Array(1))"));
+        assertEquals(true, eval(isNull + "Reflect.apply(isNull, null, [,])"));
+    }
+
+    @Test
+    void testForwardingLeavesTheHostsArrayAlone() {
+        // a bound Java method handed straight to Java gets the host's own array;
+        // the marshalled copy must not leak back into it
+        JavaCallable bound = (JavaCallable) eval("Java.type('java.util.Objects').isNull.bind(null)");
+        Object[] hostArgs = {Terms.UNDEFINED};
+        assertEquals(true, bound.call(null, hostArgs));
+        assertSame(Terms.UNDEFINED, hostArgs[0]);
+        // a typed host array as argumentsList: the copy has to admit the converted value
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("arr", new JsUndefined[]{Terms.UNDEFINED});
+        assertEquals(true, engine.eval("Reflect.apply(Java.type('java.util.Objects').isNull, null, arr)"));
+        assertNull(engine.eval("Reflect.construct(Java.type('io.karatelabs.js.DemoPojo'), arr).stringValue"));
+    }
+
+    @Test
+    void testReflectConstructOnAJavaType() {
+        assertEquals("sample", eval("Reflect.construct(Java.type('java.lang.String'),"
+                + " [java.util.Base64.getDecoder().decode('c2FtcGxl'), 'UTF-8'])"));
+        assertEquals(2, eval("Reflect.construct(Java.type('java.util.ArrayList'), [[1, 2]]).size()"));
+        assertNull(eval("Reflect.construct(Java.type('io.karatelabs.js.DemoPojo'), [undefined]).stringValue"));
+        // an explicit newTarget that is the same Java type is the default spelled out
+        assertEquals("abc", eval("var J = Java.type('java.lang.String'); Reflect.construct(J, ['abc'], J)"));
+        // only a Java type is promoted; a plain object is still not a constructor under a bridge
+        Exception ex = assertThrows(Exception.class, () -> eval("Reflect.construct({}, [])"));
+        assertTrue(ex.getMessage().contains("not a constructor"), ex.getMessage());
+    }
+
+    @Test
+    void testJsPropertyHoldingUndefinedStillShadowsTheJavaMember() {
+        // prototypes are shared across engines, so restore them afterwards
+        try {
+            String shadow = "String.prototype.hashCode = undefined; ";
+            assertNull(eval(shadow + "'abc'.hashCode"));
+            Exception ex = assertThrows(Exception.class, () -> eval(shadow + "'abc'.hashCode()"));
+            assertTrue(ex.getMessage().contains("is not a function"), ex.getMessage());
+            String getter = "Object.defineProperty(String.prototype, 'isBlank',"
+                    + " { get: function() { return undefined }, configurable: true }); ";
+            assertNull(eval(getter + "'abc'.isBlank"));
+            assertNull(eval(getter + "new String('abc').isBlank"));
+            Exception getterCall = assertThrows(Exception.class, () -> eval(getter + "'abc'.isBlank()"));
+            assertTrue(getterCall.getMessage().contains("is not a function"), getterCall.getMessage());
+        } finally {
+            eval("delete String.prototype.hashCode; delete String.prototype.isBlank");
+        }
+        assertEquals(96354, eval("'abc'.hashCode()"));
+        assertEquals(false, eval("'abc'.isBlank()"));
+    }
+
+    @Test
     void testNewOnAJavaTypeReachedByValue() {
         // the callee is a parenthesised expression, not a name, so it arrives
         // as the raw Java type rather than through the named wrap sites

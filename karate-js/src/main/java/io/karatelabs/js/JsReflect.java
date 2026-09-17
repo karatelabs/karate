@@ -23,6 +23,7 @@
  */
 package io.karatelabs.js;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -75,13 +76,14 @@ class JsReflect extends JsObject {
     // isConstructor harness only cares whether the call throws, so we use
     // newTarget purely as the constructable check when supplied.
     private Object construct(Context context, Object[] args) {
-        if (args.length < 1 || !(args[0] instanceof JsCallable target)) {
+        Object t = javaTypeAsConstructor(args.length < 1 ? Terms.UNDEFINED : args[0], context);
+        if (!(t instanceof JsCallable target)) {
             throw JsErrorException.typeError("Reflect.construct: target is not a constructor");
         }
         Object[] cArgs = listToArray(args.length >= 2 ? args[1] : null);
         JsCallable check = target;
         if (args.length >= 3) {
-            if (!(args[2] instanceof JsCallable nt)) {
+            if (!(javaTypeAsConstructor(args[2], context) instanceof JsCallable nt)) {
                 throw JsErrorException.typeError("Reflect.construct: newTarget is not a constructor");
             }
             check = nt;
@@ -95,6 +97,15 @@ class JsReflect extends JsObject {
         return Interpreter.constructFromHost(target, cArgs, cc);
     }
 
+    // a Java type is constructable here exactly as under syntactic `new`
+    private static Object javaTypeAsConstructor(Object o, Context context) {
+        if (o instanceof ExternalAccess ea && ea.getJavaValue() instanceof Class
+                && context instanceof CoreContext cc && cc.root.bridge != null) {
+            return PropertyAccess.externalConstructor(ea);
+        }
+        return o;
+    }
+
     // Reflect.apply(target, thisArgument, argumentsList) — spec §28.1.1.
     private Object apply(Context context, Object[] args) {
         if (args.length < 1 || !(args[0] instanceof JsCallable target)) {
@@ -102,6 +113,9 @@ class JsReflect extends JsObject {
         }
         Object thisArg = args.length >= 2 ? args[1] : Terms.UNDEFINED;
         Object[] cArgs = listToArray(args.length >= 3 ? args[2] : null);
+        if (target.isExternal()) {
+            Interpreter.marshalExternalArgs(cArgs);
+        }
         if (context instanceof CoreContext cc) {
             cc.thisObject = thisArg;
         }
@@ -112,11 +126,19 @@ class JsReflect extends JsObject {
         if (value == null || value == Terms.UNDEFINED) {
             return new Object[0];
         }
+        Object[] out = null;
         if (value instanceof List<?> list) {
-            return list.toArray();
+            out = list.toArray();
+        } else if (value instanceof Object[] arr) {
+            // marshalling rewrites the array in place: a raw Java array is the
+            // caller's, and its component type may not admit the converted value
+            out = Arrays.copyOf(arr, arr.length, Object[].class);
         }
-        if (value instanceof Object[] arr) {
-            return arr;
+        if (out != null) {
+            for (int i = 0; i < out.length; i++) {
+                out[i] = JsArray.unwrapHole(out[i]);
+            }
+            return out;
         }
         throw JsErrorException.typeError("argumentsList must be an iterable object");
     }

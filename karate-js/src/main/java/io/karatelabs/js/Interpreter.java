@@ -628,7 +628,8 @@ class Interpreter {
         // A Java type reached by value rather than by name (`new (Java.type('x'))()`,
         // `new (cond ? A : B)()`) arrives as the raw ExternalAccess; the named paths
         // in PropertyAccess already wrap it, so wrap here too.
-        if (newKeyword && context.root.bridge != null && o instanceof ExternalAccess ea) {
+        if (newKeyword && context.root.bridge != null && o instanceof ExternalAccess ea
+                && ea.getJavaValue() instanceof Class) {
             o = PropertyAccess.externalConstructor(ea);
         }
         return invokeCallable(o, receiver, fnArgsNode, newKeyword, node, context);
