@@ -625,6 +625,12 @@ class Interpreter {
         Object o = PropertyAccess.getCallable(node, context);
         Object receiver = context.callReceiver; // consume immediately (see field contract)
         if (o == PropertyAccess.SHORT_CIRCUITED) return PropertyAccess.SHORT_CIRCUITED;
+        // A Java type reached by value rather than by name (`new (Java.type('x'))()`,
+        // `new (cond ? A : B)()`) arrives as the raw ExternalAccess; the named paths
+        // in PropertyAccess already wrap it, so wrap here too.
+        if (newKeyword && context.root.bridge != null && o instanceof ExternalAccess ea) {
+            o = PropertyAccess.externalConstructor(ea);
+        }
         return invokeCallable(o, receiver, fnArgsNode, newKeyword, node, context);
     }
 
@@ -658,19 +664,8 @@ class Interpreter {
             if (context.isError()) {
                 return Terms.UNDEFINED;
             }
-            // Convert JS types to Java types if JS/Java boundary:
-            // - undefined → null
-            // - JsValue (JsDate, etc.) → unwrapped via getJavaValue()
             if (callable.isExternal()) {
-                for (int i = 0; i < args.length; i++) {
-                    Object arg = args[i];
-                    if (arg == Terms.UNDEFINED) {
-                        args[i] = null;
-                    } else if (arg instanceof JsValue jv && !(arg instanceof JsPrimitive)) {
-                        // Unwrap JsValue (JsDate, JsUint8Array) but not JsPrimitive (Boolean/String/Number constructors)
-                        args[i] = jv.getJavaValue();
-                    }
-                }
+                marshalExternalArgs(args);
             }
             CoreContext callContext;
             ObjectLike newInstance = null;
@@ -788,7 +783,28 @@ class Interpreter {
         return invokeAsConstructor(callable, args, new Node(NodeType.NEW_EXPR), context);
     }
 
+    /**
+     * JS → Java argument marshalling at the boundary, applied in place before
+     * any external callable (Java method, Java constructor) sees the array:
+     * undefined → null, and JsValue wrappers (JsDate, JsUint8Array) unwrap
+     * via getJavaValue(). JsPrimitive is left alone so the String / Number /
+     * Boolean constructors still receive their boxed argument.
+     */
+    static void marshalExternalArgs(Object[] args) {
+        for (int i = 0; i < args.length; i++) {
+            Object arg = args[i];
+            if (arg == Terms.UNDEFINED) {
+                args[i] = null;
+            } else if (arg instanceof JsValue jv && !(arg instanceof JsPrimitive)) {
+                args[i] = jv.getJavaValue();
+            }
+        }
+    }
+
     private static Object invokeAsConstructor(JsCallable callable, Object[] args, Node node, CoreContext context) {
+        if (callable.isExternal()) {
+            marshalExternalArgs(args);
+        }
         CoreContext callContext;
         ObjectLike newInstance = null;
         Object result;
@@ -890,11 +906,7 @@ class Interpreter {
             args[i + 1] = substitutions.get(i);
         }
         if (callable.isExternal()) {
-            for (int i = 0; i < args.length; i++) {
-                Object a = args[i];
-                if (a == Terms.UNDEFINED) args[i] = null;
-                else if (a instanceof JsValue jv && !(a instanceof JsPrimitive)) args[i] = jv.getJavaValue();
-            }
+            marshalExternalArgs(args);
         }
         CoreContext callContext;
         Object result;

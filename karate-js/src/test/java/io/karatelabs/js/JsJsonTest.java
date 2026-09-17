@@ -315,6 +315,7 @@ class JsJsonTest extends EvalBase {
     @Test
     void testStringifyStringValueIsQuoted() {
         assertEquals("\"abc\"", eval("JSON.stringify('abc')"));
+        assertEquals(true, eval("JSON.stringify('alpha') === '\"alpha\"'"));
         assertEquals("\"a\\\"b\"", eval("JSON.stringify('a\"b')"));
         // a string that looks like JSON is still a JSON string, not a nested document
         assertEquals("\"{\\\"a\\\":1}\"", eval("JSON.stringify('{\"a\":1}')"));

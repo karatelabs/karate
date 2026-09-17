@@ -26,13 +26,21 @@ package io.karatelabs.js;
 /**
  * Marker for a constructor-shaped {@link JsCallable} — used to wrap external
  * (Java-bridge) types so {@code new SomeJavaClass()} doesn't fail the
- * {@code isConstructable} guard in the interpreter's construct path.
+ * {@code isConstructable} guard in the interpreter's construct path. It is
+ * external for the same reason a Java method is: the arguments cross the
+ * JS/Java boundary and must be marshalled (undefined → null, JsUint8Array →
+ * byte[]) before reflective overload resolution sees them.
  */
 @FunctionalInterface
 interface JsConstructor extends JsCallable {
 
     @Override
     default boolean isConstructable() {
+        return true;
+    }
+
+    @Override
+    default boolean isExternal() {
         return true;
     }
 

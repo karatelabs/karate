@@ -1516,4 +1516,112 @@ class ExternalBridgeTest extends EvalBase {
         assertEquals(10, ((Number) javaFn.apply(5)).intValue());
     }
 
+    @Test
+    void testJavaConstructorArgsCrossTheBoundaryLikeMethodArgs() {
+        // A Java call's byte[] return reaches JS as a Uint8Array; handing it
+        // straight to a Java constructor has to unwrap it back to byte[] for
+        // overload resolution, exactly as an ordinary Java method call would.
+        assertEquals("sample", eval("new java.lang.String(java.util.Base64.getDecoder().decode('c2FtcGxl'), 'UTF-8')"));
+        assertEquals("sample", eval("var JString = Java.type('java.lang.String');"
+                + " var Base64 = Java.type('java.util.Base64');"
+                + " new JString(Base64.getDecoder().decode('c2FtcGxl'), 'UTF-8')"));
+    }
+
+    @Test
+    void testJavaConstructorUndefinedArgBecomesNull() {
+        assertNull(eval("var DemoPojo = Java.type('io.karatelabs.js.DemoPojo'); new DemoPojo(undefined).stringValue"));
+    }
+
+    @Test
+    void testJavaConstructorUnwrapsJsDateArg() {
+        // AtomicReference takes Object, so the constructor matches either way — what
+        // is being pinned is that what lands inside is the unwrapped java.util.Date.
+        Object ref = eval("new java.util.concurrent.atomic.AtomicReference(new Date(0))");
+        Object held = ((java.util.concurrent.atomic.AtomicReference<?>) ref).get();
+        assertInstanceOf(Date.class, held);
+        assertEquals(0L, ((Date) held).getTime());
+    }
+
+    @Test
+    void testJavaConstructorAcceptsJsArrayAndObject() {
+        assertEquals(2, eval("new java.util.ArrayList([1, 2]).size()"));
+        assertEquals(1, eval("new java.util.HashMap({a: 1}).get('a')"));
+    }
+
+    @Test
+    void testThrowingJavaConstructorSurfacesItsOwnMessage() {
+        Exception ex = assertThrows(Exception.class, () -> eval("new java.math.BigDecimal('x')"));
+        assertFalse(ex.getMessage().contains("is not a constructor"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("Character x"), "expected the NumberFormatException text in: " + ex.getMessage());
+        Exception uri = assertThrows(Exception.class, () -> eval("new java.net.URI('::bad')"));
+        assertTrue(uri.getMessage().contains("::bad"), "expected the URISyntaxException text in: " + uri.getMessage());
+    }
+
+    @Test
+    void testJavaConstructorWithNoMatchingOverload() {
+        Exception ex = assertThrows(Exception.class, () -> eval("new java.math.BigDecimal(true, false)"));
+        assertTrue(ex.getMessage().contains("has no constructor matching ("),
+                "expected the overload-mismatch text in: " + ex.getMessage());
+    }
+
+    @Test
+    void testNonInstantiableJavaClassIsNotAConstructor() {
+        // "is not a constructor" is reserved for a class that cannot be
+        // instantiated at all, so it stays distinct from an overload miss.
+        Exception ex = assertThrows(Exception.class, () -> eval("new java.io.InputStream()"));
+        assertTrue(ex.getMessage().contains("is not a constructor"), ex.getMessage());
+        Exception iface = assertThrows(Exception.class, () -> eval("new java.lang.Runnable()"));
+        assertTrue(iface.getMessage().contains("is not a constructor"), iface.getMessage());
+        Exception noPublic = assertThrows(Exception.class, () -> eval("new java.lang.Math()"));
+        assertTrue(noPublic.getMessage().contains("is not a constructor"), noPublic.getMessage());
+    }
+
+    @Test
+    void testJavaMethodsOnJsStringsAndNumbers() {
+        assertEquals(96354, eval("'abc'.hashCode()"));
+        assertEquals(true, eval("'ABC'.equalsIgnoreCase('abc')"));
+        // the same method reached by the shapes that already resolved
+        assertEquals(96354, eval("'abc'['hashCode']()"));
+        assertEquals(96354, eval("var f = 'abc'.hashCode; f()"));
+        assertEquals(96354, eval("var JString = Java.type('java.lang.String'); new JString('abc').hashCode()"));
+        assertEquals(96354, eval("Java.type('java.lang.String').valueOf('abc').hashCode()"));
+        assertEquals(5, eval("var JInteger = Java.type('java.lang.Integer'); new JInteger(5).intValue()"));
+        assertEquals(5, eval("(5).intValue()"));
+    }
+
+    @Test
+    void testWithoutABridgeJavaMethodsOnStringsStayInvisible() {
+        // the whole string-to-Java route is bridge-only — pure JS is untouched
+        engine = new Engine();
+        assertNull(engine.eval("'abc'.hashCode"));
+        Exception ex = assertThrows(Exception.class, () -> engine.eval("'abc'.hashCode()"));
+        assertTrue(ex.getMessage().contains("is not a function"), ex.getMessage());
+    }
+
+    @Test
+    void testJsPrototypeWinsOverJavaMethodsOfTheSameName() {
+        match(eval("'a,b'.split(',')"), "['a', 'b']");
+        assertEquals(3, eval("'abc'.length"));
+        assertEquals("x", eval("' x '.trim()"));
+        // Java's replaceAll takes a regex, JS' takes a literal — JS wins
+        assertEquals("acc", eval("'abc'.replaceAll('b','c')"));
+        assertNull(eval("'abc'.foo"));
+        assertEquals(false, eval("'hashCode' in Object('abc')"));
+    }
+
+    @Test
+    void testJavaMethodsOnBigIntResolveLikeTheOtherPrimitives() {
+        assertEquals(4, eval("(10n).bitLength()"));
+        assertEquals("a", eval("(10n).toString(16)"));
+    }
+
+    @Test
+    void testNewOnAJavaTypeReachedByValue() {
+        // the callee is a parenthesised expression, not a name, so it arrives
+        // as the raw Java type rather than through the named wrap sites
+        assertEquals("abc", eval("new (Java.type('java.lang.String'))('abc')"));
+        assertEquals(96354, eval("new (Java.type('java.lang.String'))('abc').hashCode()"));
+        assertEquals(2, eval("var pick = true; new (pick ? Java.type('java.util.ArrayList') : Java.type('java.util.LinkedList'))([1, 2]).size()"));
+    }
+
 }

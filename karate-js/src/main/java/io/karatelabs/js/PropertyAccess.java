@@ -662,7 +662,7 @@ class PropertyAccess {
         return result;
     }
 
-    private static JsConstructor externalConstructor(ExternalAccess ea) {
+    static JsConstructor externalConstructor(ExternalAccess ea) {
         return (c, args) -> ea.construct(args);
     }
 
@@ -953,6 +953,16 @@ class PropertyAccess {
             // an original returns UNDEFINED here — bridge access on a JS-only
             // object would expose wrapper internals and shadow the
             // intentionally-undefined property.
+            if (object instanceof JsPrimitive prim) {
+                // A boxed primitive that missed its prototype is the call-site
+                // shape of a raw primitive (the call path boxes the receiver
+                // before lookup). Route it through the bridge on the raw value
+                // so `s.equalsIgnoreCase(x)` resolves exactly as the non-call
+                // read `s.equalsIgnoreCase` and `s['equalsIgnoreCase']` already
+                // do. Without a bridge this is UNDEFINED, so pure-JS semantics
+                // are untouched.
+                return accessViaBridge(prim.getJavaValue(), name, context, functionCall);
+            }
             if (!(object instanceof JsValue jv) || jv.getOriginalJavaValue() == null) {
                 return Terms.UNDEFINED;
             }

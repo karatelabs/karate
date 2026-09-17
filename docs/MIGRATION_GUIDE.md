@@ -496,10 +496,12 @@ See [DESIGN.md § Built-in Tags](./DESIGN.md#built-in-tags) and `ScenarioLockMan
 
 ## Java Interop
 
-`Java.type()` and existing v1 patterns work unchanged. Two notes:
+`Java.type()` and existing v1 patterns work unchanged. A few notes:
 
 - **`karate.toJava()` is a deprecated no-op** in v2 (logs a one-line warning per process). It's no longer needed: JS arrays/objects work directly as Java `List`/`Map`, and JS functions auto-coerce to Java `@FunctionalInterface` parameters (`Function`, `Predicate`, `Consumer`, `Supplier`, `Runnable`).
 - **JS function → Java functional interface coercion** works natively. v1 got this from Graal's interop layer; v2 routes through default methods on `JavaCallable`. Pass an inline `function` / arrow directly to a Java method that declares e.g. `Predicate<Map<String, Object>>`. `Predicate.test()` uses JS-truthy semantics on the return value; `Function.apply()` and `Supplier.get()` auto-unwrap (`undefined → null`, `JsDate → java.util.Date`). For multi-arg interfaces (`BiFunction`, `BiConsumer`), receive the JS function as `JavaCallable` and call `.call(null, arg1, arg2)` explicitly.
+- **Java `String` methods on JS strings** work exactly as in v1. A name with no JS `String.prototype` counterpart — `hashCode()`, `equalsIgnoreCase()`, `getBytes()`, `isBlank()` — resolves against the underlying `java.lang.String`, whether the value came from Java or from a JS literal. So `function(a, b){ return a.equalsIgnoreCase(b) }` needs no change. A name that *does* exist on the JS prototype resolves to the JS method, which is what v1 did too — watch `split` (JS takes a plain string or a RegExp, not a Java regex string), `replaceAll` (JS replaces literal substrings unless given a `/g/` RegExp), and `trim` (JS trims a wider whitespace set than Java). `matches()` has no JS counterpart, so it is Java's regex match. Constructing via `Java.type('java.lang.String')` does not change any of this: the result is a JS string.
+- **`new` on a Java `String` yields an ordinary JS string**, so `new java.lang.String(bytes, 'UTF-8')` (or via `Java.type`) can be compared directly — `match value == 'abc'` works, no `+ ''` or `.toString()` needed. Arguments are converted at the boundary on the way in, so a `Uint8Array` reaches a `byte[]` parameter.
 - **Lazy bindings**: register through `JsLazy` (in `io.karatelabs.js`), not `Supplier<T>`. The previous `instanceof Supplier` sentinel collided with the new functional-interface coercion (every JS function would have been treated as a lazy binding). External lazy bindings via `engine.put("key", (Supplier<X>) () -> ...)` need to be migrated to `(JsLazy) () -> ...`. See [JS_ENGINE.md § Lazy Variables with JsLazy](./JS_ENGINE.md#lazy-variables-with-jslazy).
 
 ---

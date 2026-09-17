@@ -384,6 +384,67 @@ static JavaMirror toJavaMirror(Object o) {
 - Simplicity: Single conversion point handles all entry paths
 - Performance: `instanceof` chain is fast; overhead is negligible
 
+### Outbound argument marshalling
+
+**`Interpreter.marshalExternalArgs` is the single seam for JS → Java
+arguments.** It rewrites the argument array in place before reflection sees
+it: `undefined → null`, and a `JsValue` wrapper unwraps via `getJavaValue()`
+(`JsUint8Array → byte[]`, `JsDate → java.util.Date`). `JsPrimitive` is
+exempt, so the `String` / `Number` / `Boolean` constructors still receive
+their boxed argument.
+
+**The rule keys on `JsCallable.isExternal()`, not on call shape.** The three
+interpreter dispatch paths — `invokeCallable` (Java methods and **Java
+constructors**, since `JsConstructor.isExternal()` is true), tagged-template
+invocation and `invokeAsConstructor` (`Reflect.construct`) — all call the
+same helper. A path that skipped it would run reflective overload resolution
+against wrappers — `new java.lang.String(bytes, 'UTF-8')` wouldn't match
+`String(byte[], String)` while `bytes` was still a `JsUint8Array`. A new
+external entry point is therefore one call, not a copy of the loop. Known
+gap: `Reflect.apply` and `Function.prototype.call/apply/bind` forward their
+argument list to an external callable without this step, so
+`Reflect.apply(java.util.Objects.isNull, null, [undefined])` hands the Java
+side `undefined` rather than `null`.
+
+**A Java type is constructable however it is reached.** The named paths in
+`PropertyAccess` (`new java.lang.String(…)`, `new JString(…)`) wrap the
+`ExternalAccess` in a `JsConstructor`; `Interpreter.evalFnCall` does the same
+for a callee that arrives by value (`new (Java.type('x'))(…)`,
+`new (cond ? A : B)(…)`). `Reflect.construct` still requires a `JsCallable`
+target, so it does not accept a Java type.
+
+### Java members on JS primitives — the bridge fallback
+
+**Lookup on a primitive receiver is own slot → JS prototype chain →
+`ExternalBridge`, in that order.** A name the JS prototype has always wins:
+`split`, `replaceAll`, `trim`, `length` keep JS semantics even
+though `java.lang.String` declares same-named members. Only a name the JS
+prototype lacks — `hashCode()`, `equalsIgnoreCase()`, `getBytes()`,
+`isBlank()`, `matches()` (JS has `match`, not `matches`) — falls through to
+the bridge, which resolves it reflectively
+against the raw Java value (`JsPrimitive.getJavaValue()`). This holds for
+all four primitives — `(10n).bitLength()` reaches `BigInteger` the same way.
+
+**The fallback exists only when an `ExternalBridge` is installed** — on by
+default for normal karate-core execution, off by default inside the mock
+server, absent in a standalone `Engine` unless `setExternalBridge` is called,
+and never in the test262 runner — so with no bridge a miss is plain
+`undefined`. It is *resolution* only, not a property: `'abc'.foo` is
+`undefined`, `'hashCode' in Object('abc')` is `false`, and
+`String.prototype`'s own keys are unchanged. One edge is shared with every
+bridge-backed value: presence is judged by the looked-up value, so a
+prototype property deliberately set to `undefined` or `null` under a
+Java-only name (`String.prototype.hashCode = undefined`) does not suppress
+the fallback.
+
+**Receiver shape at the seam.** `PropertyAccess.getByName` reaches the bridge
+for a raw Java value, but the call path boxes the receiver first, so
+`s.hashCode()` arrives as a `JsString` whose `getOriginalJavaValue()` is
+null. The `JsObject` branch re-routes a `JsPrimitive` through the bridge on
+`getJavaValue()`; without that, the dot-call shape would diverge from
+`s.hashCode`, `s['hashCode']()` and `var f = s.hashCode; f()`, which resolve
+through the raw-value path.
+
 ---
 
 ## JsArray and JsObject as List and Map
@@ -802,6 +863,25 @@ method covers `instanceof TypeError` / `instanceof Error` / etc. uniformly.
 
 `JavaUtils.invoke` and `JavaUtils.invokeStatic` separate "method not found" (TypeError with `"TypeError: .foo is not a function"`) from "method threw" (unwraps `InvocationTargetException`, rethrows the underlying `RuntimeException` with its original message). Before this change, reflective invocation failures were all collapsed into a generic `TypeError: .<name> is not a function`, masking real exception messages.
 
+**`JavaUtils.construct` splits the same way, three-ways.** The message names
+which of the three things went wrong:
+
+- `TypeError: X is not a constructor` — the class cannot be instantiated at
+  all (interface, abstract, no accessible constructor). Reserved for exactly
+  that case.
+- `TypeError: Number has no constructor matching (Boolean, Boolean)` — the
+  class is instantiable but no overload accepts the supplied arguments, which
+  are rendered through `jsTypeName` (`null` for a null argument).
+- the constructor *body* threw → `InvocationTargetException` is unwrapped and
+  the underlying `RuntimeException` / `Error` rethrown with its own message,
+  exactly as `invokeStatic` does. A `RuntimeException` is what a JS `catch`
+  then sees; an `Error`-class throwable escapes JS as it does everywhere
+  (§Exceptions that bypass JS catch).
+
+Collapsing all three into `is not a constructor` reports an argument-shape
+problem as a missing class — see §Outbound argument marshalling for the
+marshalling that determines which overload is even reachable.
+
 ---
 
 ## Async / await / Promise
@@ -1117,6 +1197,7 @@ When test262 surfaces a fix, this table is the muscle-memory pointer.
 | Parse errors | `karate-js/.../parser/ParserException.java`, `SyntaxError.java` | `ParserExceptionTest` | parse-phase negative tests |
 | Interpreter (eval) | `karate-js/.../js/Interpreter.java`, `CoreContext.java`, `ContextRoot.java` | `EvalTest` (language-semantics catch-all) | `test/language/expressions/**`, `statements/**`, `types/**` (runtime) |
 | Built-ins / types | `karate-js/.../js/JsObject.java`, `JsArray.java`, `JsString.java`, `JsError.java`, `JsFunction.java`, prototype classes (`JsArrayPrototype` etc.), `Terms.java` (operators/coercion) | `JsArrayTest`, `JsStringTest`, `JsObjectTest`, `JsMathTest`, `JsNumberTest`, `JsJsonTest`, `JsDateTest`, `JsRegexTest`, `JsFunctionTest`, `JsBooleanTest` | `test/built-ins/Array/**`, `String/**`, `Object/**`, `Math/**`, `Number/**`, `JSON/**`, `Date/**`, `RegExp/**`, `Function/**`, `Boolean/**` |
+| Java interop (bridge) | `karate-js/.../js/JavaUtils.java` (reflection, overload match, `construct`), `PropertyAccess.java` (`accessViaBridge` fallback), `Interpreter.marshalExternalArgs` (boundary args) | `ExternalBridgeTest`, `JsJavaInteropTest` | — (bridge is never installed under test262) |
 | Runtime exceptions | `karate-js/.../js/EngineException.java` | `EngineExceptionTest` | error-propagation regressions |
 | Performance regression | — | `EngineBenchmark` | (gut-check after engine change) |
 
@@ -2336,6 +2417,15 @@ and prepends pre-bound args to the caller's args. `length` / `name` of the
 bound function are approximate (name is `"bound " + target.name`); call
 semantics are what matters.
 
+**The external-bridge fallback is last and invisible to the spec surface.**
+When an `ExternalBridge` is installed, a *missed* name on a primitive or
+Java-backed receiver may still resolve reflectively against the underlying
+Java value — but only after the own slot and the whole JS prototype chain
+have missed, so a JS built-in is never shadowed by a same-named Java member.
+It affects resolution only: the name never appears in `in`, own-keys or
+descriptors, and `'abc'.foo` stays `undefined`. test262 runs with no bridge
+installed, so the path is inert there. See §Java members on JS primitives.
+
 ### Date
 
 **Date stores `[[DateValue]]` as `double` with NaN = Invalid Date.** `JsDate`
@@ -2557,6 +2647,22 @@ engine.putAll(context);
 Object result = engine.eval("greeting + ' World'");
 // result = "Hello World"
 ```
+
+With an `ExternalBridge` installed (the karate-core default outside the mock server), Java
+members reach JS values that have no JS-prototype counterpart, and Java
+constructors take marshalled arguments:
+
+```javascript
+'abc'.hashCode()                                   // 96354 — via the bridge
+'abc'.equalsIgnoreCase('ABC')                      // true
+'a,b'.split(',')                                   // JS String.prototype.split wins
+
+var bytes = java.util.Base64.getDecoder().decode('c2FtcGxl') // byte[] → Uint8Array
+new java.lang.String(bytes, 'UTF-8')               // 'sample' — Uint8Array → byte[]
+```
+
+See §Java members on JS primitives and §Outbound argument marshalling for
+the resolution order and the marshalling rules.
 
 ### Date Handling
 

@@ -172,4 +172,24 @@ class InteropTest {
         assertPassed(sr);
     }
 
+    @Test
+    void testJavaConstructorWithNestedJavaCallResult() {
+        // the byte[] a Java call returns is a Uint8Array in JS and has to unwrap
+        // back to byte[] when it is handed straight to a Java constructor
+        ScenarioRuntime sr = run("""
+            * def decoded = new java.lang.String(java.util.Base64.getDecoder().decode('c2FtcGxl'), 'UTF-8')
+            * match decoded == 'sample'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testJavaMethodsOnJsStrings() {
+        ScenarioRuntime sr = run("""
+            * match 'abc'.hashCode() == 96354
+            * match 'ABC'.equalsIgnoreCase('abc') == true
+            """);
+        assertPassed(sr);
+    }
+
 }

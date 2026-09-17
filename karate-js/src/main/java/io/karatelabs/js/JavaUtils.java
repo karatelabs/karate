@@ -45,12 +45,34 @@ public class JavaUtils {
     }
 
     static Object construct(Class<?> clazz, Object[] args) {
+        Constructor<?> constructor = findConstructor(clazz, args);
         try {
-            Constructor<?> constructor = findConstructor(clazz, args);
             return constructor.newInstance(args);
-        } catch (Exception e) {
+        } catch (InvocationTargetException e) {
+            // a throwing constructor body is the Java code's own error, not a
+            // construction failure — surface it exactly as invokeStatic does
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException re) {
+                throw re;
+            }
+            if (cause instanceof Error err) {
+                throw err;
+            }
+            throw new RuntimeException(cause == null ? e.getMessage() : cause.getMessage(), cause);
+        } catch (IllegalArgumentException e) {
+            throw noMatchingConstructor(clazz, args);
+        } catch (ReflectiveOperationException e) {
             throw JsErrorException.typeError(jsTypeName(clazz) + " is not a constructor");
         }
+    }
+
+    private static JsErrorException noMatchingConstructor(Class<?> clazz, Object[] args) {
+        StringBuilder sb = new StringBuilder();
+        for (Object arg : args) {
+            if (!sb.isEmpty()) sb.append(", ");
+            sb.append(arg == null ? "null" : jsTypeName(arg.getClass()));
+        }
+        return JsErrorException.typeError(jsTypeName(clazz) + " has no constructor matching (" + sb + ")");
     }
 
     static Object invokeStatic(Class<?> clazz, String name, Object[] args) {
@@ -339,6 +361,10 @@ public class JavaUtils {
     }
 
     private static Constructor<?> findConstructor(Class<?> clazz, Object[] args) {
+        if (clazz.isInterface() || java.lang.reflect.Modifier.isAbstract(clazz.getModifiers())
+                || clazz.getConstructors().length == 0) {
+            throw JsErrorException.typeError(jsTypeName(clazz) + " is not a constructor");
+        }
         try {
             return clazz.getConstructor(paramTypes(args));
         } catch (Exception e) {
@@ -349,7 +375,7 @@ public class JavaUtils {
                 }
             }
         }
-        throw JsErrorException.typeError(jsTypeName(clazz) + " is not a constructor");
+        throw noMatchingConstructor(clazz, args);
     }
 
     private static Method findMethod(Class<?> clazz, String name, Object[] args) {
