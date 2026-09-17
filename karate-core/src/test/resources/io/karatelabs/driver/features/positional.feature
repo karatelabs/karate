@@ -22,8 +22,15 @@ Feature: Positional Locators
     * match label.attribute('id') == 'username-label'
 
   Scenario: rightOf chains into click via Finder.click
-    * def btn = rightOf('#email-input').find('button')
+    * script("document.getElementById('email-btn').onclick = function() { window.clickedId = this.id }")
+    * def btn = rightOf('#email-input').click('button')
     * match btn.attribute('id') == 'email-btn'
+    * match script('window.clickedId') == 'email-btn'
+
+  Scenario: below finds the input and the returned element accepts input
+    * def el = below('#anchor-stack-top').find('input')
+    * el.clear().input('typed')
+    * match value('#stack-input-1') == 'typed'
 
   Scenario: above finds element above another in vertical stack
     * def above = above('#stack-input-1').find('span')
@@ -37,9 +44,20 @@ Feature: Positional Locators
     * def near = near('#cluster-anchor').find('span')
     * match near.attribute('id') == 'cluster-near'
 
-  Scenario: rightOf returns sorted by distance via findAll
-    * def btn = rightOf('#username-input').find('button')
-    * match btn.attribute('id') == 'username-btn'
+  Scenario: findAll returns only the matches satisfying the positional constraint
+    * def btns = rightOf('#username-input').findAll('button')
+    * match btns.length == 1
+    * match btns[0].attribute('id') == 'username-btn'
+
+  Scenario: within widens the near tolerance so findAll picks up the far neighbour
+    * def close = near('#cluster-anchor').findAll('span')
+    * match close.length == 1
+    * match close[0].attribute('id') == 'cluster-near'
+    * def wider = near('#cluster-anchor').within(500)
+    * def wide = wider.findAll('span')
+    * assert wide.length > close.length
+    * match wide[0].attribute('id') == 'cluster-near'
+    * match wider.exists('#cluster-far') == true
 
   Scenario: positional finder exists() reports membership
     * match rightOf('#username-input').exists('button') == true

@@ -18,6 +18,12 @@ Feature: History traversal and navigation edge cases
     * forward()
     * match driver.title == 'Navigation Test'
 
+  Scenario: submit arms a page-load wait for the next click
+    * driver serverUrl + '/navigation'
+    * submit().click("a[href='/input']")
+    * match driver.url == serverUrl + '/input'
+    * match driver.title == 'Input Test'
+
   Scenario: back and forward over a pushState history entry
     # A same-document traversal fires NO loader events at all (no frameNavigated,
     # no DOMContentLoaded) — the wait must complete via the URL-verified fallback

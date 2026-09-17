@@ -19,13 +19,24 @@ Feature: Window & Lifecycle Globals
     * waitFor('#username')
     * match value('#username') == ''
 
+  Scenario: refresh reloads the page and discards page state
+    * script('window.marker = 1')
+    * refresh()
+    * waitFor('#username')
+    * match script('window.marker') == null
+
   Scenario: maximize / minimize / fullscreen are bound globals
-    # We don't assert OS-level outcomes — just that the calls don't throw
-    # and dimensions can be inspected after.
+    # We don't assert OS-level outcomes — headless Chrome may treat minimize and
+    # fullscreen as no-ops; this proves the calls are bound and don't throw.
+    * minimize()
+    * fullscreen()
     * maximize()
     * def d1 = driver.dimensions
     * match d1 contains { width: '#number' }
     * match d1 contains { height: '#number' }
+    * def d2 = driver.getDimensions()
+    * match d2.width == '#number'
+    * match d2.height == '#number'
 
   Scenario: setDimensions roundtrips through the dimensions property
     # Headless Chrome ignores some hints, but we can at least verify the

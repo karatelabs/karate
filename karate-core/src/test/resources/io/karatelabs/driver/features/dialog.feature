@@ -52,6 +52,14 @@ Feature: Dialog Tests
     * match resultText == 'Prompt result: null'
     * onDialog(null)
 
+  Scenario: Prompt answered with dialog(true, text) without a handler
+    * click('#prompt-btn')
+    * match driver.dialogText == 'Enter your name:'
+    * dialog(true, 'typed answer')
+    * waitForText('#result', 'Prompt result: typed answer')
+    * def cleared = driver.dialogText
+    * match cleared == null
+
   # Regression guard for a script() that itself opens a blocking JS dialog
   # A script() that itself opens a blocking JS dialog (confirm/alert/prompt)
   # must not throw — the dialog text must be readable via driver.dialogText

@@ -224,6 +224,36 @@ Feature: Element Tests
     * def options = locateAll('#country option')
     * match options.length == 5
 
+  # ========== Element Object API ==========
+
+  Scenario: locate() scopes a child lookup and locateAll() enumerates children
+    * def child = locate('#test-form').locate('#username')
+    * match child.getLocator() == '#test-form #username'
+    * match child.exists() == true
+    * def options = locate('#country').locateAll('option')
+    * match options.length == 5
+
+  Scenario: script(), innerHtml(), attribute() and property() read through the element
+    * match locate('#username').script('_.tagName') == 'INPUT'
+    * match locate('#test-form').innerHtml() contains 'Enter username'
+    * match locate('#username').attribute('id') == 'username'
+    * match locate('#username').property('tagName') == 'INPUT'
+
+  Scenario: value() on the element is both setter and getter
+    * def el = locate('#username').value('set-directly')
+    * match el.value() == 'set-directly'
+
+  Scenario: select() on the element selects an option
+    * def el = locate('#country').select('ca')
+    * match el.value() == 'ca'
+
+  Scenario: focus(), scroll(), highlight() chain and position() returns coordinates
+    * def el = locate('#email').focus().scroll().highlight()
+    * match script('document.activeElement.id') == 'email'
+    * def pos = el.position()
+    * match pos.x == '#number'
+    * match pos.y == '#number'
+
   # ========== Element Navigation (closest / matches) ==========
 
   Scenario: closest finds the nearest matching ancestor

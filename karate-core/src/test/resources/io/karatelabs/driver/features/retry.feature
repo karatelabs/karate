@@ -49,6 +49,12 @@ Feature: Retry Tests
     * locate('#btn-enable').retry(10, 500).waitForEnabled().click()
     * match text('#result') == 'Button was clicked!'
 
+  Scenario: retry with input (implies waitFor)
+    # the field is appended only after 800ms, so the input below must wait for it
+    * script("setTimeout(function(){ var i = document.createElement('input'); i.id = 'late-input'; document.body.appendChild(i) }, 800)")
+    * retry(10, 500).input('#late-input', 'typed')
+    * match value('#late-input') == 'typed'
+
   Scenario: retry no-arg uses defaults
     * retry().waitUntil("window.asyncValue === 'ready'")
 
