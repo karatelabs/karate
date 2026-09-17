@@ -468,11 +468,30 @@ null-object variant: when nothing matches it returns a `MissingElement` (subclas
 `select()`, `scroll()`, … — are no-ops returning itself, whose reads — `text()`,
 `value()`, `attribute()`, `position()`, `script()` — return null (`enabled()` /
 `matches()` false, `locateAll()` empty, `locate()` / `closest()` another missing
-element), and whose `waitFor()` / `waitForText()` / `waitForEnabled()` / `waitUntil()`
-delegate to the driver and return the *real* element once it appears. `retry()` is the
-same kind of explicit opt-in: it hands `click()` / `input()` to the driver's auto-wait,
-so a target that never appears throws after the retry budget, exactly as a wait times
-out. This is what makes `* optional('#dismiss').click()` a safe "click if present" step.
+element), whose `retry()` returns the same missing element (v1: `optional(x).retry().click()`
+never waits or throws — `optional()` answers "is it there *right now*"), and whose
+`waitFor()` / `waitForText()` / `waitForEnabled()` / `waitUntil()` delegate to the driver
+and return the *real* element once it appears. This is what makes
+`* optional('#dismiss').click()` a safe "click if present" step.
+
+**JS members of an element.** They follow the Java API: every operation is a method —
+`exists()`, `enabled()`, `text()`, `value()`, `click()`, `retry(count, interval)` — and
+`isPresent()` / `getLocator()` resolve through the engine's reflection fallback. The one
+*property* is `present`, the v1 idiom `optional('#x').present`: a boolean, so
+`if (optional('#x').present)` works. As a callable it would be truthy even for a missing
+element; `Terms.isTruthy` has no function case. Do not add more value-as-callable names.
+
+**Element `retry()`.** `locate(x).retry(count, interval)` means the same as the
+driver-level `retry(count, interval).click(x)`: a budget of count × interval ms
+(`RetryableDriver.timeout`, each defaulting to the auto-wait `retryCount` /
+`retryInterval`). The returned element waits for the locator under that budget before
+every action and read that needs the element in the page (its `assertExists()` is a
+`waitFor(locator, timeout)`), and its four wait methods use the budget as their timeout.
+A `locate()` taken before the element exists therefore still works once retried:
+`locate('#late').retry(10, 500).click()`. Two members do not wait: `submit()` (it arms
+navigation handling, as in v1) and presence — `exists()` / `isPresent()` / `present` on a
+retried element are a *live* check, so they answer "is it there now" without waiting
+and read true once a wait has succeeded, instead of echoing the lookup snapshot.
 
 ### Element Navigation
 ```java

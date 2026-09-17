@@ -44,10 +44,19 @@ class RetryableDriver implements SimpleObject {
     private final Duration timeout;
 
     RetryableDriver(Driver driver, Integer count, Integer interval) {
+        this.driver = driver;
+        this.timeout = timeout(driver, count, interval);
+    }
+
+    /**
+     * The wait budget a {@code retry(count, interval)} request stands for: count × interval,
+     * each defaulting to the driver's auto-wait settings. Shared with the element-level
+     * {@link Element#retry(int, int)} so both forms of retry mean the same thing.
+     */
+    static Duration timeout(Driver driver, Integer count, Integer interval) {
         int effectiveCount = count != null ? count : driver.getOptions().getRetryCount();
         int effectiveInterval = interval != null ? interval : driver.getOptions().getRetryInterval();
-        this.driver = driver;
-        this.timeout = Duration.ofMillis((long) effectiveCount * effectiveInterval);
+        return Duration.ofMillis((long) effectiveCount * effectiveInterval);
     }
 
     @SuppressWarnings("unchecked")

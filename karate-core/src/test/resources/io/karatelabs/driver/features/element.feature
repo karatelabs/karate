@@ -197,11 +197,21 @@ Feature: Element Tests
     * def notExists = optional('#nonexistent')
     * match notExists.isPresent() == false
 
+  Scenario: Optional element present is a property not a method
+    * match optional('#username').present == true
+    * match optional('#nonexistent').present == false
+    * if (optional('#nonexistent').present) karate.fail('present must be false')
+
   Scenario: Optional element actions are no-ops when it does not exist
     * optional('#nonexistent').click()
     * optional('#nonexistent').input('x')
     * optional('#nonexistent').clear()
     * match optional('#nonexistent').text() == null
+    * match optional('#username').isPresent() == true
+
+  Scenario: Optional element retry is a no-op when it does not exist
+    * optional('#nonexistent').retry().click()
+    * optional('#nonexistent').retry(2, 100).input('x')
     * match optional('#username').isPresent() == true
 
   # ========== LocateAll ==========

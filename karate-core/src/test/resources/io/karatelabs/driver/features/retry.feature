@@ -33,6 +33,22 @@ Feature: Retry Tests
     * def text = text('#text-target')
     * match text == 'Changed Text'
 
+  Scenario: element retry waits for an element that appears after the lookup
+    # appended to the page only after 800ms, so the lookup below finds nothing
+    * script("setTimeout(function(){ var p = document.createElement('p'); p.id = 'late'; p.textContent = 'late text'; document.body.appendChild(p) }, 800)")
+    * def late = locate('#late')
+    * match late.exists() == false
+    * def lateRetry = late.retry(10, 500)
+    * lateRetry.waitFor()
+    * match lateRetry.present == true
+    * match lateRetry.exists() == true
+    * match lateRetry.text() == 'late text'
+    * match lateRetry.html() contains 'late text'
+
+  Scenario: element retry waits for enabled before the click
+    * locate('#btn-enable').retry(10, 500).waitForEnabled().click()
+    * match text('#result') == 'Button was clicked!'
+
   Scenario: retry no-arg uses defaults
     * retry().waitUntil("window.asyncValue === 'ready'")
 

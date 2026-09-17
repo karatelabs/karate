@@ -25,6 +25,7 @@ package io.karatelabs.driver;
 
 import io.karatelabs.js.JavaCallable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -322,7 +323,7 @@ public class BaseElement implements Element {
 
     @Override
     public Element retry() {
-        return new RetryElement(driver, locator, exists);
+        return new RetryElement(driver, locator, exists, null, null);
     }
 
     @Override
@@ -337,17 +338,23 @@ public class BaseElement implements Element {
 
     // ========== SimpleObject Implementation (JS interop) ==========
 
+    /**
+     * JS members follow the Java API: every operation is a method ({@code exists()},
+     * {@code text()}, {@code click()}). The one property is {@code present}, the v1
+     * idiom for {@code optional(locator).present} — as a callable it would be truthy
+     * even for a missing element.
+     */
     @Override
     public Object jsGet(String name) {
         return switch (name) {
-            // Properties as getters (return callables that return the value)
-            case "exists", "present" -> (JavaCallable) (ctx, args) -> exists;
+            case "present" -> isPresent();
+            case "exists" -> (JavaCallable) (ctx, args) -> exists();
             case "locator" -> (JavaCallable) (ctx, args) -> locator;
-            case "text" -> (JavaCallable) (ctx, args) -> exists ? text() : null;
-            case "html" -> (JavaCallable) (ctx, args) -> exists ? html() : null;
-            case "value" -> (JavaCallable) (ctx, args) -> exists ? value() : null;
+            case "text" -> (JavaCallable) (ctx, args) -> text();
+            case "html" -> (JavaCallable) (ctx, args) -> html();
+            case "value" -> (JavaCallable) (ctx, args) -> args.length > 0 ? value(String.valueOf(args[0])) : value();
             case "enabled" -> (JavaCallable) (ctx, args) -> enabled();
-            case "position" -> (JavaCallable) (ctx, args) -> exists ? position() : null;
+            case "position" -> (JavaCallable) (ctx, args) -> args.length > 0 && Boolean.TRUE.equals(args[0]) ? position(true) : position();
             // Actions (return callables)
             case "click" -> (JavaCallable) (ctx, args) -> click();
             case "focus" -> (JavaCallable) (ctx, args) -> focus();
@@ -372,12 +379,21 @@ public class BaseElement implements Element {
             // Navigation — selector-based, the W3C DOM Element idioms.
             case "closest" -> (JavaCallable) (ctx, args) -> closest(args.length > 0 ? String.valueOf(args[0]) : "");
             case "matches" -> (JavaCallable) (ctx, args) -> matches(args.length > 0 ? String.valueOf(args[0]) : "");
+            case "retry" -> (JavaCallable) (ctx, args) -> switch (args.length) {
+                case 0 -> retry();
+                case 1 -> retry(((Number) args[0]).intValue());
+                default -> retry(((Number) args[0]).intValue(), ((Number) args[1]).intValue());
+            };
             default -> null;
         };
     }
 
     // ========== Utilities ==========
 
+    /**
+     * Guard run before every operation that needs the element in the page. The snapshot
+     * taken at lookup decides; {@link RetryElement} waits instead.
+     */
     protected void assertExists() {
         if (!exists) {
             throw new DriverException("element not found: " + locator);
@@ -391,37 +407,61 @@ public class BaseElement implements Element {
 
     // ========== Retry Element ==========
 
+    /**
+     * {@code element.retry(count, interval)}: the same wait budget as the driver-level
+     * {@code retry(count, interval)} (see {@link RetryableDriver#timeout}), applied by
+     * waiting for the element before every operation and by the wait methods. Presence
+     * is a live check rather than the lookup snapshot, so it is true once a wait has
+     * succeeded.
+     */
     private static class RetryElement extends BaseElement {
-        private final Integer retryCount;
-        private final Integer retryInterval;
 
-        RetryElement(Driver driver, String locator, boolean exists) {
-            super(driver, locator, exists);
-            this.retryCount = null;
-            this.retryInterval = null;
-        }
+        private final Duration timeout;
 
         RetryElement(Driver driver, String locator, boolean exists, Integer count, Integer interval) {
             super(driver, locator, exists);
-            this.retryCount = count;
-            this.retryInterval = interval;
+            this.timeout = RetryableDriver.timeout(driver, count, interval);
         }
 
         @Override
-        public Element click() {
-            getDriver().click(getLocator());
+        protected void assertExists() {
+            driver.waitFor(locator, timeout);
+        }
+
+        @Override
+        public boolean exists() {
+            return driver.exists(locator);
+        }
+
+        @Override
+        public boolean isPresent() {
+            return exists();
+        }
+
+        @Override
+        public Element waitFor() {
+            driver.waitFor(locator, timeout);
             return this;
         }
 
         @Override
-        public Element input(String value) {
-            getDriver().input(getLocator(), value);
+        public Element waitForText(String expected) {
+            driver.waitForText(locator, expected, timeout);
             return this;
         }
 
-        private Driver getDriver() {
-            return super.driver;
+        @Override
+        public Element waitForEnabled() {
+            driver.waitForEnabled(locator, timeout);
+            return this;
         }
+
+        @Override
+        public Element waitUntil(String expression) {
+            driver.waitUntil(locator, expression, timeout);
+            return this;
+        }
+
     }
 
 }

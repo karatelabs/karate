@@ -134,12 +134,14 @@ class MissingElementTest {
     }
 
     @Test
-    void testRetryOptsInToAutoWait() {
-        // retry() is an explicit opt-in to the driver's auto-wait, so the action does reach it
+    void testRetryStaysMissing() {
+        // v1: optional(x).retry().click() is a no-op, it never waits for what is not there
         BaseElement element = missing();
+        assertSame(element, element.retry());
+        assertSame(element, element.retry(3));
+        assertSame(element, element.retry(3, 100));
         element.retry().click();
-        assertTrue(stub.calls.contains("click"));
-        assertTrue(stub.scripts.contains(Locators.clickJs("#missing")));
+        assertTrue(stub.calls.isEmpty(), "the driver was never touched: " + stub.calls);
     }
 
     @Test

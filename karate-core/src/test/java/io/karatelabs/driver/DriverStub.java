@@ -27,6 +27,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,6 +44,10 @@ class DriverStub implements InvocationHandler {
 
     Object scriptResult;
     Element waitForResult;
+    Duration waitTimeout;  // the timeout argument of the last wait call that carried one
+
+    static final int RETRY_COUNT = 3;
+    static final int RETRY_INTERVAL = 500;
 
     final Driver driver = (Driver) Proxy.newProxyInstance(
             Driver.class.getClassLoader(), new Class<?>[]{Driver.class}, this);
@@ -50,12 +55,23 @@ class DriverStub implements InvocationHandler {
     // the action defaults consult the options (e.g. the pending-submit hash) before returning
     private final DriverOptions options = (DriverOptions) Proxy.newProxyInstance(
             DriverOptions.class.getClassLoader(), new Class<?>[]{DriverOptions.class},
-            (proxy, method, args) -> null);
+            (proxy, method, args) -> switch (method.getName()) {
+                case "getRetryCount" -> RETRY_COUNT;
+                case "getRetryInterval" -> RETRY_INTERVAL;
+                default -> null;
+            });
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         String name = method.getName();
         calls.add(name);
+        if (args != null) {
+            for (Object arg : args) {
+                if (arg instanceof Duration duration) {
+                    waitTimeout = duration;
+                }
+            }
+        }
         if ("script".equals(name) && method.getParameterCount() == 1
                 && method.getParameterTypes()[0] == String.class) {
             scripts.add((String) args[0]);

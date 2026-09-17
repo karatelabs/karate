@@ -28,10 +28,9 @@ import java.util.Map;
 
 /**
  * The element {@link Driver#optional(String)} returns when nothing matched: actions are
- * no-ops, reads return null / false / empty, and the wait methods delegate to the driver
- * and return the element that eventually appears. {@code retry()} is inherited: like the
- * waits it is an explicit opt-in to the driver's auto-wait, so a target that never appears
- * throws after the retry budget.
+ * no-ops, reads return null / false / empty, {@code retry()} keeps the element missing
+ * (as in v1, {@code optional(x).retry().click()} never waits or throws), and the wait
+ * methods delegate to the driver and return the element that eventually appears.
  */
 public class MissingElement extends BaseElement {
 
@@ -165,6 +164,21 @@ public class MissingElement extends BaseElement {
     @Override
     public Object script(String expression) {
         return null;
+    }
+
+    @Override
+    public Element retry() {
+        return this;
+    }
+
+    @Override
+    public Element retry(int count) {
+        return this;
+    }
+
+    @Override
+    public Element retry(int count, int interval) {
+        return this;
     }
 
     @Override
