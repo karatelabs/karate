@@ -869,6 +869,11 @@ public class Suite {
             return fr.call();
         } catch (Exception e) {
             logger.error("Unexpected error running feature '{}': {}", feature.getName(), e.getMessage(), e);
+            if (fr != null && fr.exitFired()) {
+                // the feature ran and its result reached every listener (fireEvent delivers past a failing
+                // one); a FEATURE_EXIT listener's failure is logged, never a second result for the stream
+                return fr.getResult();
+            }
             FeatureResult result = FeatureResult.fromException(feature, e, startTime);
             for (ScenarioResult sr : result.getScenarioResults()) {
                 if (sr.getExecutionIndex() == 0) {
@@ -1085,19 +1090,30 @@ public class Suite {
         }
 
         boolean proceed = true;
+        // one listener's failure never withholds the event from the others (the JSONL writer above all):
+        // every listener is attempted, and the first failure is rethrown once all have seen the event
+        RuntimeException failed = null;
 
         // Global listeners (immutable list)
         for (RunListener listener : listeners) {
-            if (!listener.onEvent(event)) {
-                proceed = false;
+            try {
+                if (!listener.onEvent(event)) {
+                    proceed = false;
+                }
+            } catch (RuntimeException e) {
+                failed = failed == null ? e : failed;
             }
         }
 
         // Mutable listeners (JSONL writer)
         synchronized (mutableListeners) {
             for (RunListener listener : mutableListeners) {
-                if (!listener.onEvent(event)) {
-                    proceed = false;
+                try {
+                    if (!listener.onEvent(event)) {
+                        proceed = false;
+                    }
+                } catch (RuntimeException e) {
+                    failed = failed == null ? e : failed;
                 }
             }
         }
@@ -1106,12 +1122,19 @@ public class Suite {
         List<RunListener> perThread = threadListeners.get();
         if (perThread != null) {
             for (RunListener listener : perThread) {
-                if (!listener.onEvent(event)) {
-                    proceed = false;
+                try {
+                    if (!listener.onEvent(event)) {
+                        proceed = false;
+                    }
+                } catch (RuntimeException e) {
+                    failed = failed == null ? e : failed;
                 }
             }
         }
 
+        if (failed != null) {
+            throw failed;
+        }
         return proceed;
     }
 

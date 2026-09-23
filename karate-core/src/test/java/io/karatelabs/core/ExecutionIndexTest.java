@@ -134,6 +134,35 @@ class ExecutionIndexTest {
     }
 
     @Test
+    void aFeatureExitListenerFailureLeavesTheFeaturesResultInTheStreamExactlyOnce(@TempDir Path dir) throws Exception {
+        Feature b = Feature.read(Resource.text("Feature: b\nScenario: two\n* def y = 1\n"));
+        RunListener listener = event -> {
+            if (event.getType() == RunEventType.FEATURE_EXIT) {
+                throw new IllegalStateException("exit boom");   // a global listener, ahead of the JSONL writer
+            }
+            return true;
+        };
+        SuiteResult result = Runner.builder()
+                .features(b)
+                .skipTagFiltering(true)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .outputJsonLines(true)
+                .backupOutputDir(false)
+                .outputDir(dir)
+                .listener(listener)
+                .parallel(1);
+        List<String> exits = Files.readAllLines(dir.resolve("karate-json").resolve("karate-events.jsonl")).stream()
+                .filter(line -> line.contains("\"FEATURE_EXIT\"")).toList();
+        assertEquals(1, exits.size(), "the feature's result reached the stream exactly once: " + exits);
+        assertTrue(exits.get(0).contains("\"name\":\"two\"") && !exits.get(0).contains("exit boom"),
+                "the real result, not a synthetic failure: " + exits.get(0));
+        ScenarioResult sr = result.getFeatureResults().get(0).getScenarioResults().get(0);
+        assertFalse(sr.isFailed(), "the feature passed; the listener failed — logged, not a failure of the feature");
+        assertTrue(sr.getExecutionIndex() > 0);
+    }
+
+    @Test
     void aScenarioQueuedPastASuiteAbortIsIndexed(@TempDir Path dir) {
         Feature f = Feature.read(Resource.text("""
                 Feature: f

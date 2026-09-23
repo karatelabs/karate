@@ -168,7 +168,8 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         return new FeatureRuntime(suite, feature);
     }
 
-    // set before FEATURE_EXIT fires, so a failure escaping call() is emitted once by the Suite, never twice
+    // set before FEATURE_EXIT is dispatched — Suite.fireEvent delivers it to every listener even when one
+    // throws, so once set the stream has this feature's result and the Suite never emits a second
     private boolean exitFired;
 
     boolean exitFired() {
