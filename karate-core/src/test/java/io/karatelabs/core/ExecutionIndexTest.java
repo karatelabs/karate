@@ -12,6 +12,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -163,7 +169,7 @@ class ExecutionIndexTest {
     }
 
     @Test
-    void aScenarioQueuedPastASuiteAbortIsIndexed(@TempDir Path dir) {
+    void aScenarioQueuedPastASuiteAbortIsIndexed(@TempDir Path dir) throws Exception {
         Feature f = Feature.read(Resource.text("""
                 Feature: f
                 Scenario: one
@@ -173,13 +179,40 @@ class ExecutionIndexTest {
                 Scenario: three
                 * def z = 1
                 """));
-        java.util.concurrent.atomic.AtomicReference<Suite> suite = new java.util.concurrent.atomic.AtomicReference<>();
-        List<Map<String, Object>> entries = new ArrayList<>();
-        Set<Object> entered = new HashSet<>();
+        AtomicReference<Suite> suite = new AtomicReference<>();
+        List<Map<String, Object>> entries = new CopyOnWriteArrayList<>();
+        Set<Object> entered = ConcurrentHashMap.newKeySet();
+        // both permits of parallel(2) are held by entered scenarios, the third is provably parked on the
+        // semaphore, and only then is the suite aborted — so the third enters ScenarioRuntime.call() aborted
+        CountDownLatch bothEntered = new CountDownLatch(2);
+        CountDownLatch aborted = new CountDownLatch(1);
+        AtomicReference<String> stalled = new AtomicReference<>();
         RunListener listener = event -> {
             if (event.getType() == RunEventType.SCENARIO_ENTER && event instanceof ScenarioRunEvent sre) {
                 entered.add(sre.toJson().get("executionIndex"));
-                suite.get().abort();   // the first to enter aborts the suite; a queued scenario returns aborted
+                bothEntered.countDown();
+                try {
+                    if (!bothEntered.await(10, TimeUnit.SECONDS)) {
+                        stalled.compareAndSet(null, "the second scenario never entered");
+                    } else if (entered.size() == 2 && aborted.getCount() == 1) {
+                        Semaphore permits = suite.get().getScenarioSemaphore();
+                        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+                        while (!permits.hasQueuedThreads() && System.nanoTime() < deadline) {
+                            Thread.onSpinWait();
+                        }
+                        if (!permits.hasQueuedThreads()) {
+                            stalled.compareAndSet(null, "the third scenario never queued for a permit");
+                        }
+                        synchronized (aborted) {
+                            if (aborted.getCount() == 1) {
+                                suite.get().abort();
+                                aborted.countDown();
+                            }
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
             if (event instanceof FeatureRunEvent fre && event.getType() == RunEventType.FEATURE_EXIT) {
                 @SuppressWarnings("unchecked")
@@ -198,12 +231,16 @@ class ExecutionIndexTest {
                 .onSuite(suite::set)
                 .listener(listener)
                 .parallel(2);
+        assertNull(stalled.get());
+        assertEquals(2, entered.size(), "the two permit holders entered, the queued one did not: " + entered);
         assertEquals(3, entries.size(), entries::toString);
         Set<Object> seen = new HashSet<>();
         for (Map<String, Object> entry : entries) {
             assertInstanceOf(Integer.class, entry.get("executionIndex"), "every entry, the aborted one included: " + entry);
-            assertTrue(seen.add(entry.get("executionIndex")));
+            assertTrue(seen.add(entry.get("executionIndex")), "run-unique: " + entries);
         }
-        assertTrue(entered.size() < 3, "at least one scenario was queued past the abort: " + entered);
+        List<Map<String, Object>> queued = entries.stream()
+                .filter(e -> !entered.contains(e.get("executionIndex"))).toList();
+        assertEquals(1, queued.size(), "exactly one entry is the scenario queued past the abort: " + entries);
     }
 }
