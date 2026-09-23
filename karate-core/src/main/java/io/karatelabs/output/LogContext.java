@@ -106,6 +106,11 @@ public class LogContext {
         return ctx;
     }
 
+    /** The current thread's context, or null when there is none — never creates one (unlike {@link #get()}). */
+    public static LogContext peekCurrent() {
+        return CURRENT.get();
+    }
+
     public static void set(LogContext ctx) {
         CURRENT.set(ctx);
     }

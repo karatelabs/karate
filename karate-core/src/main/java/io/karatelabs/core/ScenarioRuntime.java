@@ -1203,6 +1203,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // Scenario-lifecycle hooks (beforeScenario/afterScenario) only fire for top-level
         // scenarios so a hook that uses karate.call() does not recurse into the called feature.
         boolean topLevel = featureRuntime == null || featureRuntime.isTopLevel();
+        boolean exitFired = false;
         try {
             // Fire SCENARIO_ENTER event
             if (suite != null) {
@@ -1307,15 +1308,36 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             result.setStableId(resolveStableId());
 
             // Fire SCENARIO_EXIT event
+            exitFired = true;
             if (suite != null) {
                 suite.fireEvent(ScenarioRunEvent.exit(this, result));
             }
 
         } catch (Throwable t) {
+            // StepExecutor catches only AssertionError | Exception, so an Error (StackOverflowError,
+            // a custom Error) lands here — record it as a failed step or the scenario reads passed.
             error = t;
             stopped = true;
+            if (!exitFired) {
+                StepResult failure = StepResult.synthetic("Scenario execution failed: " + t,
+                        StepResult.Status.FAILED, System.currentTimeMillis(), t);
+                failure.setLog(LogContext.get().collect());
+                result.addStepResult(failure);
+                if (aborted) {
+                    result.setAborted(true);
+                }
+                result.setEndTime(System.currentTimeMillis());
+                result.setStableId(resolveStableId());
+                if (suite != null) {
+                    try {
+                        suite.fireEvent(ScenarioRunEvent.exit(this, result));
+                    } catch (Throwable exitError) {
+                        logger.error("SCENARIO_EXIT listener failed: {}", exitError.getMessage());
+                    }
+                }
+            }
         } finally {
-            // Note: SCENARIO_EXIT event was already fired above
+            // Note: SCENARIO_EXIT event was already fired above (in the try, or the catch on an escaped Throwable)
 
             // Report (and drain) the last held perf event before teardown so Gatling receives
             // all HTTP metrics. The deferred model attaches a scenario failure to the last HTTP

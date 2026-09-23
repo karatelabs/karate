@@ -58,6 +58,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -3348,6 +3349,17 @@ public class StepExecutor {
      * has to stay a line: for a payload, {@code ##(chunk)} must still inline the chunk.
      */
     private Object processEmbeddedExpressions(Object value, boolean lenient, boolean forMatch) {
+        return processEmbeddedExpressions(value, lenient, forMatch, null);
+    }
+
+    /**
+     * {@code ancestors} maps each container on the current path to its in-progress copy, so a
+     * cyclic value (a JS object graph with a back-edge) copies to the same cycle instead of
+     * recursing until StackOverflowError. Only the path is tracked: a container reached twice
+     * without a cycle is still copied twice.
+     */
+    private Object processEmbeddedExpressions(Object value, boolean lenient, boolean forMatch,
+                                              IdentityHashMap<Object, Object> ancestors) {
         // Untrusted HTTP request data (Mock Server) must never be evaluated as embedded
         // expressions - returning it verbatim leaves any `#(...)` it carries as inert data.
         // Short-circuiting at the first request-derived container protects every nested value.
@@ -3363,27 +3375,39 @@ public class StepExecutor {
         } else if (value instanceof JavaCallable) {
             // JsCallable functions shouldn't be processed as maps - return them unchanged
             return value;
-        } else if (value instanceof Map) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> map = (Map<String, Object>) value;
-            Map<String, Object> result = new LinkedHashMap<>();
-            for (Map.Entry<String, Object> entry : map.entrySet()) {
-                Object processed = processEmbeddedExpressions(entry.getValue(), lenient, forMatch);
-                if (processed != REMOVE_MARKER) {
-                    result.put(entry.getKey(), processed);
-                }
+        } else if (value instanceof Map || value instanceof List) {
+            if (ancestors == null) {
+                ancestors = new IdentityHashMap<>();
+            } else if (ancestors.containsKey(value)) {
+                return ancestors.get(value);
             }
-            return result;
-        } else if (value instanceof List) {
-            @SuppressWarnings("unchecked")
-            List<Object> list = (List<Object>) value;
-            List<Object> result = new ArrayList<>();
-            for (Object item : list) {
-                Object processed = processEmbeddedExpressions(item, lenient, forMatch);
-                if (processed != REMOVE_MARKER) {
-                    result.add(processed);
+            Object result;
+            if (value instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> map = (Map<String, Object>) value;
+                Map<String, Object> copy = new LinkedHashMap<>();
+                ancestors.put(value, copy);
+                for (Map.Entry<String, Object> entry : map.entrySet()) {
+                    Object processed = processEmbeddedExpressions(entry.getValue(), lenient, forMatch, ancestors);
+                    if (processed != REMOVE_MARKER) {
+                        copy.put(entry.getKey(), processed);
+                    }
                 }
+                result = copy;
+            } else {
+                @SuppressWarnings("unchecked")
+                List<Object> list = (List<Object>) value;
+                List<Object> copy = new ArrayList<>();
+                ancestors.put(value, copy);
+                for (Object item : list) {
+                    Object processed = processEmbeddedExpressions(item, lenient, forMatch, ancestors);
+                    if (processed != REMOVE_MARKER) {
+                        copy.add(processed);
+                    }
+                }
+                result = copy;
             }
+            ancestors.remove(value);
             return result;
         } else if (value instanceof String str) {
             return processEmbeddedString(str, lenient, forMatch);
