@@ -17,6 +17,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -186,6 +187,7 @@ class ExecutionIndexTest {
         // semaphore, and only then is the suite aborted — so the third enters ScenarioRuntime.call() aborted
         CountDownLatch bothEntered = new CountDownLatch(2);
         CountDownLatch aborted = new CountDownLatch(1);
+        AtomicBoolean aborter = new AtomicBoolean();
         AtomicReference<String> stalled = new AtomicReference<>();
         RunListener listener = event -> {
             if (event.getType() == RunEventType.SCENARIO_ENTER && event instanceof ScenarioRunEvent sre) {
@@ -194,21 +196,22 @@ class ExecutionIndexTest {
                 try {
                     if (!bothEntered.await(10, TimeUnit.SECONDS)) {
                         stalled.compareAndSet(null, "the second scenario never entered");
-                    } else if (entered.size() == 2 && aborted.getCount() == 1) {
+                    } else if (aborter.compareAndSet(false, true)) {
+                        // scenarios run on virtual threads: poll by sleeping, never spinning, or this
+                        // holder keeps its carrier and on a 2-CPU host the third never mounts to queue
                         Semaphore permits = suite.get().getScenarioSemaphore();
                         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
                         while (!permits.hasQueuedThreads() && System.nanoTime() < deadline) {
-                            Thread.onSpinWait();
+                            Thread.sleep(1);
                         }
                         if (!permits.hasQueuedThreads()) {
                             stalled.compareAndSet(null, "the third scenario never queued for a permit");
                         }
-                        synchronized (aborted) {
-                            if (aborted.getCount() == 1) {
-                                suite.get().abort();
-                                aborted.countDown();
-                            }
-                        }
+                        suite.get().abort();
+                        aborted.countDown();
+                    } else if (!aborted.await(20, TimeUnit.SECONDS)) {
+                        // the other holder keeps its permit until the abort, or the third takes it un-aborted
+                        stalled.compareAndSet(null, "the abort never fired");
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
