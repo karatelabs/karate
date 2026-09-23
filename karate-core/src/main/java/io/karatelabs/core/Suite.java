@@ -863,8 +863,9 @@ public class Suite {
 
     private FeatureResult runFeatureSafely(Feature feature) {
         long startTime = System.currentTimeMillis();
+        FeatureRuntime fr = null;
         try {
-            FeatureRuntime fr = new FeatureRuntime(this, feature);
+            fr = new FeatureRuntime(this, feature);
             return fr.call();
         } catch (Exception e) {
             logger.error("Unexpected error running feature '{}': {}", feature.getName(), e.getMessage(), e);
@@ -872,6 +873,15 @@ public class Suite {
             for (ScenarioResult sr : result.getScenarioResults()) {
                 if (sr.getExecutionIndex() == 0) {
                     sr.setExecutionIndex(nextExecutionIndex());
+                }
+            }
+            // the synthetic result reaches the event stream exactly once — here when the feature never
+            // fired its own FEATURE_EXIT
+            if (fr == null || !fr.exitFired()) {
+                try {
+                    fireEvent(FeatureRunEvent.exit(fr, result));
+                } catch (RuntimeException listenerError) {
+                    logger.error("FEATURE_EXIT listener failed for '{}': {}", feature.getName(), listenerError.getMessage());
                 }
             }
             return result;

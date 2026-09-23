@@ -89,14 +89,18 @@ class ExecutionIndexTest {
     }
 
     @Test
-    void aFeatureThatFailsBeforeItsScenariosRunIsIndexedFromTheSuiteCounter(@TempDir Path dir) {
+    void aFeatureThatFailsBeforeItsScenariosRunIsIndexedFromTheSuiteCounter(@TempDir Path dir) throws Exception {
         Feature a = Feature.read(Resource.text("Feature: a\nScenario: one\n* def x = 1\n"));
         Feature b = Feature.read(Resource.text("Feature: b\nScenario: two\n* def y = 1\n"));
         // a FEATURE_ENTER listener failure escapes FeatureRuntime.call — the Suite's synthetic result path
+        List<Map<String, Object>> exits = new ArrayList<>();
         RunListener listener = event -> {
             if (event.getType() == RunEventType.FEATURE_ENTER && event instanceof FeatureRunEvent fre
                     && "b".equals(fre.source().getFeature().getName())) {
                 throw new IllegalStateException("enter boom");
+            }
+            if (event.getType() == RunEventType.FEATURE_EXIT && event instanceof FeatureRunEvent fre) {
+                exits.add(fre.toJson());
             }
             return true;
         };
@@ -105,6 +109,7 @@ class ExecutionIndexTest {
                 .skipTagFiltering(true)
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
+                .outputJsonLines(true)
                 .backupOutputDir(false)
                 .outputDir(dir)
                 .listener(listener)
@@ -117,5 +122,59 @@ class ExecutionIndexTest {
             }
         }
         assertEquals(2, seen.size());
+        // the synthetic result reaches the stream exactly once, indexed
+        List<Map<String, Object>> synthetic = exits.stream().filter(e -> String.valueOf(e).contains("enter boom")).toList();
+        assertEquals(1, synthetic.size(), "one FEATURE_EXIT for the failed feature: " + exits);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> entries = (List<Map<String, Object>>) synthetic.get(0).get("scenarioResults");
+        assertTrue(seen.contains(entries.get(0).get("executionIndex")), entries::toString);
+        long written = Files.readAllLines(dir.resolve("karate-json").resolve("karate-events.jsonl")).stream()
+                .filter(line -> line.contains("\"FEATURE_EXIT\"") && line.contains("enter boom")).count();
+        assertEquals(1, written, "written once to the JSONL");
+    }
+
+    @Test
+    void aScenarioQueuedPastASuiteAbortIsIndexed(@TempDir Path dir) {
+        Feature f = Feature.read(Resource.text("""
+                Feature: f
+                Scenario: one
+                * def x = 1
+                Scenario: two
+                * def y = 1
+                Scenario: three
+                * def z = 1
+                """));
+        java.util.concurrent.atomic.AtomicReference<Suite> suite = new java.util.concurrent.atomic.AtomicReference<>();
+        List<Map<String, Object>> entries = new ArrayList<>();
+        Set<Object> entered = new HashSet<>();
+        RunListener listener = event -> {
+            if (event.getType() == RunEventType.SCENARIO_ENTER && event instanceof ScenarioRunEvent sre) {
+                entered.add(sre.toJson().get("executionIndex"));
+                suite.get().abort();   // the first to enter aborts the suite; a queued scenario returns aborted
+            }
+            if (event instanceof FeatureRunEvent fre && event.getType() == RunEventType.FEATURE_EXIT) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> results = (List<Map<String, Object>>) fre.toJson().get("scenarioResults");
+                entries.addAll(results);
+            }
+            return true;
+        };
+        Runner.builder()
+                .features(f)
+                .skipTagFiltering(true)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .outputDir(dir)
+                .onSuite(suite::set)
+                .listener(listener)
+                .parallel(2);
+        assertEquals(3, entries.size(), entries::toString);
+        Set<Object> seen = new HashSet<>();
+        for (Map<String, Object> entry : entries) {
+            assertInstanceOf(Integer.class, entry.get("executionIndex"), "every entry, the aborted one included: " + entry);
+            assertTrue(seen.add(entry.get("executionIndex")));
+        }
+        assertTrue(entered.size() < 3, "at least one scenario was queued past the abort: " + entered);
     }
 }

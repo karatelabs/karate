@@ -168,6 +168,13 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         return new FeatureRuntime(suite, feature);
     }
 
+    // set before FEATURE_EXIT fires, so a failure escaping call() is emitted once by the Suite, never twice
+    private boolean exitFired;
+
+    boolean exitFired() {
+        return exitFired;
+    }
+
     @Override
     public FeatureResult call() {
         result.setStartTime(System.currentTimeMillis());
@@ -220,6 +227,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
 
             // Fire FEATURE_EXIT event
             if (suite != null) {
+                exitFired = true;
                 suite.fireEvent(FeatureRunEvent.exit(this, result));
             }
         } finally {
