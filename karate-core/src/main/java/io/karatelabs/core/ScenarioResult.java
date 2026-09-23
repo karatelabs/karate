@@ -57,8 +57,20 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     // from feature path + scenario name. See RunUtils / ScenarioRunEvent.
     private String stableId;
 
+    // the run-unique index this execution carries on every event it emits (Suite#nextExecutionIndex);
+    // 0 = unassigned (no suite)
+    private int executionIndex;
+
     public ScenarioResult(Scenario scenario) {
         this.scenario = scenario;
+    }
+
+    public int getExecutionIndex() {
+        return executionIndex;
+    }
+
+    public void setExecutionIndex(int executionIndex) {
+        this.executionIndex = executionIndex;
     }
 
     /** The author-set {@code __id} stable identity, or null when unset (derive the slug). */
@@ -504,6 +516,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             map.put("reportDisabled", true);
         }
 
+        if (executionIndex > 0) {
+            map.put("executionIndex", executionIndex);
+        }
         // RefId and outline flag (the identity routine already carries the indices + exampleData)
         map.put("refId", scenario.getRefId());
         map.put("isOutlineExample", scenario.isOutlineExample());

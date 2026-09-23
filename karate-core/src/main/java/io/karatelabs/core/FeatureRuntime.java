@@ -426,6 +426,9 @@ public class FeatureRuntime implements Callable<FeatureResult> {
     private ScenarioResult createErrorScenarioResult(Scenario scenario, Exception error) {
         long now = System.currentTimeMillis();
         ScenarioResult scenarioResult = new ScenarioResult(scenario);
+        if (suite != null) {
+            scenarioResult.setExecutionIndex(suite.nextExecutionIndex());   // an entry with no ENTER still carries one
+        }
         scenarioResult.setStartTime(now);
         scenarioResult.setEndTime(now);
         scenarioResult.setThreadName(Thread.currentThread().getName());

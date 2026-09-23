@@ -1172,6 +1172,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // karate.call / karate.callSingle that failed, whose own steps and HTTP traffic are the
         // only way to see WHICH call in a shared-setup chain broke. The config-time log and embeds
         // were already replayed into the fresh LogContext above, so collecting here picks them up.
+        // the run-unique execution index every event of this scenario carries — a config-error result
+        // (below, no ENTER) included
+        if (suite != null && result.getExecutionIndex() == 0) {
+            result.setExecutionIndex(suite.nextExecutionIndex());
+        }
         if (configError != null) {
             long now = System.currentTimeMillis();
             StepResult failure = StepResult.synthetic(

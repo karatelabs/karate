@@ -145,6 +145,16 @@ public class Suite {
     // onBoot() instead of relying on classpath presence alone. See docs/EXT.md § Channel factories.
     private final Map<String, ChannelFactory> channelFactories = new ConcurrentHashMap<>();
 
+    // The run-unique execution index every scenario result carries (stamped on SCENARIO_ENTER, on
+    // SCENARIO_EXIT and on the FEATURE_EXIT result entry), so a stream consumer can identify one
+    // execution across events without any state outside the stream.
+    private final java.util.concurrent.atomic.AtomicInteger executionSequence = new java.util.concurrent.atomic.AtomicInteger();
+
+    /** The next run-unique execution index (1-based). */
+    public int nextExecutionIndex() {
+        return executionSequence.incrementAndGet();
+    }
+
     // Shared executor and semaphore for scenario-level parallelism
     private volatile ExecutorService scenarioExecutor;
     private volatile Semaphore scenarioSemaphore;
@@ -858,7 +868,13 @@ public class Suite {
             return fr.call();
         } catch (Exception e) {
             logger.error("Unexpected error running feature '{}': {}", feature.getName(), e.getMessage(), e);
-            return FeatureResult.fromException(feature, e, startTime);
+            FeatureResult result = FeatureResult.fromException(feature, e, startTime);
+            for (ScenarioResult sr : result.getScenarioResults()) {
+                if (sr.getExecutionIndex() == 0) {
+                    sr.setExecutionIndex(nextExecutionIndex());
+                }
+            }
+            return result;
         }
     }
 

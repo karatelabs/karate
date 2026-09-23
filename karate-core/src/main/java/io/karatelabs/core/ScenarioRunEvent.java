@@ -94,6 +94,11 @@ public record ScenarioRunEvent(
             // the authoritative, possibly-overridden identity lands on EXIT.
             String stableId = result != null ? result.getStableId() : null;
             map.put("slug", RunUtils.effectiveSlug(stableId, scenario, feature));
+            // the run-unique execution index — the same on ENTER, EXIT and the FEATURE_EXIT result entry
+            ScenarioResult own = result != null ? result : source.getResult();
+            if (own != null && own.getExecutionIndex() > 0) {
+                map.put("executionIndex", own.getExecutionIndex());
+            }
             map.put("name", scenario.getName());
             // Description is redacted under @report=false so secrets in the
             // scenario's description block don't leak into uploaded CI artifacts.
