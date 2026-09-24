@@ -39,7 +39,8 @@ import java.util.Map;
 
 /**
  * Processor for ka:vals attribute.
- * Converts to hx-vals with JSON-encoded values.
+ * Converts to hx-vals with JSON-encoded values in a single-quoted attribute; a ', &amp; or &lt;
+ * in a value is entity-escaped (pass raw data; never pre-escape).
  *
  * Usage:
  * - ka:vals="key:value" -> hx-vals='{"key":"value"}'
@@ -65,7 +66,7 @@ class HxValsProcessor extends AbstractAttributeTagProcessor {
             logger.warn("ka:vals did not evaluate to json: {}", attributeValue);
         } else {
             String json = Json.of(result).toString();
-            structureHandler.setAttribute("hx-vals", json, AttributeValueQuotes.SINGLE);
+            structureHandler.setAttribute("hx-vals", KaDataProcessor.escapeSingleQuoted(json), AttributeValueQuotes.SINGLE);
         }
     }
 

@@ -129,7 +129,7 @@ All other HTMX attributes (`hx-target`, `hx-swap`, `hx-trigger`, `hx-confirm`, `
 </form>
 ```
 
-On any element: adds `x-data='{ form: {...} }'` (single-quoted for safe JSON).
+On any element: adds `x-data='{ form: {...} }'` (single-quoted for safe JSON). A `'`, `&` or `<` in a value is entity-escaped (`O'Brien` → `O&#39;Brien`) and the browser decodes it back — pass raw data, never pre-escape. The same holds for `ka:vals` and `ka:dispatch`.
 On `<form>`: also adds `<input type="hidden" name="form" x-bind:value="JSON.stringify(form)"/>`. Server reads with `request.paramJson('form')`.
 
 ---

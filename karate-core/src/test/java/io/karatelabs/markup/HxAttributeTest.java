@@ -1,5 +1,6 @@
 package io.karatelabs.markup;
 
+import io.karatelabs.common.Json;
 import io.karatelabs.js.Engine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -224,6 +225,92 @@ class HxAttributeTest {
         assertTrue(result.contains("\"active\":true"));
         assertTrue(result.contains("\"count\":42"));
         assertTrue(result.contains("\"label\":\"test\""));
+    }
+
+    @Test
+    void testValsEscapesAttributeValue() {
+        String value = "O'Brien & <script>";
+        String result = markup.processString(
+                "<button ka:vals=\"name:user.name\">Click</button>", Map.of("user", Map.of("name", value)));
+        assertEquals("<button hx-vals='{\"name\":\"O&#39;Brien &amp; &lt;script>\"}'>Click</button>", result);
+        String hxVals = KaDataTest.decode(KaDataTest.attr(result, "hx-vals"));
+        assertEquals(value, Json.of(hxVals).asMap().get("name"));
+    }
+
+    @Test
+    void testDispatchEscapesAttributeValue() {
+        String result = markup.processString(
+                "<button ka:dispatch=\"pick\" ka:vals=\"name:user.name\">Click</button>",
+                Map.of("user", Map.of("name", "O'Brien")));
+        String onclick = KaDataTest.decode(KaDataTest.attr(result, "onclick"));
+        assertTrue(onclick.contains("detail: {\"name\":\"O'Brien\"}"), result);
+    }
+
+    @Test
+    void testDispatchOnTriggerEscapesAttributeValue() {
+        String result = markup.processString(
+                "<select ka:dispatch=\"pick @ change\" ka:vals=\"name:user.name\"></select>",
+                Map.of("user", Map.of("name", "O'Brien & <b>")));
+        String handler = KaDataTest.decode(KaDataTest.attr(result, "hx-on:change"));
+        assertTrue(handler.contains("detail: {\"name\":\"O'Brien & <b>\"}"), result);
+    }
+
+    @Test
+    void testGenericIntoExistingSingleQuotedTarget() {
+        String result = markup.processString(
+                "<button hx-confirm='old' ka:confirm=\"${msg}\">X</button>", Map.of("msg", "O'Brien & co"));
+        assertEquals("O'Brien & co", KaDataTest.decode(KaDataTest.attr(result, "hx-confirm")));
+    }
+
+    @Test
+    void testMethodIntoExistingSingleQuotedTarget() {
+        String result = markup.processString(
+                "<button hx-get='old' ka:get=\"${url}\">X</button>", Map.of("url", "/find?q=O'Brien&x=1"));
+        assertEquals("/find?q=O'Brien&x=1", KaDataTest.decode(KaDataTest.attr(result, "hx-get")));
+    }
+
+    @Test
+    void testGenericWithColocatedKaData() {
+        String result = markup.processString(
+                "<form ka:data=\"form:data\" ka:confirm=\"${msg}\" ka:post=\"${url}\"><input/></form>",
+                Map.of("data", Map.of(), "msg", "O'Brien", "url", "/save?who=O'Brien"));
+        assertEquals("O'Brien", KaDataTest.decode(attrAnyQuote(result, "hx-confirm")));
+        assertEquals("/save?who=O'Brien", KaDataTest.decode(attrAnyQuote(result, "hx-post")));
+    }
+
+    @Test
+    void testGenericWithColocatedKaDataExistingTarget() {
+        String result = markup.processString(
+                "<form ka:data=\"form:data\" hx-confirm=\"old\" ka:confirm=\"${msg}\"><input/></form>",
+                Map.of("data", Map.of(), "msg", "O'Brien"));
+        assertEquals("O'Brien", KaDataTest.decode(attrAnyQuote(result, "hx-confirm")));
+    }
+
+    @Test
+    void testGenericExpressionWithQuotesAndEntityText() {
+        String msg = "say \"hi\" &amp; <b>";
+        String result = markup.processString("<button ka:confirm=\"${msg}\">X</button>", Map.of("msg", msg));
+        assertEquals(msg, KaDataTest.decode(attrAnyQuote(result, "hx-confirm")));
+    }
+
+    @Test
+    void testGenericLiteralEntityInSource() {
+        String result = markup.processString(
+                "<button ka:confirm=\"Tom &amp; Jerry's\">X</button>", Map.of());
+        assertEquals("Tom & Jerry's", KaDataTest.decode(attrAnyQuote(result, "hx-confirm")));
+    }
+
+    @Test
+    void testGenericPlainValueUnchanged() {
+        String result = markup.processString("<button ka:confirm=\"Sure?\" ka:get=\"/items\">X</button>", Map.of());
+        assertEquals("<button hx-confirm=\"Sure?\" hx-get=\"/items\">X</button>", result);
+    }
+
+    static String attrAnyQuote(String html, String name) {
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile(" " + java.util.regex.Pattern.quote(name) + "=(?:'([^']*)'|\"([^\"]*)\")").matcher(html);
+        assertTrue(m.find(), name + " not found in: " + html);
+        return m.group(1) != null ? m.group(1) : m.group(2);
     }
 
     // =============================================================================

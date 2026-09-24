@@ -27,6 +27,7 @@ import io.karatelabs.common.Json;
 import io.karatelabs.markup.MarkupTemplateContext;
 import org.thymeleaf.context.ITemplateContext;
 import org.thymeleaf.model.AttributeValueQuotes;
+import org.thymeleaf.model.IAttribute;
 import org.thymeleaf.model.IModel;
 import org.thymeleaf.model.IModelFactory;
 import org.thymeleaf.model.IOpenElementTag;
@@ -34,6 +35,7 @@ import org.thymeleaf.model.IProcessableElementTag;
 import org.thymeleaf.model.IStandaloneElementTag;
 import org.thymeleaf.processor.element.AbstractElementModelProcessor;
 import org.thymeleaf.processor.element.IElementModelStructureHandler;
+import org.thymeleaf.processor.element.IElementTagStructureHandler;
 import org.thymeleaf.templatemode.TemplateMode;
 
 import java.util.HashMap;
@@ -49,7 +51,8 @@ import java.util.Map;
  * &lt;/form&gt;
  * </pre>
  *
- * <p>Into (single-quoted attribute to safely embed JSON):</p>
+ * <p>Into (single-quoted attribute to safely embed JSON; a {@code '}, {@code &amp;} or {@code <}
+ * in a value is entity-escaped and the browser decodes it back, so pass raw data and never pre-escape):</p>
  * <pre>
  * &lt;form x-data='{ form: {"email":""} }'&gt;
  *   &lt;input type="hidden" name="form" x-bind:value="JSON.stringify(form)"&gt;
@@ -104,14 +107,16 @@ class KaDataProcessor extends AbstractElementModelProcessor {
         for (var attr : openTag.getAllAttributes()) {
             String name = attr.getAttributeCompleteName();
             if (!name.equals(getDialectPrefix() + ":" + DATA)) {
-                newAttrs.put(name, attr.getValue());
+                // getValue() is the source text, entities intact: only a raw ' needs escaping
+                String value = attr.getValue();
+                newAttrs.put(name, value == null ? null : value.replace("'", "&#39;"));
             }
         }
 
         // Add x-data with raw JSON — use SINGLE quotes on the attribute
         // to safely embed JSON double quotes (same pattern as ka:vals / hx-vals)
         String xDataValue = "{ " + varName + ": " + jsonData + " }";
-        newAttrs.put("x-data", xDataValue);
+        newAttrs.put("x-data", escapeSingleQuoted(xDataValue));
 
         // Create new opening tag with SINGLE-quoted attributes
         IOpenElementTag newOpenTag = modelFactory.createOpenElementTag(
@@ -128,6 +133,41 @@ class KaDataProcessor extends AbstractElementModelProcessor {
                     "input", hiddenAttrs, null, false, true);
             model.insert(1, hiddenInput);
         }
+    }
+
+    /**
+     * Thymeleaf writes attribute values verbatim; escapes what would end a single-quoted
+     * attribute or start an entity/tag. JSON's double quotes stay raw.
+     */
+    static String escapeSingleQuoted(String s) {
+        return escape(s, '\'');
+    }
+
+    /**
+     * Sets a decoded value, keeping an existing target's quote style (else double) and escaping for it.
+     */
+    static void setEscaped(IProcessableElementTag tag, IElementTagStructureHandler sh, String name, String value) {
+        IAttribute existing = tag.getAttribute(name);
+        AttributeValueQuotes quotes = existing != null && existing.getValueQuotes() == AttributeValueQuotes.SINGLE
+                ? AttributeValueQuotes.SINGLE : AttributeValueQuotes.DOUBLE;
+        sh.setAttribute(name, escape(value, quotes == AttributeValueQuotes.SINGLE ? '\'' : '"'), quotes);
+    }
+
+    private static String escape(String s, char delimiter) {
+        StringBuilder sb = null;
+        for (int i = 0, n = s.length(); i < n; i++) {
+            char c = s.charAt(i);
+            String rep = c == '&' ? "&amp;" : c == '<' ? "&lt;"
+                    : c != delimiter ? null : c == '\'' ? "&#39;" : "&quot;";
+            if (rep != null && sb == null) {
+                sb = new StringBuilder(n + 16).append(s, 0, i);
+            }
+            if (sb != null) {
+                if (rep != null) sb.append(rep);
+                else sb.append(c);
+            }
+        }
+        return sb == null ? s : sb.toString();
     }
 
 }

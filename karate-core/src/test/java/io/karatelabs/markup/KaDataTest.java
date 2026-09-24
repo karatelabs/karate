@@ -1,5 +1,6 @@
 package io.karatelabs.markup;
 
+import io.karatelabs.common.Json;
 import io.karatelabs.js.Engine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -7,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -211,6 +214,71 @@ class KaDataTest {
         assertTrue(result.contains("\"name\":\"Bob\""));
         assertTrue(result.contains("\"address\":{"));
         assertTrue(result.contains("\"city\":\"NYC\""));
+    }
+
+    // =============================================================================
+    // Attribute escaping
+    // =============================================================================
+
+    static String attr(String html, String name) {
+        Matcher m = Pattern.compile(" " + Pattern.quote(name) + "='([^']*)'").matcher(html);
+        assertTrue(m.find(), name + " not single-quoted in: " + html);
+        return m.group(1);
+    }
+
+    static String decode(String s) {
+        return s.replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">")
+                .replace("&quot;", "\"").replace("&amp;", "&");
+    }
+
+    @Test
+    void testValueWithApostrophe() {
+        String html = "<form ka:data=\"form:data\"><input/></form>";
+        String result = markup.processString(html, Map.of("data", Map.of("displayName", "O'Brien")));
+        assertTrue(result.contains("x-data='{ form: {\"displayName\":\"O&#39;Brien\"} }'"), result);
+        String xData = decode(attr(result, "x-data"));
+        Map<String, Object> form = Json.of(xData.substring("{ form: ".length(), xData.length() - 2)).asMap();
+        assertEquals("O'Brien", form.get("displayName"));
+    }
+
+    @Test
+    void testValueWithScriptAndAmpersand() {
+        String html = "<div ka:data=\"d:data\"></div>";
+        String value = "a & b <script>alert('x')</script>";
+        String result = markup.processString(html, Map.of("data", Map.of("v", value)));
+        assertFalse(result.contains("<script"), result);
+        String xData = decode(attr(result, "x-data"));
+        Map<String, Object> d = Json.of(xData.substring("{ d: ".length(), xData.length() - 2)).asMap();
+        assertEquals(value, d.get("v"));
+    }
+
+    @Test
+    void testSiblingAttributesKeepTheirSource() {
+        String html = "<form ka:data=\"form:data\" title=\"a &amp; b\" @click=\"save('x')\" data-q='say \"hi\"' novalidate><input/></form>";
+        String result = markup.processString(html, Map.of("data", Map.of()));
+        assertTrue(result.contains(" title='a &amp; b'"), result);
+        assertTrue(result.contains(" @click='save(&#39;x&#39;)'"), result);
+        assertTrue(result.contains(" data-q='say \"hi\"'"), result);
+        assertTrue(result.contains(" novalidate"), result);
+        assertTrue(result.contains(" x-data='{ form: {} }'"), result);
+    }
+
+    @Test
+    void testLiteralEntityTextAndControlCharsRoundTrip() {
+        String html = "<div ka:data=\"d:data\"></div>";
+        Map<String, Object> data = Map.of("amp", "&amp;", "ctl", "a\nb\tc\u0001d");
+        String result = markup.processString(html, Map.of("data", data));
+        String xData = decode(attr(result, "x-data"));
+        Map<String, Object> d = Json.of(xData.substring("{ d: ".length(), xData.length() - 2)).asMap();
+        assertEquals("&amp;", d.get("amp"));
+        assertEquals("a\nb\tc\u0001d", d.get("ctl"));
+    }
+
+    @Test
+    void testPlainValueUnchanged() {
+        String html = "<div ka:data=\"d:data\"></div>";
+        String result = markup.processString(html, Map.of("data", Map.of("name", "Alice")));
+        assertEquals("<div x-data='{ d: {\"name\":\"Alice\"} }'></div>", result);
     }
 
     // =============================================================================

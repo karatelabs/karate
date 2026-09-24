@@ -77,7 +77,7 @@ class HxGenericProcessor extends AbstractAttributeTagProcessor {
         String value = resolveValue(ctx, attributeValue);
 
         // Convert ka:target to hx-target (attribute name may contain hyphens)
-        structureHandler.setAttribute("hx-" + attributeName, value);
+        KaDataProcessor.setEscaped(tag, structureHandler, "hx-" + attributeName, value);
     }
 
     private String resolveValue(ITemplateContext ctx, String value) {

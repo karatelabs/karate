@@ -119,9 +119,9 @@ class KaDispatchProcessor extends AbstractAttributeTagProcessor {
                 + escapeJsString(eventName)
                 + "\", {detail: " + detailJson + ", bubbles: true, composed: true}))";
         if (triggerOn != null) {
-            structureHandler.setAttribute("hx-on:" + triggerOn, js, AttributeValueQuotes.SINGLE);
+            structureHandler.setAttribute("hx-on:" + triggerOn, KaDataProcessor.escapeSingleQuoted(js), AttributeValueQuotes.SINGLE);
         } else {
-            structureHandler.setAttribute("onclick", js, AttributeValueQuotes.SINGLE);
+            structureHandler.setAttribute("onclick", KaDataProcessor.escapeSingleQuoted(js), AttributeValueQuotes.SINGLE);
         }
     }
 

@@ -63,7 +63,7 @@ class HxMethodProcessor extends AbstractAttributeTagProcessor {
         }
 
         // Set the hx-* attribute
-        structureHandler.setAttribute("hx-" + method, url);
+        KaDataProcessor.setEscaped(tag, structureHandler, "hx-" + method, url);
     }
 
     private String resolveUrl(ITemplateContext ctx, String value) {
