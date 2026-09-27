@@ -190,7 +190,7 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
             if (currentRequest == null) return false;
             boolean matched = currentRequest.pathMatches(a[0] + "");
             if (matched) {
-                engine.put("pathParams", currentRequest.getPathParams());
+                engine.put("pathParams", markRequestDerived(runtime, currentRequest.getPathParams()));
             }
             return matched;
         });
@@ -260,9 +260,9 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         engine.put("requestUri", (JsLazy) () ->
             currentRequest != null ? markRequestDerived(runtime, currentRequest.getPathRaw()) : null);
         engine.put("requestUrlBase", (JsLazy) () ->
-            currentRequest != null ? currentRequest.jsGet("urlBase") : null);
+            currentRequest != null ? markRequestDerived(runtime, currentRequest.jsGet("urlBase")) : null);
         engine.put("requestMethod", (JsLazy) () ->
-            currentRequest != null ? currentRequest.getMethod() : null);
+            currentRequest != null ? markRequestDerived(runtime, currentRequest.getMethod()) : null);
         engine.put("requestHeaders", (JsLazy) () ->
             currentRequest != null ? markRequestDerived(runtime, currentRequest.getHeaders()) : null);
         engine.put("requestParams", (JsLazy) () ->

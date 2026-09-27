@@ -71,6 +71,24 @@ class FileSessionStoreTest {
     }
 
     @Test
+    void testIdFromCookieCannotEscapeDirectory() {
+        // the id arrives raw from the Cookie header - it must never resolve outside the store
+        Path outside = tempDir.resolve("secret.json");
+        String json = "{\"expires\":0,\"data\":{\"leak\":true}}";
+        try {
+            Files.writeString(outside, json);
+        } catch (java.io.IOException e) {
+            throw new RuntimeException(e);
+        }
+        assertNull(store.get("../secret"));
+        assertNull(store.get(outside.toString().replace(".json", "")));
+        store.save(new Session("../secret", new java.util.HashMap<>(), 0, 0, 0));
+        store.delete("../secret");
+        assertTrue(Files.exists(outside));
+        assertEquals(json, assertDoesNotThrow(() -> Files.readString(outside)));
+    }
+
+    @Test
     void testGetNonexistent() {
         assertNull(store.get("nonexistent-id"));
         assertNull(store.get(null));

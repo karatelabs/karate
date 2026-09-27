@@ -35,6 +35,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * File-based implementation of SessionStore.
@@ -102,6 +103,9 @@ public class FileSessionStore implements SessionStore {
             return;
         }
         Path file = sessionFile(id);
+        if (file == null) {
+            return;
+        }
         try {
             Files.deleteIfExists(file);
         } catch (IOException e) {
@@ -109,14 +113,18 @@ public class FileSessionStore implements SessionStore {
         }
     }
 
+    // Ids arrive raw from the Cookie header. The store only issues UUIDs, so anything outside
+    // that alphabet (a separator, a dot, an absolute path) never names a file.
+    private static final Pattern SAFE_ID = Pattern.compile("[A-Za-z0-9_-]{1,128}");
+
     private Path sessionFile(String id) {
-        return directory.resolve(id + ".json");
+        return SAFE_ID.matcher(id).matches() ? directory.resolve(id + ".json") : null;
     }
 
     @SuppressWarnings("unchecked")
     private Session readFromDisk(String id) {
         Path file = sessionFile(id);
-        if (!Files.exists(file)) {
+        if (file == null || !Files.exists(file)) {
             return null;
         }
         try {
@@ -134,6 +142,11 @@ public class FileSessionStore implements SessionStore {
     }
 
     private void writeToDisk(Session session) {
+        Path file = sessionFile(session.getId());
+        if (file == null) {
+            logger.warn("refusing to write session with unsafe id");
+            return;
+        }
         Map<String, Object> map = new HashMap<>();
         map.put("id", session.getId());
         map.put("created", session.getCreated());
@@ -142,7 +155,7 @@ public class FileSessionStore implements SessionStore {
         map.put("data", session.getData());
         try {
             String json = Json.of(map).toString();
-            Files.writeString(sessionFile(session.getId()), json);
+            Files.writeString(file, json);
         } catch (IOException e) {
             logger.warn("failed to write session {}: {}", session.getId(), e.getMessage());
         }

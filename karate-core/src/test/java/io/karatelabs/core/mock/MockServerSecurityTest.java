@@ -202,4 +202,41 @@ class MockServerSecurityTest {
             server.stopAsync();
         }
     }
+
+    /** A path segment the attacker controls, read back out of pathParams. */
+    @Test
+    void testExtractedPathParamInertByDefault() {
+        String feature = "Feature: echo\nScenario: pathMatches('/echo/{id}')\n"
+                + "* def response = ({ poc: pathParams.id })\n";
+        MockServer server = MockServer.featureString(feature).port(0).start();
+        try {
+            HttpResponse res = new HttpRequestBuilder(client)
+                    .url(server.getUrl() + "/echo/%23(1%20%2B%201)").method("GET")
+                    .invoke();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> echoed = (Map<String, Object>) res.getBodyConverted();
+            assertEquals(JS_EXPR, echoed.get("poc"));
+        } finally {
+            server.stopAsync();
+        }
+    }
+
+    /** The Host header the attacker controls, read back out of requestUrlBase. */
+    @Test
+    void testRequestUrlBaseInertByDefault() {
+        String feature = "Feature: echo\nScenario: pathMatches('/echo')\n"
+                + "* def response = ({ poc: requestUrlBase })\n";
+        MockServer server = MockServer.featureString(feature).port(0).start();
+        try {
+            HttpResponse res = new HttpRequestBuilder(client)
+                    .url(server.getUrl()).path("/echo").method("GET")
+                    .header("Host", JS_EXPR)
+                    .invoke();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> echoed = (Map<String, Object>) res.getBodyConverted();
+            assertEquals("http://" + JS_EXPR, echoed.get("poc"));
+        } finally {
+            server.stopAsync();
+        }
+    }
 }
