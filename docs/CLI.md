@@ -615,6 +615,8 @@ karate mock -m a.feature -m b.feature -p 8443 --ssl --cert cert.pem --key key.pe
 | `--path-prefix <prefix>` | URL path prefix to strip from incoming requests |
 | `-W, --watch` | Hot-reload when feature files change |
 
+> **Trusted networks only.** `karate mock` listens on all network interfaces, so other machines that can reach the host can call it. That suits CI and shared dev environments, but never run a mock where untrusted clients can reach it. A mock feature is trusted code. See [MOCKS.md](./MOCKS.md#overview) and [SECURITY.md](../SECURITY.md).
+
 ---
 
 ## Future Commands (Java)
