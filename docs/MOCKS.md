@@ -10,6 +10,8 @@ This document describes the mock server for Karate V2.
 
 Mock servers in Karate allow you to create API test-doubles using feature files. Scenarios act as request matchers, with JavaScript expressions determining which scenario handles each incoming request.
 
+> **Trusted networks only.** The mock server (and `HttpServer` generally) is developer test tooling for your machine, CI, or a trusted internal network. Never expose it to untrusted or public clients. A mock feature is *trusted code*: it can read files, run processes and call Java with the JVM's privileges. As defense-in-depth, request data (`request`, `requestHeaders`, `requestParams`, `pathParams`, `requestUrlBase`, etc.) is treated as inert by default: embedded `#(...)` in it is not evaluated, and Java interop is off. A trusted mock can opt back in with `configure requestExpressionsEnabled = true` and `configure javaBridgeEnabled = true`. See [SECURITY.md](../SECURITY.md) and the [trust boundary docs](https://docs.karatelabs.io/extensions/test-doubles#security-and-trust-boundary).
+
 ---
 
 ## Architecture
@@ -330,7 +332,7 @@ harness.stop();
 
 ### Using JS Files with HttpServer Directly
 
-For production use:
+Standalone, without the test harness (still on a trusted network only — see [Overview](#overview)):
 
 ```java
 import io.karatelabs.common.Resource;
