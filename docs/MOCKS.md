@@ -517,8 +517,10 @@ MockServer server = MockServer.feature("api.feature")
 
 ### Client-Side SSL
 
+The Karate HTTP client trusts all certificates and skips hostname verification by default, so tests can reach targets with self-signed certificates without any configuration. This is intentional for a test client; see [SECURITY.md](../SECURITY.md).
+
 ```gherkin
-# Trust all certificates (for self-signed)
+# Trust all certificates (for self-signed) - same as the default, made explicit
 * configure ssl = true
 
 # With keystore for mTLS
