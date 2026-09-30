@@ -762,7 +762,8 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                     throw new RuntimeException("Dynamic expression must return a list or function: " + expression + ", got: " + (result != null ? result.getClass().getName() : "null"));
                 }
             } catch (Exception e) {
-                throw new RuntimeException("Failed to evaluate dynamic expression: " + templateScenario.getDynamicExpression(), e);
+                throw new RuntimeException("Failed to evaluate dynamic expression: " + templateScenario.getDynamicExpression()
+                        + " - " + e.getMessage(), e);
             }
         }
 

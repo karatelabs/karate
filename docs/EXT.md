@@ -21,12 +21,13 @@
 | A custom embed payload + its UI | emit `StepResult.Embed` at runtime + `KarateReport.registerEmbed` in ext JS | embed on the wire; renderer in the browser |
 | An async channel (`karate.channel('grpc')`) | `Suite.registerChannelFactory(type, factory)` in `onBoot` | factory is suite-scoped; wins over the built-in fallback |
 | A CLI subcommand (`karate serve`) | implement `CliCommandProvider`, register via `META-INF/services` | discovered at launch; see [CLI subcommands](#cli-subcommands--contributing-karate-serve) |
+| `read()` of a file type (`read('data.xlsx#Sheet 2')`) | implement `FileReaderProvider`, register via `META-INF/services` | discovered once per JVM; see [File readers](#file-readers--owning-read-of-a-file-type) |
 
 The **run-time** wiring above is **imperative, from `onBoot(Suite)`** — there is no `manifest.json`
 and no annotation/ServiceLoader discovery for ext *activation* (that is the explicit
 `boot.ext('name')` in `karate-boot.js`; see DESIGN.md). Resolution is by name convention:
-`boot.ext('image')` → `io.karatelabs.ext.image.ImageExt`. **CLI subcommands are the one
-exception** — they are a launch-time (pre-Suite) concern and *are* discovered via ServiceLoader
+`boot.ext('image')` → `io.karatelabs.ext.image.ImageExt`. **CLI subcommands and file readers are
+the exceptions** — they are needed before (or outside) a Suite, and *are* discovered via ServiceLoader
 (below).
 
 **Optional exts — `boot.has('name')`.** `boot.ext` is deliberately strict: a missing ext fails the
@@ -226,6 +227,37 @@ launcher already composes the classpath as *core jar → `ext/*.jar` → `--cp`*
 the ext JAR in `.karate/ext/` makes its subcommand available.
 
 **Source:** `io.karatelabs.cli.CliCommandProvider`, `Main.buildCommandLine()` / `Main.defaultToRun`.
+
+---
+
+## File readers — owning `read()` of a file type
+
+Core's `read()` parses `json`/`js`/`feature`/`xml`/`csv`/`yaml` and returns bytes for known binary
+types. An ext JAR can own a further extension — e.g. `.xlsx` as a list of row maps, usable in a dynamic
+`Examples: | read('rows.xlsx') |` — without a core dependency on the parser:
+
+```java
+public class XlsxFileReaderProvider implements FileReaderProvider {
+    @Override public Set<String> extensions() { return Set.of("xlsx"); }
+    @Override public Object read(Resource resource, String fragment) { /* fragment: sheet name or null */ }
+}
+```
+
+```
+META-INF/services/io.karatelabs.core.FileReaderProvider
+  → io.karatelabs.ext.….XlsxFileReaderProvider
+```
+
+- A claimed extension is dispatched to its provider **before** the built-in handling (case-insensitive),
+  so a provider replaces core's default for that extension (`.xlsx` bytes, here).
+- Only a claimed extension takes a `#fragment`: `read('data.xlsx#Sheet 2')` hands the provider
+  `data.xlsx` and `Sheet 2`. Any other path — `notes.txt#1` included — reads exactly as it does with
+  no provider on the classpath.
+- The provider decides licensing, refusals and the returned shape (return JSON-like `List`/`Map`
+  values, as `read('x.csv')` does). `readAsBytes()`/`readAsString()` never consult a provider.
+
+**Source:** `io.karatelabs.core.FileReaderProvider`, `KarateJs.initRead()`; the core test
+`RowsFileReaderProvider` is a minimal example.
 
 ---
 

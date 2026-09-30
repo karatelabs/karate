@@ -220,6 +220,12 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                     path = rawPath;
                 }
             }
+            String fragment = null;
+            String[] split = FileReaderProvider.splitFragment(path);
+            if (split != null) {
+                path = split[0];
+                fragment = split[1];
+            }
 
             // V1 compatibility: handle 'this:' prefix for relative paths
             Resource resource;
@@ -228,6 +234,10 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 resource = getCurrentResource().resolve(path);
             } else {
                 resource = root.resolve(path);
+            }
+            FileReaderProvider provider = FileReaderProvider.forExtension(resource.getExtension());
+            if (provider != null) {
+                return provider.read(resource, fragment);
             }
             return switch (resource.getExtension()) {
                 case "json" -> JSONValue.parseKeepingOrder(resource.getText());

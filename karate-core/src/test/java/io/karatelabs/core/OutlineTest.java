@@ -25,6 +25,7 @@ package io.karatelabs.core;
 
 import io.karatelabs.common.Resource;
 import io.karatelabs.gherkin.Feature;
+import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -1125,6 +1126,47 @@ public class OutlineTest {
 
         assertTrue(result.isPassed(), "CSV-based outline should pass: " + getFailureMessage(result));
         assertEquals(2, result.getScenarioCount(), "Should have 2 scenarios from CSV");
+    }
+
+    @Test
+    void testDynamicOutlineWithProviderClaimedFile() throws Exception {
+        Files.writeString(tempDir.resolve("data.rows"), "first\nsecond\n");
+        Path feature = tempDir.resolve("outline-rows.feature");
+        Files.writeString(feature, """
+            Feature:
+
+            Scenario Outline: line is <line>
+            * match __row == { line: '#string', fragment: 'Sheet 2' }
+
+            Examples:
+            | read('data.rows#Sheet 2') |
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+
+        assertTrue(result.isPassed(), "provider-read outline should pass: " + getFailureMessage(result));
+        assertEquals(2, result.getScenarioCount());
+    }
+
+    @Test
+    void testDynamicOutlineFailureCarriesTheCause() throws Exception {
+        Path feature = tempDir.resolve("outline-throws.feature");
+        Files.writeString(feature, """
+            Feature:
+
+            Scenario Outline: never runs
+            * match 1 == 1
+
+            Examples:
+            | read('no-such-file.csv') |
+            """);
+
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> runTestSuite(tempDir, feature.toString()));
+
+        assertFalse(result.isPassed());
+        String message = getFailureMessage(result);
+        assertTrue(message.contains("Failed to evaluate dynamic expression: read('no-such-file.csv') - "), message);
+        assertTrue(message.substring(message.indexOf(" - ")).contains("no-such-file.csv"), message);
     }
 
     // ========== Lifecycle Hook Tests ==========

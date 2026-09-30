@@ -8,6 +8,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -137,6 +138,31 @@ class KarateJsTest {
         assertArrayEquals(ole, (byte[]) context.engine.get("msg"));
         assertEquals("string", context.engine.get("notesType"));
         assertEquals(text, context.engine.get("notes"));
+    }
+
+    @Test
+    void testReadDispatchesAClaimedExtensionToItsProvider(@TempDir Path tempDir) throws Exception {
+        Files.writeString(tempDir.resolve("data.rows"), "a\n\nb\n");
+        Files.writeString(tempDir.resolve("notes.txt#frag"), "a file named with a hash");
+        Files.writeString(tempDir.resolve("data.csv"), "x\n1\n");
+        KarateJs context = new KarateJs(Resource.path(tempDir.toString()));
+        context.engine.eval("""
+                var plain = read('data.rows');
+                var sheet = read('data.rows#Sheet 2');
+                var unclaimed = read('notes.txt#frag');
+                var csv = read('data.csv');
+                """);
+        assertEquals(List.of(row("a", null), row("b", null)), context.engine.get("plain"));
+        assertEquals(List.of(row("a", "Sheet 2"), row("b", "Sheet 2")), context.engine.get("sheet"));
+        assertEquals("a file named with a hash", context.engine.get("unclaimed"));
+        assertEquals(List.of(Map.of("x", "1")), context.engine.get("csv"));
+    }
+
+    private static Map<String, Object> row(String line, String fragment) {
+        Map<String, Object> row = new java.util.LinkedHashMap<>();
+        row.put("line", line);
+        row.put("fragment", fragment);
+        return row;
     }
 
     @Test
