@@ -248,13 +248,25 @@ META-INF/services/io.karatelabs.core.FileReaderProvider
   → io.karatelabs.ext.….XlsxFileReaderProvider
 ```
 
+- Discovery runs through the **thread context class loader** (core's own loader when unset, and as a
+  fallback), cached per loader — an ext JAR in a child loader is found; a provider may be instantiated
+  more than once per JVM.
 - A claimed extension is dispatched to its provider **before** the built-in handling (case-insensitive),
-  so a provider replaces core's default for that extension (`.xlsx` bytes, here).
-- Only a claimed extension takes a `#fragment`: `read('data.xlsx#Sheet 2')` hands the provider
-  `data.xlsx` and `Sheet 2`. Any other path — `notes.txt#1` included — reads exactly as it does with
-  no provider on the classpath.
+  so a provider replaces core's default for that extension (`.xlsx` bytes, here). **Two providers claiming
+  one extension** make `read()` of that extension fail naming both: ServiceLoader order is unspecified, so
+  there is no silent precedence — it is a packaging error.
+- Only a claimed extension takes a `#fragment`. The path splits at the first `#` that is in its **final
+  component** (no `/` or `\` after it, never index 0) and whose preceding file name has a claimed
+  extension: `read('data.xlsx#Sheet 2')` hands the provider `data.xlsx` and `Sheet 2`;
+  `read('#in/data.xlsx#a#b')` gives fragment `a#b`; `read('data.xlsx#')` gives `""` (`null` without a
+  `#`); a `.feature@` selector before the `#` wins (`suite.feature@tag.xlsx#S` is a feature call), after
+  it, it is fragment text. Any other path — `notes.txt#1` and
+  `archive.xlsx#old/notes.txt` (a directory named with `#`) included — reads exactly as it does with no
+  provider on the classpath.
 - The provider decides licensing, refusals and the returned shape (return JSON-like `List`/`Map`
-  values, as `read('x.csv')` does). `readAsBytes()`/`readAsString()` never consult a provider.
+  values, as `read('x.csv')` does). `read()` may run concurrently, so the provider is **thread-safe**,
+  and it returns **fresh values** — the caller owns and may mutate them. `readAsBytes()`/`readAsString()`
+  never consult a provider.
 
 **Source:** `io.karatelabs.core.FileReaderProvider`, `KarateJs.initRead()`; the core test
 `RowsFileReaderProvider` is a minimal example.

@@ -158,6 +158,61 @@ class KarateJsTest {
         assertEquals(List.of(Map.of("x", "1")), context.engine.get("csv"));
     }
 
+    @Test
+    void testReadUnclaimedPathWithHashDirectoryIsByteIdentical(@TempDir Path tempDir) throws Exception {
+        // a directory literally named archive.rows#old: the '#' is not a fragment
+        Path dir = Files.createDirectories(tempDir.resolve("archive.rows#old"));
+        Files.writeString(dir.resolve("notes.txt"), "kept as text");
+        byte[] gzip = Files.readAllBytes(Path.of("src/test/resources/io/karatelabs/core/upload/gzip.bin"));
+        Files.write(dir.resolve("blob.bin"), gzip);
+        Files.writeString(dir.resolve("data.rows"), "a\n");
+        KarateJs context = new KarateJs(Resource.path(tempDir.toString()));
+        context.engine.eval("""
+                var notes = read('archive.rows#old/notes.txt');
+                var blob = read('archive.rows#old/blob.bin');
+                var rows = read('archive.rows#old/data.rows#S');
+                """);
+        assertEquals("kept as text", context.engine.get("notes"));
+        assertArrayEquals(gzip, (byte[]) context.engine.get("blob"));
+        assertEquals(List.of(row("a", "S")), context.engine.get("rows"));
+    }
+
+    @Test
+    void testReadFragmentForms(@TempDir Path tempDir) throws Exception {
+        Files.writeString(tempDir.resolve("data.rows"), "a\n");
+        Files.writeString(Files.createDirectories(tempDir.resolve("#fixtures")).resolve("data.rows"), "b\n");
+        KarateJs context = new KarateJs(Resource.path(tempDir.toString()));
+        context.engine.eval("""
+                var leading = read('#fixtures/data.rows#Sheet 2');
+                var multiple = read('data.rows#a#b');
+                var empty = read('data.rows#');
+                var tagged = read('data.rows#S.feature@tag');
+                var file = read('file:%s/data.rows#F');
+                var cp = read('classpath:io/karatelabs/core/provider.rows#C');
+                """.formatted(tempDir.toString()));
+        assertEquals(List.of(row("b", "Sheet 2")), context.engine.get("leading"));
+        assertEquals(List.of(row("a", "a#b")), context.engine.get("multiple"));
+        assertEquals(List.of(row("a", "")), context.engine.get("empty"));
+        assertEquals(List.of(row("a", "S.feature@tag")), context.engine.get("tagged"));
+        assertEquals(List.of(row("a", "F")), context.engine.get("file"));
+        assertEquals(List.of(row("one", "C"), row("two", "C")), context.engine.get("cp"));
+    }
+
+    @Test
+    void testReadFeatureSelectorBeforeTheHashWinsOverAProviderSplit(@TempDir Path tempDir) throws Exception {
+        Files.writeString(tempDir.resolve("suite.feature"), "Feature:\n\n@tag\nScenario:\n* def a = 1\n");
+        Files.writeString(tempDir.resolve("data.rows"), "a\n");
+        KarateJs context = new KarateJs(Resource.path(tempDir.toString()));
+        context.engine.eval("""
+                var call = read('suite.feature@tag.rows#S');
+                var selector = call.getTagSelector();
+                var rows = read('data.rows#S.feature@tag');
+                """);
+        assertTrue(context.engine.get("call") instanceof FeatureCall);
+        assertEquals("@tag.rows#S", context.engine.get("selector"));
+        assertEquals(List.of(row("a", "S.feature@tag")), context.engine.get("rows"));
+    }
+
     private static Map<String, Object> row(String line, String fragment) {
         Map<String, Object> row = new java.util.LinkedHashMap<>();
         row.put("line", line);

@@ -204,27 +204,23 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             }
             String rawPath = args[0] + "";
 
-            // Parse tag selector for feature files
-            // Supports: file.feature@tag or @tag (same-file)
-            String path;
-            String tagSelector = null;
             if (rawPath.startsWith("@")) {
                 // Same-file tag - return a FeatureCall wrapper
                 return new FeatureCall(null, rawPath);
-            } else {
-                int tagPos = rawPath.indexOf(".feature@");
-                if (tagPos != -1) {
-                    path = rawPath.substring(0, tagPos + 8);  // "file.feature"
-                    tagSelector = "@" + rawPath.substring(tagPos + 9);  // "@tag"
-                } else {
-                    path = rawPath;
-                }
             }
+            String path = rawPath;
+            String tagSelector = null;
             String fragment = null;
-            String[] split = FileReaderProvider.splitFragment(path);
-            if (split != null) {
+            int tagPos = rawPath.indexOf(".feature@");
+            String[] split = FileReaderProvider.splitFragment(rawPath);
+            if (split != null && (tagPos == -1 || tagPos > split[0].length())) {
+                // a provider's fragment is opaque: '.feature@' inside it is not a tag selector
                 path = split[0];
                 fragment = split[1];
+            } else if (tagPos != -1) {
+                // Parse tag selector for feature files: file.feature@tag - a selector before the '#' wins
+                path = rawPath.substring(0, tagPos + 8);  // "file.feature"
+                tagSelector = "@" + rawPath.substring(tagPos + 9);  // "@tag"
             }
 
             // V1 compatibility: handle 'this:' prefix for relative paths

@@ -25,19 +25,27 @@ package io.karatelabs.core;
 
 import io.karatelabs.common.Resource;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.ServiceLoader;
 import java.util.Set;
 
 /**
  * SPI for an ext JAR to own {@code read()} of a file type core does not parse (e.g. {@code .xlsx}).
  *
  * <p>Registered the standard ServiceLoader way — a file
- * {@code META-INF/services/io.karatelabs.core.FileReaderProvider} naming the implementation. A provider
- * claiming an extension is consulted before the built-in handling, and only a claimed extension takes a
- * {@code #fragment} ({@code read('data.xlsx#Sheet 2')}); any other path reads exactly as without providers.</p>
+ * {@code META-INF/services/io.karatelabs.core.FileReaderProvider} naming the implementation. Discovery runs
+ * through the thread context class loader (the defining loader when unset, and as a fallback), once per loader;
+ * a provider may therefore be instantiated more than once per JVM. A provider claiming an extension is
+ * consulted before the built-in handling; two providers claiming one extension make {@code read()} of that
+ * extension fail naming both — ServiceLoader order is unspecified, so there is no silent precedence.</p>
+ *
+ * <p>Only a claimed extension takes a {@code #fragment}: the path is split at the first {@code #} that sits in
+ * its final component (no {@code /} or {@code \} after it, never index 0) and whose preceding file name has a
+ * claimed extension — {@code read('data.xlsx#Sheet 2')}, {@code read('#in/data.xlsx#a#b')} (fragment
+ * {@code a#b}). A {@code .feature@} selector before the {@code #} wins ({@code suite.feature@tag.xlsx#S} is a
+ * feature call); after it, it is fragment text. Any other path, {@code archive.xlsx#old/notes.txt} included,
+ * reads exactly as without providers.</p>
+ *
+ * <p>{@link #read} may be called concurrently, so an implementation is thread-safe; the value it returns is
+ * owned by the caller, who may mutate it — return fresh values, never a shared or cached structure.</p>
  */
 public interface FileReaderProvider {
 
@@ -47,51 +55,25 @@ public interface FileReaderProvider {
     /**
      * The value {@code read()} returns for {@code resource}.
      *
-     * @param fragment the text after the first {@code #} following the file name, or {@code null} when absent
+     * @param fragment the text after the {@code #} ({@code ""} when nothing follows it), or {@code null} without one
      */
     Object read(Resource resource, String fragment);
 
-    /** The provider on the classpath claiming {@code extension} (any case), or {@code null}. */
+    /**
+     * The provider claiming {@code extension} (any case), or {@code null}.
+     *
+     * @throws IllegalStateException when two providers claim it
+     */
     static FileReaderProvider forExtension(String extension) {
-        if (extension == null || extension.isEmpty()) {
-            return null;
-        }
-        String ext = extension.toLowerCase(Locale.ROOT);
-        for (FileReaderProvider p : Loaded.PROVIDERS) {
-            if (p.extensions().contains(ext)) {
-                return p;
-            }
-        }
-        return null;
+        return FileReaderProviders.forExtension(extension);
     }
 
     /**
-     * {@code path} split at the first {@code #} whose preceding file name has a claimed extension:
-     * {@code [path, fragment]}, or {@code null} when no provider claims it (the path is then read as is).
+     * {@code path} split into {@code [file, fragment]} per the rule above, or {@code null} when no provider
+     * claims it (the path is then read as is).
      */
     static String[] splitFragment(String path) {
-        for (int i = path.indexOf('#'); i > 0; i = path.indexOf('#', i + 1)) {
-            String file = path.substring(0, i);
-            int dot = file.lastIndexOf('.');
-            if (dot > file.lastIndexOf('/') && forExtension(file.substring(dot + 1)) != null) {
-                return new String[]{file, path.substring(i + 1)};
-            }
-        }
-        return null;
-    }
-
-    final class Loaded {
-
-        static final List<FileReaderProvider> PROVIDERS = load();
-
-        private Loaded() {
-        }
-
-        private static List<FileReaderProvider> load() {
-            List<FileReaderProvider> out = new ArrayList<>();
-            ServiceLoader.load(FileReaderProvider.class, FileReaderProvider.class.getClassLoader()).forEach(out::add);
-            return List.copyOf(out);
-        }
+        return FileReaderProviders.splitFragment(path);
     }
 
 }
