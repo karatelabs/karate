@@ -161,7 +161,7 @@ class StepMultipartTest {
         ScenarioRuntime sr = run(client, """
             * def data = { name: 'test', count: 42 }
             * url 'http://test/upload'
-            * multipart file jsonData = { value: data, filename: 'data.json', contentType: 'application/json' }
+            * multipart file jsonData = { value: '#(data)', filename: 'data.json', contentType: 'application/json' }
             * method post
             * status 200
             """);

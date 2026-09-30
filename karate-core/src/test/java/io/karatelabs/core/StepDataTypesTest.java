@@ -1008,6 +1008,23 @@ class StepDataTypesTest {
             * match payload == { id: 'id', name: 'sample' }
             """);
         assertPassed(sr);
+        assertTrue(getStepLog(sr, 1).contains("use '#(id)'"), "the bare reference warns: " + getStepLog(sr, 1));
+        assertFalse(getStepLog(sr, 2).contains("JSON literal"), "a quoted 'id' does not warn");
+    }
+
+    @Test
+    void testInlineJsonBarePathWarnsOnlyForADefinedVariable() {
+        ScenarioRuntime sr = run("""
+            * def foo = { id: 7 }
+            * def a = { id: foo.id, list: [foo.id] }
+            * def b = { status: pending, id: bar.id, ok: '#(foo.id)', q: 'foo.id' }
+            * match a == { id: 'foo.id', list: ['foo.id'] }
+            """);
+        assertPassed(sr);
+        assertTrue(getStepLog(sr, 1).contains("use '#(foo.id)'"), "foo is defined: " + getStepLog(sr, 1));
+        assertFalse(getStepLog(sr, 2).contains("JSON literal"),
+                "no warning: pending/bar are not variables, the rest are quoted: " + getStepLog(sr, 2));
+        assertFalse(getStepLog(sr, 3).contains("JSON literal"), "a quoted match RHS does not warn");
     }
 
     @Test

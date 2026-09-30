@@ -1404,6 +1404,7 @@ public class StepExecutor {
         if (StringUtils.looksLikeJson(expr)) {
             try {
                 Object value = Json.of(expr).value();
+                warnBareReferences(expr, value);
                 // Process embedded expressions like #(varName) in the parsed JSON
                 return processEmbeddedExpressions(value, false, forMatch);
             } catch (Exception e) {
@@ -1881,6 +1882,7 @@ public class StepExecutor {
         if (StringUtils.looksLikeJson(expr)) {
             try {
                 Object value = Json.of(expr).value();
+                warnBareReferences(expr, value);
                 return processEmbeddedExpressions(value);
             } catch (Exception e) {
                 // Fall through to JS eval if JSON parsing fails (e.g., ES6 shorthand { id })
@@ -1930,6 +1932,40 @@ public class StepExecutor {
     }
 
     private static final LogContext.LogWriter SCENARIO_LOG = LogContext.with(LogContext.SCENARIO_LOGGER);
+
+    private static final java.util.regex.Pattern BARE_REFERENCE =
+            java.util.regex.Pattern.compile("[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*|\\[\\d+])*");
+
+    /**
+     * Relaxed JSON reads an unquoted value as a string, so {@code { id: foo.id }} holds the text
+     * "foo.id" — almost never what the author meant when {@code foo} is a variable. Warn (never fail:
+     * the relaxed-JSON contract stands) when a string value is spelled unquoted in the literal and
+     * its head names a defined variable.
+     */
+    private void warnBareReferences(String expr, Object value) {
+        if (value instanceof Map<?, ?> map) {
+            map.values().forEach(v -> warnBareReferences(expr, v));
+        } else if (value instanceof List<?> list) {
+            list.forEach(v -> warnBareReferences(expr, v));
+        } else if (value instanceof String s && BARE_REFERENCE.matcher(s).matches()) {
+            java.util.regex.Pattern unquoted = java.util.regex.Pattern.compile(
+                    "[:\\[,]\\s*" + java.util.regex.Pattern.quote(s) + "\\s*[,}\\]]");
+            if (!unquoted.matcher(expr).find()) {
+                return;
+            }
+            String head = s.split("[.\\[]", 2)[0];
+            Object defined;
+            try {
+                defined = runtime.getVariable(head);
+            } catch (RuntimeException e) {
+                return;
+            }
+            if (defined != null) {
+                SCENARIO_LOG.warn("unquoted '" + s + "' in a JSON literal is the string \"" + s
+                        + "\", not the value of variable '" + head + "' - use '#(" + s + ")', or ( … ) for JS");
+            }
+        }
+    }
 
     private void executePrint(Step step) {
         // Wrap in array to handle comma-separated expressions like: print 'foo', 'bar'
