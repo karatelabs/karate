@@ -24,6 +24,7 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
 ## 1. Prepare the Release
 
 - [ ] Verify `main` is green on CI
+- [ ] `mvn install -DskipTests`, then in `../karate-intellij`: `./gradlew :karate-ide-v2:karateContractTest`
 - [ ] Update version in `pom.xml` (remove any `-SNAPSHOT` or `.RC*` suffix):
   ```bash
   mvn versions:set -DnewVersion=X.Y.Z -DgenerateBackupPoms=false
