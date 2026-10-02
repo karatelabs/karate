@@ -821,6 +821,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
     @SuppressWarnings("unchecked")
     private JavaInvokable exec() {
         return args -> {
+            checkProcessEnabled("exec");
             if (args.length == 0) {
                 throw new RuntimeException("exec() needs at least one argument");
             }
@@ -857,6 +858,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
     @SuppressWarnings("unchecked")
     private JavaInvokable fork() {
         return args -> {
+            checkProcessEnabled("fork");
             if (args.length == 0) {
                 throw new RuntimeException("fork() needs at least one argument");
             }

@@ -86,6 +86,7 @@ abstract class KarateJsBase implements SimpleObject {
     io.karatelabs.http.HttpRequest prevRequest; // tracks previous HTTP request
     io.karatelabs.http.HttpResponse prevResponse; // tracks previous HTTP response (for karate.response)
     KarateJsLog logFacade; // lazy-initialized
+    boolean processEnabled = true; // karate.exec / karate.fork, see setJavaBridgeEnabled
 
     // The default bridge enables full Java interop (Java.type(), reflective dispatch on
     // plain Java objects). It is the normal mode for trusted feature files run by the test
@@ -117,6 +118,17 @@ abstract class KarateJsBase implements SimpleObject {
      */
     public void setJavaBridgeEnabled(boolean enabled) {
         engine.setExternalBridge(enabled ? DEFAULT_BRIDGE : null);
+        // karate.exec / karate.fork start OS processes without the bridge, so they follow the
+        // same switch - otherwise an embedded expression reaching eval in a mock would still be
+        // command execution with the bridge off.
+        processEnabled = enabled;
+    }
+
+    void checkProcessEnabled(String name) {
+        if (!processEnabled) {
+            throw new RuntimeException(name + "() is not enabled - process execution is off by default"
+                    + " in a mock, use 'configure javaBridgeEnabled = true' to opt in");
+        }
     }
 
     public void setOnDoc(Consumer<String> onDoc) {

@@ -30,6 +30,7 @@ import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -133,6 +134,39 @@ class MockServerSecurityTest {
     void testJavaPayloadEvaluatesWithBothOptedInViaBuilder() {
         MockServer server = echoMock(null).javaBridgeEnabled(true).requestExpressionsEnabled(true).start();
         assertEquals(JAVA_VERSION, roundTrip(server, JAVA_EXPR));
+    }
+
+    // karate.exec starts a process without the Java bridge, so it must follow the same switch.
+    // `java -version` is harmless; a run that happened returns its version banner.
+    private static final String EXEC_EXPR = "#(karate.exec(['"
+            + Path.of(System.getProperty("java.home"), "bin", "java").toString().replace("\\", "/")
+            + "', '-version']))";
+
+    @Test
+    void testExecPayloadStillInertWithOnlyRequestExpressionsOptedIn() {
+        Object result = roundTrip(echoMock("* configure requestExpressionsEnabled = true").start(), EXEC_EXPR);
+        assertEquals(EXEC_EXPR, result);
+    }
+
+    @Test
+    void testExecPayloadEvaluatesWithBothOptedIn() {
+        String cfg = "* configure requestExpressionsEnabled = true\n* configure javaBridgeEnabled = true";
+        assertTrue(String.valueOf(roundTrip(echoMock(cfg).start(), EXEC_EXPR)).contains("version"));
+    }
+
+    @Test
+    void testMockStepCannotExecByDefault() {
+        String feature = "Feature: exec\nScenario: pathMatches('/exec')\n"
+                + "* def response = karate.exec(['java', '-version'])\n";
+        MockServer server = MockServer.featureString(feature).port(0).start();
+        try {
+            HttpResponse res = new HttpRequestBuilder(client)
+                    .url(server.getUrl()).path("/exec").method("GET").invoke();
+            assertEquals(500, res.getStatus());
+            assertTrue(res.getBodyString().contains("javaBridgeEnabled"), res.getBodyString());
+        } finally {
+            server.stopAsync();
+        }
     }
 
     // ---- extraction: a scalar pulled out of the request is a different object than the container ----
