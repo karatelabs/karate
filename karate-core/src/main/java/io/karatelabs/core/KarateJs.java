@@ -1050,15 +1050,15 @@ public class KarateJs extends KarateJsBase implements PerfContext {
 
     /**
      * karate.request - Returns the current mock request (only in mock context).
-     * Returns the body content of the current request.
+     * Returns the body content of the current request, read through the mock's {@code request}
+     * binding so it carries the same request-derived mark (an embedded #(...) in it stays inert).
      */
     private Object getRequest() {
         if (mockHandler == null) {
             logger.warn("karate.request is only available in mock context");
             return null;
         }
-        io.karatelabs.http.HttpRequest request = mockHandler.getCurrentRequest();
-        return request != null ? request.getBodyConverted() : null;
+        return engine.get("request");
     }
 
     /**

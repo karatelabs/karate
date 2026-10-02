@@ -203,6 +203,14 @@ class MockServerSecurityTest {
         }
     }
 
+    /** The body read through the karate.request accessor instead of the request variable. */
+    @Test
+    void testKarateRequestAccessorInertByDefault() {
+        String feature = "Feature: echo\nScenario: pathMatches('/echo')\n"
+                + "* def body = karate.request\n* def response = body\n";
+        assertEquals(JS_EXPR, roundTrip(MockServer.featureString(feature).port(0).start(), JS_EXPR));
+    }
+
     /** A path segment the attacker controls, read back out of pathParams. */
     @Test
     void testExtractedPathParamInertByDefault() {
