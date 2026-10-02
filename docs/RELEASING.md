@@ -21,6 +21,16 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
 >   `karate.sh` manifest ext entry, and add a CI fatjar-build job
 >   (`mvn package -pl karate-image -am -Pfatjar -DskipTests`).
 
+> **TODO (2.1.4 only, delete this note after): publish advisory GHSA-4ccw-fvx9-7qpj.**
+> It sits in draft, already marked Low and patched in `2.1.4`; the fix is tracked in #3067.
+> - Release notes: under **⚠️ Breaking Changes**, say that `karate.exec()` / `karate.fork()` are
+>   off by default in a mock and that `configure javaBridgeEnabled = true` turns them back on #3067.
+>   Under **Important Fixes**, say that `karate.request` in a mock is now treated as request data #3067.
+> - After step 3 (artifacts on Maven Central): open
+>   https://github.com/karatelabs/karate/security/advisories/GHSA-4ccw-fvx9-7qpj and click
+>   **Publish advisory**. Optionally change the reporter's "Fix status: not fixed" to "fixed in 2.1.4" first.
+> - In step 5: comment the advisory link on #3067 before closing it with the usual `v2.1.4 released`.
+
 ## 1. Prepare the Release
 
 - [ ] Verify `main` is green on CI
