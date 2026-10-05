@@ -2231,7 +2231,8 @@ public class JsParser extends BaseParser {
                 || typeof_expr()
                 || delete_expr()
                 || private_name_expr(); // last: nothing above can start with `#`
-        if (result) {
+        // a YieldExpression is a whole AssignmentExpression — no operator may follow it (ES 15.5)
+        if (result && markerNode().getLast().type != NodeType.YIELD_EXPR) {
             expr_rhs(priority);
         }
         if (!result && mandatory && errorRecoveryEnabled) {
@@ -2348,7 +2349,13 @@ public class JsParser extends BaseParser {
                 expr(-1, true);
                 consumeSoft(R_BRACKET);
                 exit(Shift.LEFT);
-            } else if (enter(NodeType.MATH_POST_EXPR, T_MATH_POST_EXPR)) {
+            } else if (peekAnyOf(T_MATH_POST_EXPR)) {
+                // ES 13.4: no LineTerminator before a postfix `++`/`--` — after one, ASI makes it
+                // the prefix operator of the next statement
+                if (!noLineTerminatorBefore()) {
+                    break;
+                }
+                enter(NodeType.MATH_POST_EXPR, T_MATH_POST_EXPR);
                 exit(Shift.LEFT);
             } else if (priority < 8 && enter(NodeType.INSTANCEOF_EXPR, INSTANCEOF)) {
                 expr(8, true);
@@ -2471,6 +2478,7 @@ public class JsParser extends BaseParser {
             exit();
             exit();
         }
+        lineTerminatorBeforeArrowIsAnError();
         consumeSoft(EQ_GT);
         if (!fn_body_or_expr(true)) {
             error(NodeType.BLOCK, NodeType.EXPR);
@@ -2548,6 +2556,7 @@ public class JsParser extends BaseParser {
         // e.g: "(function(){})", so fn_decl_args() will re-wind
         // and paren_expr() is next in line in expr() to handle
         if (fn_decl_args()) {
+            lineTerminatorBeforeArrowIsAnError();
             if (consumeIf(EQ_GT)) {
                 if (fn_body_or_expr(false)) {
                     return exit();
@@ -2556,6 +2565,13 @@ public class JsParser extends BaseParser {
             }
         }
         return exit(false, false);
+    }
+
+    /** ES 15.3: {@code ArrowParameters [no LineTerminator here] =>} — no ASI can repair it. */
+    private void lineTerminatorBeforeArrowIsAnError() {
+        if (peekIf(EQ_GT) && !noLineTerminatorBefore()) {
+            error("a line terminator before '=>' is not allowed — put '=>' on the same line as the parameters");
+        }
     }
 
     // Lookahead to detect arrow function: (...) => — from `start`, which is the cursor
@@ -2880,6 +2896,7 @@ public class JsParser extends BaseParser {
         if (!enter(NodeType.REF_EXPR, IDENT)) {
             return false;
         }
+        lineTerminatorBeforeArrowIsAnError();
         if (enter(NodeType.FN_ARROW_EXPR, EQ_GT)) {
             if (fn_body_or_expr(false)) {
                 exit(Shift.LEFT); // change the node type

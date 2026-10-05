@@ -1442,6 +1442,38 @@ class SpecPinTest extends EvalBase {
         assertEquals("boom", eval("try { throw (\n  'boom'\n) } catch (e) { e }"));
     }
 
+    @Test
+    void postfix_aLineTerminatorBeforeItMakesItPrefix() {
+        // ES 13.4: `a\n++\nb` is `a; ++b`, not `a++; b`
+        assertEquals("1,2", eval("var a=1,b=1;\na\n++\nb;\n'' + [a, b]"));
+        assertEquals("1,0", eval("var a=1,b=1;\na\n--\nb;\n'' + [a, b]"));
+        assertEquals("1,2", eval("var a=1,b=1;\na /*\n*/ ++b;\n'' + [a, b]"));
+        assertEquals("1,2", eval("var a=1,b=1;\na ++b;\n'' + [a, b]"));
+        assertEquals("2,1", eval("var a=1,b=1;\na++\nb;\n'' + [a, b]"));
+        assertEquals("2,1", eval("var a=1,b=1;\na /* c */ ++;\nb;\n'' + [a, b]"));
+        assertEquals("1,2", eval("var o={x:1},b=1;\no.x\n++b;\n'' + [o.x, b]"));
+    }
+
+    @Test
+    void arrow_aLineTerminatorBeforeTheArrowIsAnError() {
+        // ES 15.3: ArrowParameters [no LineTerminator here] =>
+        assertParseError("var f = x\n=> x");
+        assertParseError("var f = ()\n=> {}");
+        assertParseError("var f = (a)\n=> a");
+        assertParseError("var f = (a) /*\n*/ => a");
+        assertParseError("var async; var f = async (a)\n=> a");
+        assertParseError("var async; var f = async a\n=> a");
+        assertEquals(2, eval("var f = (a) =>\n  a; f(2)"));
+    }
+
+    @Test
+    void yield_aLineTerminatorAfterItEndsTheExpression() {
+        // ES 15.5: `yield [no LineTerminator here] AssignmentExpression` — `yield\n+ 1` is `yield; +1`
+        assertEquals(5, eval("function* g(){ var r = yield\n+ 1; return r } var it = g(); it.next(); it.next(5).value"));
+        assertParseError("function* g(){ yield\n* [1] }");
+        assertEquals(6, eval("function* g(){ var r = (yield) + 1; return r } var it = g(); it.next(); it.next(5).value"));
+    }
+
     // -------------------------------------------------------------------------
     // Assignment evaluation order (§13.15.2): the LHS Reference — base object
     // and computed key — evaluates BEFORE the RHS expression. For compound

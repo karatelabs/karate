@@ -409,11 +409,9 @@ public abstract class BaseParser {
      * LineTerminator is not whitespace, it ends the statement. Without the check, {@code return} followed by a
      * newline and a call swallows the call as its argument — which parses fine and means something else.</p>
      *
-     * <p><b>Which productions actually consult this today: {@code return}, {@code throw},
-     * {@code break}/{@code continue} before a label, and automatic semicolon insertion.</b> The grammar
-     * also restricts {@code yield} before its operand and a postfix {@code ++}/{@code --} after its
-     * operand; neither is enforced here — the postfix case is a separate, unfixed gap. Do not read this
-     * javadoc as a claim that they are covered.</p>
+     * <p>Consulted by {@code return}, {@code throw}, {@code break}/{@code continue} before a label, a
+     * postfix {@code ++}/{@code --}, {@code =>}, and automatic semicolon insertion. {@code yield} and
+     * {@code async} use {@link #lineTerminatorFollows(Token)}.</p>
      *
      * <p><b>Reusing it needs one caution.</b> It measures the gap after the <i>last token of the current
      * node</i>, so a caller whose preceding element is an expression rather than a keyword — the postfix case

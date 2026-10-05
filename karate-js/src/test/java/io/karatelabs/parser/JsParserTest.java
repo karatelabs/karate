@@ -414,6 +414,18 @@ class JsParserTest {
     }
 
     @Test
+    void testPostfixAfterLineTerminatorIsPrefix() {
+        // ES 13.4: no LineTerminator between the operand and a postfix `++`/`--`
+        program("a\n++b", "{PROGRAM:[$a,['++',$b],EOF]}");
+        program("a\n--b", "{PROGRAM:[$a,['--',$b],EOF]}");
+        program("a /*\n*/ ++b", "{PROGRAM:[$a,['++',$b],EOF]}");
+        program("a /* c */ ++", "{PROGRAM:[[$a,'++'],EOF]}");
+        expr("a++", "[$a,'++']");
+        // `a\n++` alone leaves the prefix `++` without an operand
+        error("a\n++", ParserException.class);
+    }
+
+    @Test
     void testRestParamPattern() {
         expr("function f(...[a, b]) {}",
                 "[function,$f,['(',['...',['[',$a,$b,']']],')'],['{','}']]");
