@@ -23,8 +23,9 @@
  */
 package io.karatelabs.driver;
 
-import io.karatelabs.js.Engine;
+import io.karatelabs.common.Resource;
 import io.karatelabs.js.JsFunction;
+import io.karatelabs.parser.JsParser;
 import io.karatelabs.parser.Node;
 import io.karatelabs.parser.NodeType;
 
@@ -253,7 +254,7 @@ public class Locators {
     public static boolean isFunctionDefinition(String js) {
         Node program;
         try {
-            program = Engine.parse(js);
+            program = new JsParser(Resource.text(js)).leadingFunctionExpression().parse();
         } catch (RuntimeException e) {
             return looksLikeFunctionDefinition(js);
         }

@@ -34,6 +34,12 @@ class JsParserTest {
         equals(text, json, NodeType.STATEMENT);
     }
 
+    // a leading anonymous function parses only in the mode that reads it as an expression
+    private static void fnExpr(String text, String json) {
+        Node node = new JsParser(Resource.text(text)).leadingFunctionExpression().parse();
+        NodeUtils.assertEquals(text, node.findFirstChild(NodeType.STATEMENT).getFirst(), json);
+    }
+
     private static <T> void error(String text, Class<T> type) {
         try {
             JsParser parser = new JsParser(Resource.text(text));
@@ -59,6 +65,45 @@ class JsParserTest {
     void testFunctionDeclarationAsi() {
         // ASI: consecutive function declarations without semicolons - valid ES6
         program("function A() {} function B() {}", "{PROGRAM:[[function,$A,['(',')'],['{','}']],[function,$B,['(',')'],['{','}']],EOF]}");
+    }
+
+    @Test
+    void testAnonymousFunctionDeclaration() {
+        error("function(){}", ParserException.class);
+        error("function*(){}", ParserException.class);
+        error("async function(){}", ParserException.class);
+        error("var a = 1; function(){}", ParserException.class);
+        error("{ function(){} }", ParserException.class);
+        error("if (a) function(){}", ParserException.class);
+        error("function(){}()", ParserException.class);
+        parses("(function(){})");
+        parses("x = function(){}");
+        parses("function f(){}");
+        parses("async function f(){}");
+        // Karate's convention: a source that opens with an anonymous function is that function
+        assertDoesNotThrow(() -> new JsParser(Resource.text("// c\nfunction(a){ return a };"))
+                .leadingFunctionExpression().parse());
+        assertThrows(ParserException.class, () -> new JsParser(Resource.text("1; function(){}"))
+                .leadingFunctionExpression().parse());
+    }
+
+    private static Node leadingParse(String text) {
+        return new JsParser(Resource.text(text)).leadingFunctionExpression().parse();
+    }
+
+    @Test
+    void testLeadingFunctionExpressionForms() {
+        fnExpr("function*(){ yield 1 }", "[function,'*',['(',')'],['{',['$yield',1],'}']]");
+        assertDoesNotThrow(() -> leadingParse("async function(){}"));
+        assertDoesNotThrow(() -> leadingParse("/* c */\n// d\n﻿  function(){};"));
+    }
+
+    @Test
+    void testLeadingFunctionExpressionNotPastPositionZero() {
+        ParserException e = assertThrows(ParserException.class, () -> leadingParse("var x = 1;\nfunction(){}"));
+        assertTrue(e.getMessage().startsWith("a function declaration requires a name\n2:1 "), e.getMessage());
+        e = assertThrows(ParserException.class, () -> new JsParser(Resource.text("function(){}")).parse());
+        assertTrue(e.getMessage().startsWith("a function declaration requires a name\n1:1 "), e.getMessage());
     }
 
     @Test
@@ -234,16 +279,16 @@ class JsParserTest {
 
     @Test
     void testFnExpr() {
-        expr("function(){}", "[function,['(',')'],['{','}']]");
-        expr("function(){ return true }", "[function,['(',')'],['{',['return',true],'}']]");
-        expr("function(a){ return a }", "[function,['(',$a,')'],['{',['return',$a],'}']]");
-        expr("function(a){ return { a } }", "[function,['(',$a,')'],['{',['return',['{',$a,'}']],'}']]");
-        expr("function(a){ return { a, b } }", "[function,['(',$a,')'],['{',['return',['{',$a,$b,'}']],'}']]");
+        fnExpr("function(){}", "[function,['(',')'],['{','}']]");
+        fnExpr("function(){ return true }", "[function,['(',')'],['{',['return',true],'}']]");
+        fnExpr("function(a){ return a }", "[function,['(',$a,')'],['{',['return',$a],'}']]");
+        fnExpr("function(a){ return { a } }", "[function,['(',$a,')'],['{',['return',['{',$a,'}']],'}']]");
+        fnExpr("function(a){ return { a, b } }", "[function,['(',$a,')'],['{',['return',['{',$a,$b,'}']],'}']]");
     }
 
     @Test
     void testFnExprDefaultParams() {
-        expr("function(a = 1){ return a }", "[function,['(',[$a,'=',1],')'],['{',['return',$a],'}']]");
+        fnExpr("function(a = 1){ return a }", "[function,['(',[$a,'=',1],')'],['{',['return',$a],'}']]");
     }
 
     @Test

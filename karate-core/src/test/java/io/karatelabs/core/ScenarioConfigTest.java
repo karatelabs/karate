@@ -81,6 +81,40 @@ class ScenarioConfigTest {
     }
 
     @Test
+    void testAnonymousFunctionConfig() throws Exception {
+        Path featureFile = tempDir.resolve("test.feature");
+        Files.writeString(featureFile, """
+            Feature: Config Test
+            Scenario: Use config variables
+            * match baseUrl == 'http://localhost:8080'
+            """);
+        for (String config : new String[]{
+                "function() { return { baseUrl: 'http://localhost:8080' } }",
+                "// config\nfunction(){ return { baseUrl: 'http://localhost:8080' } }\n"}) {
+            Files.writeString(tempDir.resolve("karate-config.js"), config);
+            SuiteResult result = runTestSuite(tempDir, featureFile.toString());
+            assertTrue(result.isPassed(), config + ": " + result.getErrors());
+        }
+    }
+
+    @Test
+    void testAnonymousFunctionConfigAfterPreambleStatementFails() throws Exception {
+        Path featureFile = tempDir.resolve("test.feature");
+        Files.writeString(featureFile, """
+            Feature: Config Test
+            Scenario: Use config variables
+            * match baseUrl == 'http://localhost:8080'
+            """);
+        // the leading-function convention applies only at token position 0
+        Files.writeString(tempDir.resolve("karate-config.js"),
+                "var base = 'http://localhost:8080';\nfunction() { return { baseUrl: base } }\n");
+        SuiteResult result = runTestSuite(tempDir, featureFile.toString());
+        assertFalse(result.isPassed());
+        assertTrue(String.join("\n", result.getErrors()).contains("a function declaration requires a name"),
+                String.join("\n", result.getErrors()));
+    }
+
+    @Test
     void testEnvSpecificConfig() throws Exception {
         // Create base config
         Path configFile = tempDir.resolve("karate-config.js");

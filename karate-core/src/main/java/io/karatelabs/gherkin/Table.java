@@ -196,7 +196,9 @@ public class Table {
                     if (StringUtils.looksLikeJson(raw)) {
                         raw = '(' + raw + ')';
                     }
-                    return new Engine().eval(raw);
+                    Engine engine = new Engine();
+                    engine.setLeadingFunctionExpression(true);
+                    return engine.eval(raw);
                 default:
                     if (StringUtils.isBlank(raw)) {
                         return null;

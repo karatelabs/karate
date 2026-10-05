@@ -1509,7 +1509,7 @@ class ExternalBridgeTest extends EvalBase {
         // JsFunctionWrapper) also satisfies the functional interfaces.
         engine = new Engine();
         engine.setExternalBridge(bridge);
-        Object fn = engine.eval("function(x) { return x * 2 }");
+        Object fn = engine.eval("(function(x) { return x * 2 })");
         assertInstanceOf(java.util.function.Function.class, fn);
         @SuppressWarnings("unchecked")
         java.util.function.Function<Object, Object> javaFn = (java.util.function.Function<Object, Object>) fn;

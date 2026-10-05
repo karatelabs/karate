@@ -43,6 +43,81 @@ class EngineTest {
     }
 
     @Test
+    void testLeadingFunctionExpression() {
+        String src = "// add one\nfunction(x){ return x + 1 };\n";
+        assertThrows(io.karatelabs.parser.ParserException.class, () -> new Engine().eval(src));
+        Engine engine = new Engine();
+        engine.setLeadingFunctionExpression(true);
+        engine.put("fn", engine.eval(src));
+        assertEquals(2, engine.eval("fn(1)"));
+    }
+
+    private static Engine leading() {
+        Engine engine = new Engine();
+        engine.setLeadingFunctionExpression(true);
+        return engine;
+    }
+
+    private static void assertEvalsToFunction(String src) {
+        Engine engine = leading();
+        engine.put("fn", engine.eval(src));
+        assertEquals("function", engine.eval("typeof fn"), src);
+    }
+
+    @Test
+    void testLeadingGeneratorAndAsyncFunctionExpression() {
+        assertEvalsToFunction("function*(){ yield 1 }");
+        assertEvalsToFunction("async function(){}");
+        Engine engine = leading();
+        engine.put("gen", engine.eval("function*(){ yield 1 }"));
+        assertEquals(1, engine.eval("gen().next().value"));
+    }
+
+    @Test
+    void testLeadingFunctionExpressionAfterTrivia() {
+        assertEvalsToFunction("// line comment\nfunction(){}");
+        assertEvalsToFunction("/* block */ function(){}");
+        assertEvalsToFunction("  \n\t\n function(){}");
+        assertEvalsToFunction("﻿function(){}");
+        assertEvalsToFunction("function(){};");
+        assertEvalsToFunction("function(){}\n;\n");
+    }
+
+    @Test
+    void testLeadingFunctionExpressionChainsIntoCallOnNextLineParen() {
+        // expression grammar, no ASI before `(`: the next line's parens call the function
+        assertEquals(1, leading().eval("function(){ return 1 }\n(2)"));
+        assertEquals(2, leading().eval("function(x){ return x }\n(2)"));
+    }
+
+    @Test
+    void testLeadingFunctionExpressionOnlyAtTokenPositionZero() {
+        io.karatelabs.parser.ParserException e = assertThrows(io.karatelabs.parser.ParserException.class,
+                () -> leading().eval("var x = 1;\nfunction(){}"));
+        assertTrue(e.getMessage().startsWith("a function declaration requires a name\n2:1 "), e.getMessage());
+    }
+
+    @Test
+    void testAnonymousFunctionDeclarationErrorPosition() {
+        // reported at the `function` token (the parser peeks ahead to the `(` without consuming)
+        io.karatelabs.parser.ParserException e = assertThrows(io.karatelabs.parser.ParserException.class,
+                () -> new Engine().eval("function(){}"));
+        assertTrue(e.getMessage().startsWith("a function declaration requires a name\n1:1 "), e.getMessage());
+        e = assertThrows(io.karatelabs.parser.ParserException.class,
+                () -> new Engine().eval("var a = 1;\n  async function(){}"));
+        assertTrue(e.getMessage().startsWith("a function declaration requires a name\n2:3 "), e.getMessage());
+    }
+
+    @Test
+    void testNamedFunctionDeclarationHoistsInLeadingMode() {
+        assertEquals(7, leading().eval("f();\nfunction f(){ return 7 }"));
+        Engine engine = leading();
+        engine.put("fn", engine.eval("function f(){ return 3 } ; f"));
+        assertEquals(3, engine.eval("fn()"));
+        assertEquals(5, leading().eval("var r = g(); function g(){ return 5 } r"));
+    }
+
+    @Test
     void testBimodalCallableNamespace() {
         Engine engine = new Engine();
         engine.put("dual", new Dual());

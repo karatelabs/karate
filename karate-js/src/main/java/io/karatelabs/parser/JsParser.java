@@ -146,6 +146,15 @@ public class JsParser extends BaseParser {
         source = resource.getText();
     }
 
+    private boolean leadingFunctionExpression;
+
+    /** Karate's convention, opt-in: a source that opens with an anonymous function parses it
+     *  as an expression statement, so the source evaluates to that function. */
+    public JsParser leadingFunctionExpression() {
+        leadingFunctionExpression = true;
+        return this;
+    }
+
     /**
      * @return the AST root node (PROGRAM) for IDE features
      */
@@ -1847,7 +1856,7 @@ public class JsParser extends BaseParser {
                 || (break_stmt() && eos())
                 || (continue_stmt() && eos())
                 || labelled_stmt()
-                || fn_expr() // function declarations don't need eos (ASI)
+                || fn_decl() // function declarations don't need eos (ASI)
                 || class_expr() // class declarations don't need eos (ASI), like function decls
                 || block(false) // block before expr_list: per JS spec, { } at statement position is a block
                 || (expr_list(false) && eos())
@@ -2605,6 +2614,26 @@ public class JsParser extends BaseParser {
             }
         }
         return false;
+    }
+
+    // ES 15.2: a FunctionDeclaration needs a BindingIdentifier; only `export default`
+    // (modules, which karate-js does not parse) may omit it.
+    private boolean fn_decl() {
+        TokenType t = peek();
+        int i = t == FUNCTION ? 0 : t == IDENT && isIdentText(peekToken(), "async") ? 1 : -1;
+        if (i < 0 || peekAhead(i).type != FUNCTION) {
+            return false;
+        }
+        if (peekAhead(i + 1).type == STAR) {
+            i++;
+        }
+        if (peekAhead(i + 1).type == L_PAREN) {
+            if (leadingFunctionExpression && getPosition() == 0) {
+                return false; // the statement() fallthrough parses it as an expression
+            }
+            error("a function declaration requires a name");
+        }
+        return fn_expr();
     }
 
     private boolean fn_expr() {

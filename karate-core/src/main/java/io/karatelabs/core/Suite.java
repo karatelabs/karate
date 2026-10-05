@@ -474,7 +474,7 @@ public class Suite {
 
         private static io.karatelabs.parser.Node parse(Resource resource) {
             try {
-                return new io.karatelabs.parser.JsParser(resource).parse();
+                return new io.karatelabs.parser.JsParser(resource).leadingFunctionExpression().parse();
             } catch (Exception e) {
                 return null;
             }

@@ -102,6 +102,7 @@ abstract class KarateJsBase implements SimpleObject {
         this.client = client;
         http = new HttpRequestBuilder(client).configSupplier(this::getConfig);
         this.engine = new Engine();
+        engine.setLeadingFunctionExpression(true);
         engine.setOnConsoleLog(s -> SCENARIO_LOG.info(s));
         engine.setExternalBridge(DEFAULT_BRIDGE);
         // Note: engine.put() for karate, read, match is done in KarateJs constructor

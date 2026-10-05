@@ -198,6 +198,18 @@ public class Engine {
         this.asyncRejectionWarnOnly = warnOnly;
     }
 
+    private boolean leadingFunctionExpression;
+
+    /** See {@link JsParser#leadingFunctionExpression()}. Off by default. */
+    public void setLeadingFunctionExpression(boolean leadingFunctionExpression) {
+        this.leadingFunctionExpression = leadingFunctionExpression;
+    }
+
+    private JsParser parser(Resource resource) {
+        JsParser parser = new JsParser(resource);
+        return leadingFunctionExpression ? parser.leadingFunctionExpression() : parser;
+    }
+
     /** True once this engine has been poisoned — see {@link #poisoned}. */
     public boolean isPoisoned() {
         return poisoned != null;
@@ -434,8 +446,7 @@ public class Engine {
 
     // For testing: returns raw JS result without toJava() conversion
     protected Object evalRaw(String text) {
-        JsParser parser = new JsParser(Resource.text(text));
-        Node program = parser.parse();
+        Node program = parser(Resource.text(text)).parse();
         checkPoisoned();
         boolean outermost = enterEvalScope();
         AsyncScope scope = currentScope();
@@ -474,8 +485,7 @@ public class Engine {
     }
 
     private Object evalInternal(Resource resource, Map<String, Object> localVars) {
-        JsParser parser = new JsParser(resource);
-        return evalInternal(parser.parse(), localVars);
+        return evalInternal(parser(resource).parse(), localVars);
     }
 
     private Object evalInternal(Node program, Map<String, Object> localVars) {
