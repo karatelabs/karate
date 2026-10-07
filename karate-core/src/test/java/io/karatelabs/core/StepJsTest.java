@@ -237,6 +237,60 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // Markers in the two-arg form's expected value resolve against the scenario's variables,
+    // dot paths included, exactly as they do for the `match` keyword.
+
+    private static final String SCHEMAS = """
+            * def mySchemas = { MySchema: { id: '#string', name: '#string' }, Name: 'test', Id: 'abc' }
+            * def mySchema = mySchemas.MySchema
+            * def response = { id: 'abc', name: 'test' }
+            * def responses = [{ id: 'abc', name: 'test' }]
+            """;
+
+    @Test
+    void testKarateMatchTwoArgsSchemaMarkerDotPath() {
+        ScenarioRuntime sr = run(SCHEMAS + """
+            * match karate.match(response, '##(mySchemas.MySchema)').pass == true
+            * match karate.match(response, '#(mySchemas.MySchema)').pass == true
+            * match karate.match(response, '##(mySchema)').pass == true
+            * match karate.match({ id: 1 }, '##(mySchemas.MySchema)').pass == false
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateMatchTwoArgsArraySchemaMarkerDotPath() {
+        ScenarioRuntime sr = run(SCHEMAS + """
+            * match karate.match(responses, '##[] mySchemas.MySchema').pass == true
+            * match karate.match(responses, '#[] mySchemas.MySchema').pass == true
+            * match karate.match(responses, '#[] mySchema').pass == true
+            * match karate.match([{ id: 1 }], '#[] mySchemas.MySchema').pass == false
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateMatchTwoArgsNestedMarkerDotPath() {
+        ScenarioRuntime sr = run(SCHEMAS + """
+            * match karate.match(response, { id: '#string', name: '##(mySchemas.Name)' }).pass == true
+            * match karate.match(response, { id: '#string', name: '#(mySchema.name)' }).pass == true
+            * match karate.match(response, '#? _.id == mySchemas.Id').pass == true
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchKeywordSchemaMarkerDotPath() {
+        ScenarioRuntime sr = run(SCHEMAS + """
+            * match response == '##(mySchemas.MySchema)'
+            * match response == '#(mySchemas.MySchema)'
+            * match responses == '##[] mySchemas.MySchema'
+            * match responses == '#[] mySchemas.MySchema'
+            * match response == { id: '#? _ == mySchemas.Id', name: '##(mySchemas.Name)' }
+            """);
+        assertPassed(sr);
+    }
+
     // The one-arg karate.match("...") form delegates to the same evaluator the `match`
     // keyword uses, so a $-prefixed JsonPath (wildcards included) resolves on either side
     // exactly as the keyword does. Previously the JS API used engine.get()/engine.eval()

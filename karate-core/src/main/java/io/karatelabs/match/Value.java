@@ -27,6 +27,7 @@ import io.karatelabs.common.Json;
 import io.karatelabs.common.StringUtils;
 import io.karatelabs.common.Xml;
 import io.karatelabs.js.Context;
+import io.karatelabs.js.Engine;
 import io.karatelabs.js.JavaCallable;
 import io.karatelabs.js.SimpleObject;
 import org.slf4j.Logger;
@@ -317,9 +318,17 @@ public class Value implements SimpleObject, AutoCloseable {
     }
 
     public Result is(Match.Type matchType, Object expected) {
+        return is(null, matchType, expected);
+    }
+
+    /**
+     * @param engine evaluates the expected side's markers ({@code #(...)}, {@code #[]}, {@code #?});
+     *               null for a fresh engine that sees no caller variables
+     */
+    public Result is(Engine engine, Match.Type matchType, Object expected) {
         Result result;
         try (Value expectedValue = new Value(parseIfJsonOrXmlString(expected), context, onResult)) {
-            Operation op = new Operation(matchType, this, expectedValue);
+            Operation op = new Operation(engine, matchType, this, expectedValue);
             op.execute();
             result = op.getResult();
         }

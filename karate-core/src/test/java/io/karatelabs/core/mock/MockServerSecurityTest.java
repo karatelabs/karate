@@ -281,4 +281,26 @@ class MockServerSecurityTest {
             server.stopAsync();
         }
     }
+
+    // karate.match(actual, expected) evaluates expected-side markers against the mock's variables;
+    // a marker that came off the wire must not see them, nested in an author-built value or not.
+    private MockServer.Builder matchMock(String actual, String expected, String configure) {
+        String feature = "Feature: match\n"
+                + (configure == null ? "" : "Background:\n" + configure + "\n")
+                + "Scenario: pathMatches('/echo')\n* def secret = 'x'\n"
+                + "* def response = ({ poc: karate.match(" + actual + ", " + expected + ").pass })\n";
+        return MockServer.featureString(feature).port(0);
+    }
+
+    @Test
+    void testKarateMatchRequestMarkerInertByDefault() {
+        assertEquals(false, roundTrip(matchMock("'string'", "request.poc", null).start(), "#(typeof secret)"));
+        assertEquals(false, roundTrip(matchMock("{ a: 'string' }", "{ a: request.poc }", null).start(), "#(typeof secret)"));
+    }
+
+    @Test
+    void testKarateMatchRequestMarkerEvaluatedWhenOptedIn() {
+        MockServer server = matchMock("'string'", "request.poc", "* configure requestExpressionsEnabled = true").start();
+        assertEquals(true, roundTrip(server, "#(typeof secret)"));
+    }
 }

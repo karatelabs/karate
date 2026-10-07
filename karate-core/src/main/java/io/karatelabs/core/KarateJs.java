@@ -31,6 +31,7 @@ import io.karatelabs.http.HttpClientFactory;
 import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.http.HttpResponse;
+import io.karatelabs.js.Engine;
 import io.karatelabs.js.JavaInvokable;
 import io.karatelabs.markup.Markup;
 import io.karatelabs.js.JavaCallable;
@@ -657,8 +658,17 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 // Do an equals comparison and return { pass, message }
                 Object actual = args[0];
                 Object expected = args[1];
+                // markers in expected ('##(schemas.foo)', '#[] schemas.foo') resolve against the
+                // currently executing scenario, as the one-arg form below does
+                ScenarioRuntime rt = ScenarioRuntime.currentOrNull();
+                if (rt == null) {
+                    rt = getRuntime();
+                }
+                Engine matchEngine = rt == null ? engine
+                        : holdsRequestDerived(rt, expected, Collections.newSetFromMap(new IdentityHashMap<>())) ? null
+                        : rt.getEngine();
                 try (Value value = Match.evaluate(actual, null, null)) {
-                    return value._equals(expected).toMap();
+                    return value.is(matchEngine, Match.Type.EQUALS, expected).toMap();
                 }
             } else {
                 // One-argument string form: karate.match("foo == expected").
@@ -687,6 +697,27 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 return result.toMap();
             }
         };
+    }
+
+    // An expected value carrying request data (Mock Server) matches in a fresh engine that sees
+    // neither the mock's variables nor karate.* - the match-side twin of processEmbeddedExpressions
+    // leaving that data inert.
+    private static boolean holdsRequestDerived(ScenarioRuntime rt, Object value, Set<Object> seen) {
+        if (rt.isRequestExpressionsEnabled()) {
+            return false;
+        }
+        if (rt.isRequestDerived(value)) {
+            return true;
+        }
+        if ((value instanceof Map || value instanceof List) && seen.add(value)) {
+            Collection<?> children = value instanceof Map<?, ?> map ? map.values() : (List<?>) value;
+            for (Object child : children) {
+                if (holdsRequestDerived(rt, child, seen)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private JavaInvokable call() {
