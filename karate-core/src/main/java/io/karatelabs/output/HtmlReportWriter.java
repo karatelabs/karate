@@ -950,8 +950,7 @@ public final class HtmlReportWriter {
             summary.put("passedCount", passed);
             summary.put("failedCount", failed);
             summary.put("skippedCount", skipped);
-            int executed = passed + failed;
-            summary.put("passedRate", executed == 0 ? null : (int) Math.round((passed * 100.0) / executed));
+            summary.put("passedRate", FeatureResult.passedRate(passed, failed));
             summary.put("scenarios", scenarioSummaries);
 
             summaryList.add(summary);

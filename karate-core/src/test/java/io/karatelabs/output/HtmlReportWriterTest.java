@@ -25,11 +25,13 @@ package io.karatelabs.output;
 
 import io.karatelabs.common.Json;
 import io.karatelabs.common.ResourceType;
+import io.karatelabs.core.FeatureResult;
 import io.karatelabs.core.Globals;
 import io.karatelabs.core.Runner;
 import io.karatelabs.core.Suite;
 import io.karatelabs.core.SuiteResult;
 import io.karatelabs.http.ServerTestHarness;
+import io.karatelabs.js.Engine;
 import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -262,6 +264,119 @@ class HtmlReportWriterTest {
         // (pass + skip + fail) sum to the real scenario count.
         String html = Files.readString(reportDir.resolve("karate-summary.html"));
         assertTrue(html.contains("donutSkip"), "donut should render a distinct skip arc");
+    }
+
+    @Test
+    void testPassedRateIsNeverRoundedUpToAllPassed(@TempDir Path tempDir) throws Exception {
+        StringBuilder sb = new StringBuilder("""
+                Feature: One failure in two hundred
+
+                Scenario Outline: row <n>
+                * match <n> != 200
+
+                Examples:
+                | n |
+                """);
+        for (int i = 1; i <= 200; i++) {
+            sb.append("| ").append(i).append(" |\n");
+        }
+        Path feature = tempDir.resolve("many.feature");
+        Files.writeString(feature, sb.toString());
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertEquals(199, result.getScenarioPassedCount());
+        assertEquals(1, result.getScenarioFailedCount());
+        // 199 / 200 = 99.5 would round to 100
+        assertEquals(Integer.valueOf(99), result.getScenarioPassedRate());
+        assertEquals(Integer.valueOf(99), result.getFeatureResults().get(0).getPassedRate());
+        String html = Files.readString(reportDir.resolve("karate-summary.html"));
+        assertTrue(html.contains("\"passedRate\":99"), "feature row pass % should be 99");
+
+        assertEquals(Integer.valueOf(99), FeatureResult.passedRate(3120, 1));
+        assertEquals(Integer.valueOf(1), FeatureResult.passedRate(1, 3120));
+        assertEquals(Integer.valueOf(100), FeatureResult.passedRate(5, 0));
+        assertEquals(Integer.valueOf(0), FeatureResult.passedRate(0, 5));
+        assertEquals(Integer.valueOf(50), FeatureResult.passedRate(1, 1));
+        assertEquals(Integer.valueOf(58), FeatureResult.passedRate(23, 17));
+        assertNull(FeatureResult.passedRate(0, 0));
+    }
+
+    /**
+     * Evaluates the summary page's Alpine data object from res/karate-report.js with
+     * minimal DOM stubs, so the client-side pass % and sorting are pinned directly.
+     */
+    private static Engine summaryPageEngine(String dataJson) throws Exception {
+        String js;
+        try (var in = HtmlReportWriterTest.class.getResourceAsStream("/io/karatelabs/output/res/karate-report.js")) {
+            js = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+        Engine engine = new Engine();
+        engine.put("dataJson", dataJson);
+        engine.eval("""
+                var window = {};
+                var store = {};
+                var localStorage = { getItem: k => store[k] || null, setItem: (k, v) => { store[k] = v } };
+                var document = {
+                    documentElement: { setAttribute: () => {} },
+                    getElementById: id => ({ textContent: dataJson })
+                };
+                """);
+        engine.eval(js);
+        engine.eval("var page = KarateReport.summaryData()");
+        return engine;
+    }
+
+    @Test
+    void testSummaryPagePassPercentAndFailArc() throws Exception {
+        Engine engine = summaryPageEngine("""
+                {"summary": {"scenario_passed": 3120, "scenario_failed": 1, "scenario_skipped": 0},
+                 "features": [
+                   {"name": "A", "relativePath": "a.feature", "fileName": "a", "passedCount": 3120, "failedCount": 0, "scenarioCount": 3120},
+                   {"name": "B", "relativePath": "b.feature", "fileName": "b", "passedCount": 0, "failedCount": 1, "scenarioCount": 1}
+                 ]}
+                """);
+        assertEquals("99", engine.eval("String(page.donutPct)"));
+        assertEquals("99%", engine.eval("page.formatPassedRate(page.totals.passedRate)"));
+        double failArc = ((Number) engine.eval("parseFloat(page.donutFail.dash)")).doubleValue();
+        assertTrue(failArc >= 1, "a single failure must still draw a visible arc: " + failArc);
+        assertEquals(true, engine.eval("page.donutFail.offset === parseFloat(page.donutFail.dash) - 100"), "fail arc ends at 100");
+
+        Engine none = summaryPageEngine("""
+                {"summary": {"scenario_passed": 1, "scenario_failed": 3120}, "features": []}
+                """);
+        assertEquals("1", none.eval("String(page.donutPct)"));
+        Engine all = summaryPageEngine("""
+                {"summary": {"scenario_passed": 7, "scenario_failed": 0}, "features": []}
+                """);
+        assertEquals("100", all.eval("String(page.donutPct)"));
+        assertEquals("true", all.eval("String(page.donutFail === null)"));
+        // 23 / 40 * 100 is 57.49999... in floating point; 2300 / 40 is exactly 57.5, as in Java
+        assertEquals("58", all.eval("String(KarateReport.passedRate(23, 17))"));
+    }
+
+    @Test
+    void testSummaryPageSortsFeaturesByPath() throws Exception {
+        Engine engine = summaryPageEngine("""
+                {"summary": {"scenario_passed": 3, "scenario_failed": 0},
+                 "features": [
+                   {"name": "Alpha", "relativePath": "z/users.feature", "fileName": "z_users"},
+                   {"name": "Beta", "relativePath": "a/orders.feature", "fileName": "a_orders"},
+                   {"name": "Gamma", "relativePath": "m/items.feature", "fileName": "m_items"}
+                 ]}
+                """);
+        assertEquals("Alpha,Beta,Gamma", engine.eval("page.filteredFeatures.map(f => f.name).join()"));
+        assertEquals("relativePath", engine.eval("page.sortableColumns[0].alt.field"));
+        engine.eval("page.sortBy('relativePath')");
+        assertEquals("Beta,Gamma,Alpha", engine.eval("page.filteredFeatures.map(f => f.name).join()"));
+        engine.eval("page.sortBy('relativePath')");
+        assertEquals("Alpha,Gamma,Beta", engine.eval("page.filteredFeatures.map(f => f.name).join()"));
     }
 
     @Test

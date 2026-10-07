@@ -132,9 +132,7 @@ public class SuiteResult {
      * {@link FeatureResult#getPassedRate()} and the HTML report's totals row.
      */
     public Integer getScenarioPassedRate() {
-        int passed = getScenarioPassedCount();
-        int executed = passed + getScenarioFailedCount();
-        return executed == 0 ? null : (int) Math.round((passed * 100.0) / executed);
+        return FeatureResult.passedRate(getScenarioPassedCount(), getScenarioFailedCount());
     }
 
     public boolean isPassed() {

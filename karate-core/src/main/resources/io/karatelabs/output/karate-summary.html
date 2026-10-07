@@ -175,6 +175,16 @@
                             <svg x-show="sortField === col.field" class="w-3 h-3 inline-block align-middle ml-1">
                                 <use :href="sortDir === 'asc' ? '#icon-chevron-up' : '#icon-chevron-down'"/>
                             </svg>
+                            <template x-if="col.alt">
+                                <span class="ml-2 hover:underline" :class="sortField === col.alt.field ? '' : 'opacity-60'"
+                                      :title="'Sort by ' + col.alt.label.toLowerCase()"
+                                      @click.stop="sortBy(col.alt.field)">
+                                    <span x-text="col.alt.label"></span>
+                                    <svg x-show="sortField === col.alt.field" class="w-3 h-3 inline-block align-middle ml-1">
+                                        <use :href="sortDir === 'asc' ? '#icon-chevron-up' : '#icon-chevron-down'"/>
+                                    </svg>
+                                </span>
+                            </template>
                         </th>
                     </template>
                     <th class="text-left px-3 py-2 w-24">Status</th>

@@ -196,9 +196,27 @@ public class FeatureResult {
      * per-feature calc so JSONL consumers and the HTML view agree.
      */
     public Integer getPassedRate() {
-        int passed = getPassedCount();
-        int executed = passed + getFailedCount();
-        return executed == 0 ? null : (int) Math.round((passed * 100.0) / executed);
+        return passedRate(getPassedCount(), getFailedCount());
+    }
+
+    /**
+     * Rounded pass percentage that reads 100 only when nothing failed and 0 only when
+     * nothing passed (3120 of 3121 is 99, not 100); null when nothing executed.
+     * Mirrored by {@code karate-report.js#passedRate}.
+     */
+    public static Integer passedRate(int passed, int failed) {
+        int executed = passed + failed;
+        if (executed == 0) {
+            return null;
+        }
+        int rate = (int) Math.round((passed * 100.0) / executed);
+        if (failed > 0) {
+            rate = Math.min(rate, 99);
+        }
+        if (passed > 0) {
+            rate = Math.max(rate, 1);
+        }
+        return rate;
     }
 
     public boolean isPassed() {

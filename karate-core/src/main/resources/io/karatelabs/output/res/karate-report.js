@@ -144,6 +144,19 @@ const KarateReport = {
     },
 
     /**
+     * Rounded pass %: 100 only when nothing failed, 0 only when nothing passed;
+     * null when nothing executed. Mirrors FeatureResult.passedRate (Java).
+     */
+    passedRate(passed, failed) {
+        const executed = passed + failed;
+        if (executed === 0) return null;
+        let rate = Math.round((passed * 100) / executed);
+        if (failed > 0) rate = Math.min(rate, 99);
+        if (passed > 0) rate = Math.max(rate, 1);
+        return rate;
+    },
+
+    /**
      * Hero status pill — input is a count triple {passed, failed, skipped}.
      * Returns label, dot fill class, and outer pill class. Used by the
      * page hero on summary / feature / timeline.
@@ -742,11 +755,12 @@ const KarateReport = {
 
         const allTags = this.collectTags(data);
         const self = this;
+        const DONUT_MIN_FAIL = 2;
 
         // Single source of truth for the sortable feature table headers.
         // Used by the <template x-for="col in sortableColumns"> block.
         const sortableColumns = [
-            { field: 'name',           label: 'Feature' },
+            { field: 'name',           label: 'Feature', alt: { field: 'relativePath', label: 'Path' } },
             { field: 'scenarioCount',  label: 'Scenarios',  thClass: 'w-28' },
             { field: 'passedCount',    label: 'Passed',     thClass: 'w-24' },
             { field: 'failedCount',    label: 'Failed',     thClass: 'w-24' },
@@ -821,19 +835,19 @@ const KarateReport = {
                 const len = (n / total) * 100;
                 return { dash: len + ' ' + (100 - len), offset: -(before / total) * 100 };
             },
+            // The fail arc ends at 100 and is never thinner than DONUT_MIN_FAIL, so a
+            // single failure in thousands stays visible (it overlaps the arcs before it).
             get donutFail() {
                 const total = this.donutTotal;
                 const n = data.summary?.scenario_failed || 0;
                 if (total === 0 || n === 0) return null;
-                const before = data.summary?.scenario_passed || 0; // real passes + skipped precede fail
-                const len = (n / total) * 100;
-                return { dash: len + ' ' + (100 - len), offset: -(before / total) * 100 };
+                const len = Math.max((n / total) * 100, DONUT_MIN_FAIL);
+                return { dash: len + ' ' + (100 - len), offset: -(100 - len) };
             },
 
             get donutPct() {
-                const total = this.donutTotal;
-                const p = data.summary?.scenario_passed || 0; // includes skipped
-                return total === 0 ? 0 : Math.round((p / total) * 100);
+                const s = data.summary || {};
+                return self.passedRate(s.scenario_passed || 0, s.scenario_failed || 0) ?? 0; // passed includes skipped
             },
 
             // Flatten failed scenarios across features with click-through metadata.
@@ -898,8 +912,7 @@ const KarateReport = {
                     acc.durationMillis += (f.durationMillis || 0);
                     return acc;
                 }, { scenarios: 0, passed: 0, failed: 0, skipped: 0, durationMillis: 0 });
-                const executed = t.passed + t.failed;
-                t.passedRate = executed === 0 ? null : Math.round((t.passed / executed) * 100);
+                t.passedRate = self.passedRate(t.passed, t.failed);
                 return t;
             },
 
