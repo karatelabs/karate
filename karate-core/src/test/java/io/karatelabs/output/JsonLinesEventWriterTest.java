@@ -26,6 +26,7 @@ package io.karatelabs.output;
 import io.karatelabs.common.Json;
 import io.karatelabs.core.Globals;
 import io.karatelabs.core.Runner;
+import io.karatelabs.core.ScenarioResult;
 import io.karatelabs.core.Suite;
 import io.karatelabs.core.SuiteResult;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -474,6 +476,68 @@ class JsonLinesEventWriterTest {
         assertNotNull(error, "SCENARIO_EXIT must carry an error message on failure");
         assertTrue(error.contains("match") || error.contains("999") || error.contains("actual"),
                 "error should reference the failed step: " + error);
+    }
+
+    @Test
+    void testJsonLinesScenarioExitErrorLeadsWithFeatureLocation() throws Exception {
+        // IDE test runners show SCENARIO_EXIT.error as the failure text, with no other location
+        Path feature = tempDir.resolve("located.feature");
+        Files.writeString(feature, """
+            Feature: Located Error
+
+            Scenario: fails on line six
+            * def actual = 1
+            # labels the match
+            * match actual == 999
+
+            @report=false
+            Scenario: fails with report disabled
+            * def secret = 'sensitive-12345'
+            * match secret == 'other'
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        Path jsonlPath = reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl");
+        Map<String, Map<String, Object>> scenarioExits = new HashMap<>();
+        String featureExitError = null;
+        for (String line : Files.readString(jsonlPath).trim().split("\n")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> envelope = (Map<String, Object>) Json.of(line).value();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) envelope.get("data");
+            if ("SCENARIO_EXIT".equals(envelope.get("type"))) {
+                scenarioExits.put((String) data.get("name"), data);
+            } else if ("FEATURE_EXIT".equals(envelope.get("type"))) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> scenarios = (List<Map<String, Object>>) data.get("scenarioResults");
+                featureExitError = (String) scenarios.getFirst().get("error");
+            }
+        }
+        Map<String, Object> located = scenarioExits.get("fails on line six");
+        String scenarioError = (String) located.get("error");
+        String errorReason = (String) located.get("errorReason");
+        assertNotNull(scenarioError);
+        String[] errorLines = scenarioError.split("\n");
+        assertTrue(errorLines[0].endsWith("located.feature:6"), "first line is path:line: " + scenarioError);
+        assertEquals("# labels the match", errorLines[1]);
+        assertEquals("* match actual == 999", errorLines[2]);
+        assertTrue(errorLines[3].startsWith("match failed: EQUALS"), scenarioError);
+        // errorReason lets consumers split off the location, step and label without parsing lines
+        assertTrue(errorReason.startsWith("match failed: EQUALS"), errorReason);
+        assertTrue(scenarioError.endsWith("\n" + errorReason), scenarioError);
+        // the report payload renders the location itself, so its message stays raw
+        assertEquals("# labels the match\n" + errorReason, featureExitError);
+        Map<String, Object> suppressed = scenarioExits.get("fails with report disabled");
+        assertEquals(ScenarioResult.SUPPRESSED_FAILURE_MESSAGE, suppressed.get("error"));
+        assertEquals(ScenarioResult.SUPPRESSED_FAILURE_MESSAGE, suppressed.get("errorReason"));
     }
 
     @Test

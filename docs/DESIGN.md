@@ -684,7 +684,7 @@ Standard envelope:
 {"type":"FEATURE_ENTER","timeStamp":1747555200010,"threadId":"worker-1","data":{path,slug,name,description,tags,line,callDepth}}
 {"type":"OUTLINE_ENTER","timeStamp":1747555200015,"threadId":null,"data":{feature,slug,name,description,line,numExamples,tags,callDepth}}
 {"type":"SCENARIO_ENTER","timeStamp":1747555200020,"threadId":"worker-1","data":{feature,slug,name,description,line,refId,callDepth,tags,isOutlineExample,exampleIndex,outlineSlug}}
-{"type":"SCENARIO_EXIT","timeStamp":1747555200100,"threadId":"worker-1","data":{...same+passed,skipped,durationMillis,error}}
+{"type":"SCENARIO_EXIT","timeStamp":1747555200100,"threadId":"worker-1","data":{...same+passed,skipped,durationMillis,error (led by path.feature:line + step text),errorReason (error's suffix: the failure without location, step or comment label)}}
 {"type":"FEATURE_EXIT","timeStamp":1747555200200,"threadId":"worker-1","data":{...FeatureResult.toJson()}}
 {"type":"SUITE_EXIT","timeStamp":1747555210000,"threadId":null,"data":{"summary":{...}}}
 ```

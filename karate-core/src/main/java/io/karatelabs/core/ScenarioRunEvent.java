@@ -123,9 +123,14 @@ public record ScenarioRunEvent(
             if (result.isFailed()) {
                 // @report=false: emit only the redacted message in the JSONL stream so
                 // CI artifacts uploaded from this run don't leak the underlying values.
-                map.put("error", result.isReportDisabled()
-                        ? ScenarioResult.SUPPRESSED_FAILURE_MESSAGE
-                        : result.getFailureMessage());
+                if (result.isReportDisabled()) {
+                    map.put("error", ScenarioResult.SUPPRESSED_FAILURE_MESSAGE);
+                    map.put("errorReason", ScenarioResult.SUPPRESSED_FAILURE_MESSAGE);
+                } else {
+                    map.put("error", result.getFailureMessageWithLocation());
+                    // the suffix of error, for consumers that render the location, step and label apart
+                    map.put("errorReason", result.getFailureReason());
+                }
             }
         }
         return map;
