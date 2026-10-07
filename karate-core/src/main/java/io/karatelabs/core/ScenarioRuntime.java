@@ -1720,6 +1720,10 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             if (str.contains("#(")) { // the only strings processEmbeddedString would ever evaluate
                 requestDerivedStrings.add(str);
             }
+        } else if (value instanceof org.w3c.dom.Node node) {
+            if (requestDerived.add(node)) { // its text too, for a step that turns it into JSON
+                markRequestDerived(io.karatelabs.common.Xml.toObject(node));
+            }
         }
     }
 

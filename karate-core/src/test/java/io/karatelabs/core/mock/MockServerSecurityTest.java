@@ -500,4 +500,40 @@ class MockServerSecurityTest {
             server.stopAsync();
         }
     }
+
+    // ---- an XML request body is request data like a JSON one ----
+
+    private static final String XML_TEXT_PROBE = "<root>#(karate.set('leaked', secret) || 'ok')</root>";
+    private static final String XML_ATTR_PROBE = "<root a=\"prefix #(karate.set('leaked', secret)) suffix\"/>";
+
+    private void assertXmlInert(String step, String xml) {
+        MockServer server = probeMock(step, null);
+        try {
+            HttpResponse res = probe(server).contentType("application/xml").body(xml).invoke();
+            assertEquals(200, res.getStatus(), res.getBodyString());
+            assertEquals("undefined", leaked(server));
+        } finally {
+            server.stopAsync();
+        }
+    }
+
+    @Test
+    void testXmlRequestBodyInertByDefault() {
+        assertXmlInert("def wrapped = ({ body: request })", XML_TEXT_PROBE);
+        assertXmlInert("def wrapped = ({ body: request })", XML_ATTR_PROBE);
+        assertXmlInert("json asJson = request\n* def wrapped = ({ body: asJson })", XML_TEXT_PROBE);
+        assertXmlInert("xml asXml = request\n* def wrapped = ({ body: asXml })", XML_TEXT_PROBE);
+    }
+
+    @Test
+    void testXmlRequestBodyEvaluatedWhenOptedIn() {
+        MockServer server = probeMock("def wrapped = ({ body: request })", "* configure requestExpressionsEnabled = true");
+        try {
+            HttpResponse res = probe(server).contentType("application/xml").body(XML_TEXT_PROBE).invoke();
+            assertEquals(200, res.getStatus(), res.getBodyString());
+            assertEquals("string", leaked(server));
+        } finally {
+            server.stopAsync();
+        }
+    }
 }
