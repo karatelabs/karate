@@ -536,4 +536,89 @@ class MockServerSecurityTest {
             server.stopAsync();
         }
     }
+
+    // ---- a feature called from a mock inherits the mock's trust posture ----
+
+    private static final String HELPERS = "classpath:io/karatelabs/core/mock/";
+
+    /** A mock that hands the request to a helper feature and serves what the helper made of it. */
+    private MockServer.Builder callMock(String helper, String configure) {
+        String feature = "Feature: call\n"
+                + (configure == null ? "" : "Background:\n" + configure + "\n")
+                + "Scenario: pathMatches('/echo')\n* def secret = 'x'\n"
+                + "* def result = call read('" + HELPERS + helper + "') request\n"
+                + "* def response = result.echoed\n";
+        return MockServer.featureString(feature).port(0);
+    }
+
+    @Test
+    void testCalledFeatureLeavesRequestDataInert() {
+        assertEquals(JS_EXPR, roundTrip(callMock("mock-call-copy.feature", null).start(), JS_EXPR));
+        assertEquals(JAVA_EXPR, roundTrip(callMock("mock-call-copy.feature", null).start(), JAVA_EXPR));
+    }
+
+    @Test
+    void testCalledFeatureEvaluatesRequestDataWhenOptedIn() {
+        String expressions = "* configure requestExpressionsEnabled = true";
+        assertEquals(2, roundTrip(callMock("mock-call-copy.feature", expressions).start(), JS_EXPR));
+        assertEquals(JAVA_EXPR, roundTrip(callMock("mock-call-copy.feature", expressions).start(), JAVA_EXPR));
+        String both = expressions + "\n* configure javaBridgeEnabled = true";
+        assertEquals(JAVA_VERSION, roundTrip(callMock("mock-call-copy.feature", both).start(), JAVA_EXPR));
+    }
+
+    private HttpResponse callJavaHelper(String tag, String configure) {
+        String feature = "Feature: call\n"
+                + (configure == null ? "" : "Background:\n" + configure + "\n")
+                + "Scenario: pathMatches('/probe')\n"
+                + "* def response = karate.call('" + HELPERS + "mock-call-java.feature@" + tag + "')\n";
+        MockServer server = MockServer.featureString(feature).port(0).start();
+        try {
+            return new HttpRequestBuilder(client).url(server.getUrl()).path("/probe").method("GET").invoke();
+        } finally {
+            server.stopAsync();
+        }
+    }
+
+    @Test
+    void testCalledFeatureCannotReachJavaOrExecByDefault() {
+        for (String tag : List.of("java", "exec")) {
+            HttpResponse res = callJavaHelper(tag, null);
+            assertEquals(500, res.getStatus(), res.getBodyString());
+            assertTrue(res.getBodyString().contains("not enabled"), res.getBodyString());
+        }
+    }
+
+    @Test
+    void testCalledFeatureReachesJavaWhenOptedIn() {
+        HttpResponse res = callJavaHelper("java", "* configure javaBridgeEnabled = true");
+        assertEquals(200, res.getStatus(), res.getBodyString());
+        assertTrue(res.getBodyString().contains(JAVA_VERSION), res.getBodyString());
+    }
+
+    @Test
+    void testCalledFeatureMatchRequestMarkerCannotRunByDefault() {
+        for (String tag : List.of("js", "keyword")) {
+            MockServer server = probeMock("call read('" + HELPERS + "mock-call-match.feature@" + tag + "') request", null);
+            assertInert(server, probe(server));
+        }
+    }
+
+    @Test
+    void testCalledFeatureMatchRequestMarkerRunsWhenOptedIn() {
+        MockServer server = probeMock("call read('" + HELPERS + "mock-call-match.feature@js') request",
+                "* configure requestExpressionsEnabled = true");
+        assertEvaluated(server, probe(server));
+    }
+
+    @Test
+    void testCalledFeatureOwnMarkersStillSeeItsVariables() {
+        String step = "def result = call read('" + HELPERS + "mock-call-schema.feature') { items: '#(request.items)', expectedId: 1 }";
+        MockServer server = probeMock(step, null);
+        try {
+            HttpResponse res = probe(server).body(Map.of("items", List.of(Map.of("id", 1)))).invoke();
+            assertEquals(200, res.getStatus(), res.getBodyString());
+        } finally {
+            server.stopAsync();
+        }
+    }
 }

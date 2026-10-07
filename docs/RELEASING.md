@@ -29,6 +29,10 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
 >   variable (`#[] schema`, `##(schema)`, `#? _ == expected`) now resolves only when written in the
 >   mock feature itself; a marker held in a `read()` schema or built at runtime fails with a message
 >   naming the opt-in, `configure requestExpressionsEnabled = true` #3067.
+>   Also under **Breaking Changes**: a feature called from a mock (`call`, `callonce`, `karate.call()`)
+>   now runs with the mock's defaults — `Java.type()`, `karate.exec()` / `karate.fork()` are off and
+>   request data it receives stays inert; a helper that needs them has the mock opt in with
+>   `configure javaBridgeEnabled = true` / `configure requestExpressionsEnabled = true` #3067.
 >   Under **Important Fixes**, say that `karate.request` in a mock is now treated as request data #3067.
 > - After step 3 (artifacts on Maven Central): open
 >   https://github.com/karatelabs/karate/security/advisories/GHSA-4ccw-fvx9-7qpj and click

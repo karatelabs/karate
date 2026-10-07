@@ -136,6 +136,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     // When true a mock evaluates request-derived embedded expressions (the pre-fix behavior) -
     // opt-in only, since it re-opens the injection surface. Defaults to off (request data is data).
     private boolean requestExpressionsEnabled;
+    private ScenarioRuntime mockCaller; // the mock runtime a called feature serves, see inheritMockPosture
     private String authorText; // see markerPolicy
 
     // Debug support - step navigation
@@ -169,6 +170,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         this.httpClientFactory = factory != null ? factory : new io.karatelabs.http.DefaultHttpClientFactory();
         this.karate = new KarateJs(featureResource, this.httpClientFactory);
         this.ownsHttpClient = true;
+        if (callerScenario != null && callerScenario.isMock()) {
+            inheritMockPosture(callerScenario);
+        }
 
         this.executor = new StepExecutor(this);
         this.result = new ScenarioResult(scenario);
@@ -1732,13 +1736,25 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         if (!requestDerived.isEmpty() && requestDerived.contains(value)) {
             return true;
         }
-        return !requestDerivedStrings.isEmpty()
-                && value instanceof String str && requestDerivedStrings.contains(str);
+        if (!requestDerivedStrings.isEmpty() && value instanceof String str && requestDerivedStrings.contains(str)) {
+            return true;
+        }
+        return mockCaller != null && mockCaller.isRequestDerived(value);
     }
 
     /** True for a runtime the Mock Server drives, where request data flows in off the wire. */
     public boolean isMock() {
         return karate != null && karate.mockHandler != null;
+    }
+
+    // A feature a mock calls is still serving the request: it keeps the mock's switches, sees the
+    // mock's request-derived marks (the call arg and inherited variables carry them), and applies
+    // the marker policy to its own source. Nested calls chain through here.
+    private void inheritMockPosture(ScenarioRuntime mock) {
+        mockCaller = mock;
+        karate.setMockHandler(mock.karate.mockHandler);
+        karate.setJavaBridgeEnabled(mock.karate.javaBridgeEnabled);
+        requestExpressionsEnabled = mock.requestExpressionsEnabled;
     }
 
     /**
