@@ -1010,6 +1010,15 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 if (config.containsKey("pathPrefix")) {
                     builder.pathPrefix((String) config.get("pathPrefix"));
                 }
+                if (config.containsKey("maxInitialLineLength")) {
+                    builder.maxInitialLineLength(((Number) config.get("maxInitialLineLength")).intValue());
+                }
+                if (config.containsKey("maxHeaderSize")) {
+                    builder.maxHeaderSize(((Number) config.get("maxHeaderSize")).intValue());
+                }
+                if (config.containsKey("maxContentLength")) {
+                    builder.maxContentLength(((Number) config.get("maxContentLength")).intValue());
+                }
             } else {
                 throw new RuntimeException("start() argument must be a string path or config map");
             }

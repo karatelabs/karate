@@ -27,8 +27,10 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.http.HttpDecoderConfig;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpObjectDecoder;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
@@ -48,6 +50,10 @@ import java.util.function.Function;
 public class HttpServer implements Stoppable {
 
     static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
+
+    public static final int DEFAULT_MAX_INITIAL_LINE_LENGTH = HttpObjectDecoder.DEFAULT_MAX_INITIAL_LINE_LENGTH;
+    public static final int DEFAULT_MAX_HEADER_SIZE = HttpObjectDecoder.DEFAULT_MAX_HEADER_SIZE;
+    public static final int DEFAULT_MAX_CONTENT_LENGTH = HttpUtils.MEGABYTE;
 
     /** Servers that started and have not stopped — the registry is the single source of truth,
      *  see {@link KarateLifecycle} for the ecosystem-wide version of this. */
@@ -80,27 +86,27 @@ public class HttpServer implements Stoppable {
     final WsHandler wsHandler;
 
     public static HttpServer start(int port, Function<HttpRequest, HttpResponse> handler) {
-        return new HttpServer(null, port, null, handler, null, null);
+        return builder().port(port).handler(handler).start();
     }
 
     public static HttpServer start(int port, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler) {
-        return new HttpServer(null, port, null, handler, sseHandler, null);
+        return builder().port(port).handler(handler).sseHandler(sseHandler).start();
     }
 
     public static HttpServer start(int port, SslContext sslContext, Function<HttpRequest, HttpResponse> handler) {
-        return new HttpServer(null, port, sslContext, handler, null, null);
+        return builder().port(port).sslContext(sslContext).handler(handler).start();
     }
 
     public static HttpServer start(int port, SslContext sslContext, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler) {
-        return new HttpServer(null, port, sslContext, handler, sseHandler, null);
+        return builder().port(port).sslContext(sslContext).handler(handler).sseHandler(sseHandler).start();
     }
 
     public static HttpServer start(int port, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler, WsHandler wsHandler) {
-        return new HttpServer(null, port, null, handler, sseHandler, wsHandler);
+        return builder().port(port).handler(handler).sseHandler(sseHandler).wsHandler(wsHandler).start();
     }
 
     public static HttpServer start(int port, SslContext sslContext, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler, WsHandler wsHandler) {
-        return new HttpServer(null, port, sslContext, handler, sseHandler, wsHandler);
+        return builder().port(port).sslContext(sslContext).handler(handler).sseHandler(sseHandler).wsHandler(wsHandler).start();
     }
 
     /**
@@ -111,7 +117,89 @@ public class HttpServer implements Stoppable {
      * Docker {@code -p} forwarding can reach it).
      */
     public static HttpServer start(String host, int port, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler, WsHandler wsHandler) {
-        return new HttpServer(host, port, null, handler, sseHandler, wsHandler);
+        return builder().host(host).port(port).handler(handler).sseHandler(sseHandler).wsHandler(wsHandler).start();
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Request limits apply to the HTTP/1.x pipeline and are in bytes. A request over one never reaches the
+     * handler and is answered: initial line 414, headers 431, aggregated body 413.
+     */
+    public static class Builder {
+
+        private String host;
+        private int port;
+        private SslContext sslContext;
+        private Function<HttpRequest, HttpResponse> handler;
+        private SseHandler sseHandler;
+        private WsHandler wsHandler;
+        private int maxInitialLineLength = DEFAULT_MAX_INITIAL_LINE_LENGTH;
+        private int maxHeaderSize = DEFAULT_MAX_HEADER_SIZE;
+        private int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
+
+        private Builder() {
+        }
+
+        /** See {@link HttpServer#start(String, int, Function, SseHandler, WsHandler)} for bind-host semantics. */
+        public Builder host(String host) {
+            this.host = host;
+            return this;
+        }
+
+        public Builder port(int port) {
+            this.port = port;
+            return this;
+        }
+
+        public Builder sslContext(SslContext sslContext) {
+            this.sslContext = sslContext;
+            return this;
+        }
+
+        public Builder handler(Function<HttpRequest, HttpResponse> handler) {
+            this.handler = handler;
+            return this;
+        }
+
+        public Builder sseHandler(SseHandler sseHandler) {
+            this.sseHandler = sseHandler;
+            return this;
+        }
+
+        public Builder wsHandler(WsHandler wsHandler) {
+            this.wsHandler = wsHandler;
+            return this;
+        }
+
+        public Builder maxInitialLineLength(int bytes) {
+            this.maxInitialLineLength = positive("maxInitialLineLength", bytes);
+            return this;
+        }
+
+        public Builder maxHeaderSize(int bytes) {
+            this.maxHeaderSize = positive("maxHeaderSize", bytes);
+            return this;
+        }
+
+        public Builder maxContentLength(int bytes) {
+            this.maxContentLength = positive("maxContentLength", bytes);
+            return this;
+        }
+
+        public HttpServer start() {
+            return new HttpServer(this);
+        }
+
+    }
+
+    private static int positive(String name, int bytes) {
+        if (bytes <= 0) {
+            throw new IllegalArgumentException(name + " must be a positive number of bytes, was: " + bytes);
+        }
+        return bytes;
     }
 
     public boolean isSsl() {
@@ -181,11 +269,17 @@ public class HttpServer implements Stoppable {
         workerGroup.shutdownGracefully(0, 15, TimeUnit.SECONDS);
     }
 
-    private HttpServer(String host, int requestedPort, SslContext sslContext, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler, WsHandler wsHandler) {
-        this.handler = handler;
-        this.sseHandler = sseHandler;
-        this.wsHandler = wsHandler;
-        this.sslContext = sslContext;
+    private HttpServer(Builder b) {
+        String host = b.host;
+        int requestedPort = b.port;
+        this.handler = b.handler;
+        this.sseHandler = b.sseHandler;
+        this.wsHandler = b.wsHandler;
+        this.sslContext = b.sslContext;
+        HttpDecoderConfig decoderConfig = new HttpDecoderConfig()
+                .setMaxInitialLineLength(b.maxInitialLineLength)
+                .setMaxHeaderSize(b.maxHeaderSize);
+        int maxContentLength = b.maxContentLength;
         bossGroup = new MultiThreadIoEventLoopGroup(1, ThreadUtils.daemonFactory("http-boss-"), NioIoHandler.newFactory());
         workerGroup = new MultiThreadIoEventLoopGroup(ThreadUtils.daemonFactory("http-worker-"), NioIoHandler.newFactory());
         CorsConfig corsConfig = CorsConfigBuilder
@@ -205,8 +299,9 @@ public class HttpServer implements Stoppable {
                             if (sslContext != null) {
                                 p.addLast(sslContext.newHandler(c.alloc()));
                             }
-                            p.addLast(new HttpServerCodec());
-                            p.addLast(new HttpObjectAggregator(HttpUtils.MEGABYTE));
+                            p.addLast(new HttpServerCodec(decoderConfig));
+                            p.addLast(new DecoderFailureHandler());
+                            p.addLast(new HttpObjectAggregator(maxContentLength));
                             p.addLast(new CorsHandler(corsConfig));
                             p.addLast(new HttpServerHandler(HttpServer.this));
                         }

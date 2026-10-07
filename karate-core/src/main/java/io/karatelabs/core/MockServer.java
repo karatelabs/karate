@@ -199,6 +199,7 @@ public class MockServer implements SimpleObject {
         private boolean watch;
         private boolean javaBridgeEnabled;
         private boolean requestExpressionsEnabled;
+        private final HttpServer.Builder serverBuilder = HttpServer.builder();
 
         private Builder() {
         }
@@ -323,6 +324,30 @@ public class MockServer implements SimpleObject {
         }
 
         /**
+         * Max request line length in bytes, default 4096; a longer one is answered 414.
+         */
+        public Builder maxInitialLineLength(int bytes) {
+            serverBuilder.maxInitialLineLength(bytes);
+            return this;
+        }
+
+        /**
+         * Max total request header size in bytes, default 8192; larger headers are answered 431.
+         */
+        public Builder maxHeaderSize(int bytes) {
+            serverBuilder.maxHeaderSize(bytes);
+            return this;
+        }
+
+        /**
+         * Max request body size in bytes, default 1 MiB; a larger body is answered 413.
+         */
+        public Builder maxContentLength(int bytes) {
+            serverBuilder.maxContentLength(bytes);
+            return this;
+        }
+
+        /**
          * Start the mock server.
          */
         public MockServer start() {
@@ -355,7 +380,7 @@ public class MockServer implements SimpleObject {
                 }
             }
 
-            HttpServer httpServer = HttpServer.start(port, sslContext, requestHandler);
+            HttpServer httpServer = serverBuilder.port(port).sslContext(sslContext).handler(requestHandler).start();
             int actualPort = httpServer.getPort();
 
             String protocol = ssl ? "https" : "http";

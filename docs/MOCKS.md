@@ -492,6 +492,21 @@ CLI options:
 - `-k, --key <file>` - SSL private key (PEM)
 - `-W, --watch` - Enable hot-reload when feature files change
 - `--path-prefix <prefix>` - URL path prefix to strip
+- `--max-initial-line-length <bytes>`, `--max-header-size <bytes>`, `--max-content-length <bytes>` - request limits, see below
+
+---
+
+## Request Limits
+
+The mock (and any `HttpServer`) bounds each HTTP/1.x request. All values are bytes and must be positive — zero or negative throws `IllegalArgumentException` at configuration time.
+
+| Limit | Default | Over the limit |
+|-------|---------|----------------|
+| `maxInitialLineLength` — request line (method, URI, version) | 4096 | `414 Request-URI Too Long`, connection closed |
+| `maxHeaderSize` — all request headers together | 8192 | `431 Request Header Fields Too Large`, connection closed |
+| `maxContentLength` — aggregated request body | 1048576 (1 MiB) | `413 Request Entity Too Large` |
+
+A rejected request never reaches the mock scenarios. Set them with `MockServer.Builder` (`.maxHeaderSize(16384)`), `HttpServer.builder()`, `karate.start({ mock: 'api.feature', maxHeaderSize: 16384 })`, or the CLI options above. HTTP/2 is not covered.
 
 ---
 

@@ -102,6 +102,24 @@ public class MockCommand implements Callable<Integer> {
     )
     boolean watch;
 
+    @Option(
+            names = {"--max-initial-line-length"},
+            description = "Max request line length in bytes (default: 4096)"
+    )
+    Integer maxInitialLineLength;
+
+    @Option(
+            names = {"--max-header-size"},
+            description = "Max total request header size in bytes (default: 8192)"
+    )
+    Integer maxHeaderSize;
+
+    @Option(
+            names = {"--max-content-length"},
+            description = "Max request body size in bytes (default: 1048576)"
+    )
+    Integer maxContentLength;
+
     @Override
     public Integer call() {
         try {
@@ -134,6 +152,16 @@ public class MockCommand implements Callable<Integer> {
 
             if (watch) {
                 builder.watch(true);
+            }
+
+            if (maxInitialLineLength != null) {
+                builder.maxInitialLineLength(maxInitialLineLength);
+            }
+            if (maxHeaderSize != null) {
+                builder.maxHeaderSize(maxHeaderSize);
+            }
+            if (maxContentLength != null) {
+                builder.maxContentLength(maxContentLength);
             }
 
             // Start server
