@@ -291,6 +291,22 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    @Test
+    void testMatchMarkerBuiltAtRuntimeResolvesAgainstScenario() {
+        // outside a mock nothing arrives off the wire, so a marker assembled at runtime (not
+        // written in the feature) still sees the scenario's variables on every match path
+        ScenarioRuntime sr = run(SCHEMAS + """
+            * def marker = '#[] ' + 'mySchemas.MySchema'
+            * match responses == marker
+            * match karate.match(responses, marker).pass == true
+            * match karate.match("responses == marker").pass == true
+            * def nested = ({ id: '#? _ == ' + 'mySchemas.Id' })
+            * match response contains nested
+            * match karate.match(response.id, nested.id).pass == true
+            """);
+        assertPassed(sr);
+    }
+
     // The one-arg karate.match("...") form delegates to the same evaluator the `match`
     // keyword uses, so a $-prefixed JsonPath (wildcards included) resolves on either side
     // exactly as the keyword does. Previously the JS API used engine.get()/engine.eval()

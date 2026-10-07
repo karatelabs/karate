@@ -338,7 +338,7 @@ public class Value implements SimpleObject, AutoCloseable {
         return result;
     }
 
-    static Object parseIfJsonOrXmlString(Object o) {
+    public static Object parseIfJsonOrXmlString(Object o) {
         if (o instanceof String s) {
             if (s.isEmpty()) {
                 return o;

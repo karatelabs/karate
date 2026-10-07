@@ -664,11 +664,11 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 if (rt == null) {
                     rt = getRuntime();
                 }
-                Engine matchEngine = rt == null ? engine
-                        : holdsRequestDerived(rt, expected, Collections.newSetFromMap(new IdentityHashMap<>())) ? null
-                        : rt.getEngine();
+                Engine matchEngine = rt == null ? engine : rt.matchEngine(expected);
                 try (Value value = Match.evaluate(actual, null, null)) {
                     return value.is(matchEngine, Match.Type.EQUALS, expected).toMap();
+                } catch (RuntimeException e) {
+                    throw matchEngine == null ? ScenarioRuntime.sandboxedMatchError(e) : e;
                 }
             } else {
                 // One-argument string form: karate.match("foo == expected").
@@ -697,27 +697,6 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 return result.toMap();
             }
         };
-    }
-
-    // An expected value carrying request data (Mock Server) matches in a fresh engine that sees
-    // neither the mock's variables nor karate.* - the match-side twin of processEmbeddedExpressions
-    // leaving that data inert.
-    private static boolean holdsRequestDerived(ScenarioRuntime rt, Object value, Set<Object> seen) {
-        if (rt.isRequestExpressionsEnabled()) {
-            return false;
-        }
-        if (rt.isRequestDerived(value)) {
-            return true;
-        }
-        if ((value instanceof Map || value instanceof List) && seen.add(value)) {
-            Collection<?> children = value instanceof Map<?, ?> map ? map.values() : (List<?>) value;
-            for (Object child : children) {
-                if (holdsRequestDerived(rt, child, seen)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private JavaInvokable call() {

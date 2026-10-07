@@ -1361,7 +1361,13 @@ public class StepExecutor {
         }
         Match.Type matchType = Match.Type.valueOf(expr.getMatchTypeName());
         boolean matchEachEmptyAllowed = runtime.getConfig().isMatchEachEmptyAllowed();
-        Result result = Match.execute(runtime.getEngine(), matchType, actual, expected, matchEachEmptyAllowed);
+        io.karatelabs.js.Engine matchEngine = runtime.matchEngine(expected);
+        Result result;
+        try {
+            result = Match.execute(matchEngine, matchType, actual, expected, matchEachEmptyAllowed);
+        } catch (RuntimeException e) {
+            throw matchEngine == null ? ScenarioRuntime.sandboxedMatchError(e) : e;
+        }
         String expectedExpr = docString != null && (expr.getExpectedExpr() == null || expr.getExpectedExpr().isEmpty())
                 ? docString : expr.getExpectedExpr();
         // fired before the caller throws, so a failed match still carries its evidence

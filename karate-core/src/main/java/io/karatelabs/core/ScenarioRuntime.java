@@ -135,6 +135,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     // When true a mock evaluates request-derived embedded expressions (the pre-fix behavior) -
     // opt-in only, since it re-opens the injection surface. Defaults to off (request data is data).
     private boolean requestExpressionsEnabled;
+    private String featureText; // read once, see matchEngine
 
     // Debug support - step navigation
     private List<Step> steps;
@@ -1728,6 +1729,63 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         }
         return !requestDerivedStrings.isEmpty()
                 && value instanceof String str && requestDerivedStrings.contains(str);
+    }
+
+    /** True for a runtime the Mock Server drives, where request data flows in off the wire. */
+    public boolean isMock() {
+        return karate != null && karate.mockHandler != null;
+    }
+
+    /**
+     * The engine the match engine resolves expected-side markers ({@code #(..)}, {@code ##(..)},
+     * {@code #[] ..}, {@code #? ..}) against: this scenario's, or null for a fresh one that sees no
+     * variables. A mock that has not opted in via {@code requestExpressionsEnabled} gets its own
+     * engine only when every marker in {@code expected} appears verbatim in the feature's source;
+     * any other marker may have come off the wire and is matched in the fresh engine, where it can
+     * reach neither the mock's variables nor {@code karate}. The request-derived marks above cannot
+     * carry this decision: a transformation of request text ({@code request.x.trim()}) is a new
+     * string with no provenance.
+     */
+    public io.karatelabs.js.Engine matchEngine(Object expected) {
+        if (!isMock() || requestExpressionsEnabled) {
+            return getEngine();
+        }
+        if (featureText == null) {
+            featureText = scenario.getFeature().getResource().getText();
+        }
+        if (expected instanceof String str && !str.startsWith("#")) {
+            try { // karate.match(actual, expected) parses a JSON / XML string before matching it
+                expected = io.karatelabs.match.Value.parseIfJsonOrXmlString(str);
+            } catch (RuntimeException e) {
+                return getEngine(); // not parseable, so matched as text
+            }
+        }
+        return markersInSource(expected, featureText, Collections.newSetFromMap(new IdentityHashMap<>()))
+                ? getEngine() : null;
+    }
+
+    private static boolean markersInSource(Object value, String source, Set<Object> seen) {
+        if (value instanceof String str) {
+            return !str.startsWith("#") || source.contains(str);
+        }
+        if (value instanceof org.w3c.dom.Node node) {
+            value = io.karatelabs.common.Xml.toObject(node);
+        }
+        if ((value instanceof Map || value instanceof List) && seen.add(value)) {
+            java.util.Collection<?> children = value instanceof Map<?, ?> map ? map.values() : (List<?>) value;
+            for (Object child : children) {
+                if (!markersInSource(child, source, seen)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /** Names the opt-in on a failure of a match that {@link #matchEngine} sent to the fresh engine. */
+    public static RuntimeException sandboxedMatchError(RuntimeException e) {
+        return new RuntimeException(e.getMessage() + " - in a mock, a match marker sees the mock's variables"
+                + " only when written in the feature itself; 'configure requestExpressionsEnabled = true' opts in", e);
     }
 
     /**

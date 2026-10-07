@@ -31,6 +31,7 @@ import io.karatelabs.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -282,8 +283,8 @@ class MockServerSecurityTest {
         }
     }
 
-    // karate.match(actual, expected) evaluates expected-side markers against the mock's variables;
-    // a marker that came off the wire must not see them, nested in an author-built value or not.
+    // ---- match: an expected-side marker sees the mock's variables only when written in the feature ----
+
     private MockServer.Builder matchMock(String actual, String expected, String configure) {
         String feature = "Feature: match\n"
                 + (configure == null ? "" : "Background:\n" + configure + "\n")
@@ -302,5 +303,153 @@ class MockServerSecurityTest {
     void testKarateMatchRequestMarkerEvaluatedWhenOptedIn() {
         MockServer server = matchMock("'string'", "request.poc", "* configure requestExpressionsEnabled = true").start();
         assertEquals(true, roundTrip(server, "#(typeof secret)"));
+    }
+
+    // A marker that reaches the match engine runs as JS, so one that came off the wire - whatever
+    // read it out, however it was reshaped - must run where it sees neither the mock's variables
+    // nor karate. The probe mutates the mock if it runs; a second request reports whether it did.
+    private static final String MUTATING_MARKER = "#? karate.set('leaked', secret) || true";
+
+    private MockServer probeMock(String matchStep, String configure) {
+        String feature = "Feature: match\n"
+                + (configure == null ? "" : "Background:\n" + configure + "\n")
+                + "Scenario: pathMatches('/probe')\n* def secret = 'x'\n"
+                + "* " + matchStep + "\n* def response = 'ok'\n"
+                + "Scenario: pathMatches('/leaked')\n* def response = ({ leaked: typeof leaked })\n";
+        return MockServer.featureString(feature).port(0).start();
+    }
+
+    private HttpRequestBuilder probe(MockServer server) {
+        return new HttpRequestBuilder(client).url(server.getUrl()).path("/probe").method("POST")
+                .body(Map.of("poc", MUTATING_MARKER, "nested", Map.of("poc", MUTATING_MARKER)));
+    }
+
+    private Object leaked(MockServer server) {
+        HttpResponse res = new HttpRequestBuilder(client).url(server.getUrl()).path("/leaked").method("GET").invoke();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) res.getBodyConverted();
+        return body.get("leaked");
+    }
+
+    private void assertInert(MockServer server, HttpRequestBuilder probe) {
+        try {
+            HttpResponse res = probe.invoke();
+            assertEquals(500, res.getStatus(), res.getBodyString());
+            assertTrue(res.getBodyString().contains("requestExpressionsEnabled"), res.getBodyString());
+            assertEquals("undefined", leaked(server));
+        } finally {
+            server.stopAsync();
+        }
+    }
+
+    private void assertEvaluated(MockServer server, HttpRequestBuilder probe) {
+        try {
+            HttpResponse res = probe.invoke();
+            assertEquals(200, res.getStatus(), res.getBodyString());
+            assertEquals("string", leaked(server));
+        } finally {
+            server.stopAsync();
+        }
+    }
+
+    @Test
+    void testKarateMatchTwoArgsRequestMarkerCannotRunByDefault() {
+        MockServer server = probeMock("def res = karate.match('string', request.poc)", null);
+        assertInert(server, probe(server));
+    }
+
+    @Test
+    void testMatchKeywordRequestMarkerCannotRunByDefault() {
+        MockServer server = probeMock("match 'string' == request.poc", null);
+        assertInert(server, probe(server));
+    }
+
+    @Test
+    void testKarateMatchOneArgRequestMarkerCannotRunByDefault() {
+        MockServer server = probeMock("def res = karate.match(\"'string' == request.poc\")", null);
+        assertInert(server, probe(server));
+    }
+
+    @Test
+    void testMatchNestedRequestMarkerInAuthorLiteralCannotRunByDefault() {
+        MockServer server = probeMock("match { a: 'string' } == { a: '#(request.nested.poc)' }", null);
+        assertInert(server, probe(server));
+    }
+
+    @Test
+    void testMatchTransformedRequestMarkerCannotRunByDefault() {
+        // .trim() yields a string the request never held, so value provenance alone cannot catch it
+        MockServer server = probeMock("match 'string' == request.poc.trim()", null);
+        assertInert(server, probe(server).body(Map.of("poc", " " + MUTATING_MARKER + " ")));
+    }
+
+    @Test
+    void testMatchArrayMarkerFromRequestCannotRunByDefault() {
+        MockServer server = probeMock("def res = karate.match([1], request.poc)", null);
+        assertInert(server, probe(server).body(Map.of("poc", "#[] karate.set('leaked', secret)")));
+    }
+
+    @Test
+    void testKarateMatchJsonStringFromRequestCannotRunByDefault() {
+        // the two-arg form parses a JSON string expected, so the marker is one level down
+        MockServer server = probeMock("def res = karate.match({ a: 'string' }, request.poc)", null);
+        assertInert(server, probe(server).body(Map.of("poc", "{\"a\":\"" + MUTATING_MARKER + "\"}")));
+    }
+
+    @Test
+    void testMatchHeaderMarkerCannotRunByDefault() {
+        MockServer server = probeMock("match 'string' == headerValue('x-poc')", null);
+        assertInert(server, probe(server).header("x-poc", MUTATING_MARKER));
+    }
+
+    @Test
+    void testMatchParamMarkerCannotRunByDefault() {
+        MockServer server = probeMock("match 'string' == paramValue('poc')", null);
+        assertInert(server, probe(server).param("poc", MUTATING_MARKER));
+    }
+
+    @Test
+    void testMatchRequestMarkerRunsWhenOptedIn() {
+        MockServer server = probeMock("match 'string' == request.poc", "* configure requestExpressionsEnabled = true");
+        assertEvaluated(server, probe(server));
+    }
+
+    @Test
+    void testMatchMarkersWrittenInFeatureStillSeeMockVariables() {
+        String feature = "Feature: match\nScenario: pathMatches('/probe')\n"
+                + "* def secret = 'x'\n* def schemas = { item: { id: '#number' } }\n"
+                + "* match request == { items: '#[] schemas.item', tag: '#? _ == secret', name: '##(schemas.name)' }\n"
+                + "* def res = karate.match(request.items, '#[] schemas.item')\n"
+                + "* if (!res.pass) karate.fail(res.message)\n"
+                + "* def response = 'ok'\n";
+        MockServer server = MockServer.featureString(feature).port(0).start();
+        try {
+            HttpResponse res = probe(server).body(Map.of("items", List.of(Map.of("id", 1)), "tag", "x")).invoke();
+            assertEquals(200, res.getStatus(), res.getBodyString());
+        } finally {
+            server.stopAsync();
+        }
+    }
+
+    @Test
+    void testMatchMarkerBuiltAtRuntimeNeedsOptIn() {
+        // the marker text is not in the feature, so the mock cannot tell it from one off the wire
+        String step = "def marker = '#[] ' + 'schemas.item'\n* def schemas = { item: { id: '#number' } }\n"
+                + "* match request.items == marker";
+        Map<String, Object> body = Map.of("items", List.of(Map.of("id", 1)));
+        MockServer server = probeMock(step, null);
+        try {
+            HttpResponse res = probe(server).body(body).invoke();
+            assertEquals(500, res.getStatus(), res.getBodyString());
+            assertTrue(res.getBodyString().contains("requestExpressionsEnabled"), res.getBodyString());
+        } finally {
+            server.stopAsync();
+        }
+        server = probeMock(step, "* configure requestExpressionsEnabled = true");
+        try {
+            assertEquals(200, probe(server).body(body).invoke().getStatus());
+        } finally {
+            server.stopAsync();
+        }
     }
 }
