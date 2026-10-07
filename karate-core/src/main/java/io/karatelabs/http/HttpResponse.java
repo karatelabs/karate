@@ -138,9 +138,12 @@ public class HttpResponse implements ObjectLike {
         setHeader(HttpUtils.Header.CONTENT_TYPE.key, contentType);
     }
 
+    /** Replaces any existing header of the same name, compared case-insensitively. */
     public void setHeader(String name, List<String> values) {
         if (headers == null) {
             headers = new HashMap<>();
+        } else {
+            removeHeader(name);
         }
         headers.put(name, values);
     }

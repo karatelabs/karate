@@ -218,7 +218,7 @@ Background:
   * configure responseHeaders = { 'Content-Type': 'application/json' }
 ```
 
-Applied to all responses. Scenario-level `responseHeaders` overrides.
+Applied to all responses. Scenario-level `responseHeaders` overrides. Both override the `Content-Type` inferred from the `response` body (a string infers `text/plain`), so a string body served as `text/xml` keeps that type and its bytes unchanged. Header names are compared case-insensitively — `content-type` replaces `Content-Type` rather than adding a second one.
 
 ### beforeScenario
 

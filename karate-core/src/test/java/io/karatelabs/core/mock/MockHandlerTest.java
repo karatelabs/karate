@@ -486,4 +486,99 @@ class MockHandlerTest {
         assertTrue(body.contains("\"b\":2"), body);
     }
 
+    private static List<String> contentTypeKeys(HttpResponse response) {
+        return response.getHeaders().keySet().stream().filter("Content-Type"::equalsIgnoreCase).toList();
+    }
+
+    @Test
+    void anExplicitContentTypeWinsOverTheTypeInferredFromAStringBody() {
+        Feature feature = parseFeature("""
+            Feature: explicit xml
+
+            Scenario: pathMatches('/soap')
+              * def responseStatus = 200
+              * def responseHeaders = { 'Content-Type': 'text/xml; charset=UTF-8' }
+              * def response = '<Envelope><Body>ok</Body></Envelope>'
+            """);
+
+        HttpResponse response = new MockHandler(feature).apply(createRequest("POST", "/soap"));
+
+        assertEquals(200, response.getStatus());
+        assertEquals("text/xml; charset=UTF-8", response.getContentType());
+        assertEquals(1, contentTypeKeys(response).size(), "" + response.getHeaders());
+        assertEquals("<Envelope><Body>ok</Body></Envelope>", response.getBodyString());
+    }
+
+    @Test
+    void aLowerCaseContentTypeReplacesTheInferredOneInsteadOfDuplicatingIt() {
+        Feature feature = parseFeature("""
+            Feature: lower-case header name
+
+            Scenario: pathMatches('/soap')
+              * def responseHeaders = { 'content-type': 'application/soap+xml' }
+              * def response = '<Envelope/>'
+            """);
+
+        HttpResponse response = new MockHandler(feature).apply(createRequest("POST", "/soap"));
+
+        assertEquals(List.of("content-type"), contentTypeKeys(response), "" + response.getHeaders());
+        assertEquals("application/soap+xml", response.getContentType());
+    }
+
+    @Test
+    void scenarioResponseHeadersOverrideConfiguredOnesWhichOverrideTheInferredType() {
+        Feature feature = parseFeature("""
+            Feature: header precedence
+
+            Background:
+              * configure responseHeaders = { 'content-type': 'application/xml' }
+
+            Scenario: pathMatches('/configured')
+              * def response = '<a/>'
+
+            Scenario: pathMatches('/scenario')
+              * def responseHeaders = { 'Content-Type': 'text/xml' }
+              * def response = '<a/>'
+            """);
+        MockHandler handler = new MockHandler(feature);
+
+        HttpResponse configured = handler.apply(createRequest("GET", "/configured"));
+        assertEquals("application/xml", configured.getContentType());
+        assertEquals(1, contentTypeKeys(configured).size(), "" + configured.getHeaders());
+
+        HttpResponse scenario = handler.apply(createRequest("GET", "/scenario"));
+        assertEquals("text/xml", scenario.getContentType());
+        assertEquals(1, contentTypeKeys(scenario).size(), "" + scenario.getHeaders());
+    }
+
+    @Test
+    void aJsonStringBodyKeepsAnExplicitJsonContentTypeAndItsBytes() {
+        Feature feature = parseFeature("""
+            Feature: json string
+
+            Scenario: pathMatches('/json')
+              * def responseHeaders = { 'Content-Type': 'application/json' }
+              * def response = '{ "id" : 1 }'
+            """);
+
+        HttpResponse response = new MockHandler(feature).apply(createRequest("GET", "/json"));
+
+        assertEquals("application/json", response.getContentType());
+        assertEquals("{ \"id\" : 1 }", response.getBodyString());
+    }
+
+    @Test
+    void aStringBodyWithoutAnExplicitTypeIsStillTextPlain() {
+        Feature feature = parseFeature("""
+            Feature: implicit text
+
+            Scenario: pathMatches('/text')
+              * def response = 'hello'
+            """);
+
+        HttpResponse response = new MockHandler(feature).apply(createRequest("GET", "/text"));
+
+        assertEquals("text/plain; charset=UTF-8", response.getContentType());
+    }
+
 }

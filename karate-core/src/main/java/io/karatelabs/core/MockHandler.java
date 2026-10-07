@@ -574,22 +574,6 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
             response.setStatusText(s);
         }
 
-        // Apply configured response headers first
-        Map<String, Object> configuredHeaders = config.getResponseHeaders();
-        if (configuredHeaders != null) {
-            response.setHeaders(configuredHeaders);
-        }
-
-        // Apply scenario-level response headers (override configured)
-        if (responseHeaders instanceof Map) {
-            response.setHeaders((Map<String, Object>) responseHeaders);
-        }
-
-        // Add CORS header if enabled
-        if (config.isCorsEnabled()) {
-            response.setHeader("Access-Control-Allow-Origin", "*");
-        }
-
         if (responseBody != null) {
             // A `#(expr)` that throws is deliberately left as its own SOURCE TEXT (StepExecutor) — the
             // schema-as-template pattern, where the match engine re-resolves it later with the right
@@ -610,6 +594,22 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
                 }
             }
             response.setBodyDynamic(responseBody);
+        }
+
+        // after the body, so that an explicit Content-Type wins over the one inferred from the body
+        Map<String, Object> configuredHeaders = config.getResponseHeaders();
+        if (configuredHeaders != null) {
+            response.setHeaders(configuredHeaders);
+        }
+
+        // Apply scenario-level response headers (override configured)
+        if (responseHeaders instanceof Map) {
+            response.setHeaders((Map<String, Object>) responseHeaders);
+        }
+
+        // Add CORS header if enabled
+        if (config.isCorsEnabled()) {
+            response.setHeader("Access-Control-Allow-Origin", "*");
         }
 
         // Set response delay (handled by HttpServerHandler using Netty scheduler)
