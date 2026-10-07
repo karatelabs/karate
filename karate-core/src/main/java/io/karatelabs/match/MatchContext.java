@@ -28,6 +28,7 @@ import io.karatelabs.js.Engine;
 public class MatchContext {
 
     final Engine engine;
+    final MarkerPolicy policy; // null: every marker runs in engine
     final Operation root;
     final int depth;
     final boolean xml;
@@ -35,8 +36,9 @@ public class MatchContext {
     final String name;
     final int index;
 
-    MatchContext(Engine engine, Operation root, boolean xml, int depth, String path, String name, int index) {
+    MatchContext(Engine engine, MarkerPolicy policy, Operation root, boolean xml, int depth, String path, String name, int index) {
         this.engine = engine;
+        this.policy = policy;
         this.root = root;
         this.xml = xml;
         this.depth = depth;
@@ -45,22 +47,26 @@ public class MatchContext {
         this.index = index;
     }
 
+    Engine engineFor(String marker) {
+        return policy == null || policy.trusted(marker) ? engine : root.sandbox();
+    }
+
     MatchContext descend(String name) {
         if (xml) {
             String childPath = path.endsWith("/@") ? path + name : (depth == 0 ? "" : path) + "/" + name;
-            return new MatchContext(engine, root, xml, depth + 1, childPath, name, -1);
+            return new MatchContext(engine, policy, root, xml, depth + 1, childPath, name, -1);
         } else {
             boolean needsQuotes = name.indexOf('-') != -1 || name.indexOf(' ') != -1 || name.indexOf('.') != -1;
             String childPath = needsQuotes ? path + "['" + name + "']" : path + '.' + name;
-            return new MatchContext(engine, root, xml, depth + 1, childPath, name, -1);
+            return new MatchContext(engine, policy, root, xml, depth + 1, childPath, name, -1);
         }
     }
 
     MatchContext descend(int index) {
         if (xml) {
-            return new MatchContext(engine, root, xml, depth + 1, path + "[" + (index + 1) + "]", name, index);
+            return new MatchContext(engine, policy, root, xml, depth + 1, path + "[" + (index + 1) + "]", name, index);
         } else {
-            return new MatchContext(engine, root, xml, depth + 1, path + "[" + index + "]", name, index);
+            return new MatchContext(engine, policy, root, xml, depth + 1, path + "[" + index + "]", name, index);
         }
     }
 

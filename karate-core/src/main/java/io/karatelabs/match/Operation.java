@@ -49,24 +49,25 @@ public class Operation {
 
     boolean pass = true;
     private String failReason;
+    private Engine sandbox; // root only: where the policy sends markers it does not trust
 
     Operation(Match.Type type, Value actual, Value expected) {
-        this(new Engine(), null, type, actual, expected, false);
+        this(new Engine(), null, null, type, actual, expected, false);
     }
 
     Operation(Engine engine, Match.Type type, Value actual, Value expected) {
-        this(engine, null, type, actual, expected, false);
+        this(engine, null, null, type, actual, expected, false);
     }
 
-    Operation(Engine engine, Match.Type type, Value actual, Value expected, boolean matchEachEmptyAllowed) {
-        this(engine, null, type, actual, expected, matchEachEmptyAllowed);
+    Operation(Engine engine, MarkerPolicy policy, Match.Type type, Value actual, Value expected, boolean matchEachEmptyAllowed) {
+        this(engine, policy, null, type, actual, expected, matchEachEmptyAllowed);
     }
 
     Operation(MatchContext context, Match.Type type, Value actual, Value expected, boolean matchEachEmptyAllowed) {
-        this(null, context, type, actual, expected, matchEachEmptyAllowed);
+        this(null, null, context, type, actual, expected, matchEachEmptyAllowed);
     }
 
-    private Operation(Engine engine, MatchContext context, Match.Type type, Value actual, Value expected, boolean matchEachEmptyAllowed) {
+    private Operation(Engine engine, MarkerPolicy policy, MatchContext context, Match.Type type, Value actual, Value expected, boolean matchEachEmptyAllowed) {
         this.type = type;
         this.actual = actual;
         this.expected = expected;
@@ -77,13 +78,35 @@ public class Operation {
             }
             this.failures = new ArrayList<>();
             if (actual.isXml()) {
-                this.context = new MatchContext(engine, this, true, 0, "/", "", -1);
+                this.context = new MatchContext(engine, policy, this, true, 0, "/", "", -1);
             } else {
-                this.context = new MatchContext(engine, this, false, 0, "$", "", -1);
+                this.context = new MatchContext(engine, policy, this, false, 0, "$", "", -1);
             }
         } else {
             this.context = context;
             this.failures = context.root.failures;
+        }
+    }
+
+    Engine sandbox() {
+        if (sandbox == null) {
+            sandbox = new Engine();
+        }
+        return sandbox;
+    }
+
+    /** Runs the JS of a marker in the engine the policy picks for it, with {@code $} and {@code _} bound. */
+    private Object evalMarker(String marker, String expr, Object underscore) {
+        Engine engine = context.engineFor(marker);
+        engine.put("$", context.root.actual.getValue());
+        engine.put("_", underscore);
+        try {
+            return engine.eval(expr);
+        } catch (RuntimeException e) {
+            throw engine == context.engine ? e : context.policy.untrustedFailure(e);
+        } finally {
+            engine.remove("$");
+            engine.remove("_");
         }
     }
 
@@ -285,11 +308,7 @@ public class Operation {
                 Match.Type nestedType = macroToMatchType(false, macro);
                 int startPos = matchTypeToStartPos(nestedType);
                 macro = macro.substring(startPos);
-                context.engine.put("$", context.root.actual.getValue());
-                context.engine.put("_", actual.getValue());
-                Object evalResult = context.engine.eval(macro);
-                context.engine.remove("$");
-                context.engine.remove("_");
+                Object evalResult = evalMarker(expStr, macro, actual.getValue());
                 // For #(^expr), #(^*expr), etc. where actual is a list and evalResult is a Map,
                 // we need to check if any element in the list matches the expected value
                 // using the nestedType. This is different from "list contains exact element".
@@ -336,17 +355,13 @@ public class Operation {
                         String bracketContents = macro.substring(1, closeBracketPos);
                         List<Object> listAct = actual.getValue();
                         int listSize = listAct.size();
-                        context.engine.put("$", context.root.actual.getValue());
-                        context.engine.put("_", listSize);
                         String sizeExpr;
                         if (containsPlaceholderUnderscore(bracketContents)) { // #[_ < 5]
                             sizeExpr = bracketContents;
                         } else { // #[5] | #[$.foo]
                             sizeExpr = bracketContents + " == _";
                         }
-                        Object evalResult = context.engine.eval(sizeExpr);
-                        context.engine.remove("$");
-                        context.engine.remove("_");
+                        Object evalResult = evalMarker(expStr, sizeExpr, listSize);
                         if (!Terms.isTruthy(evalResult)) {
                             return fail("actual array length is " + listSize);
                         }
@@ -368,7 +383,7 @@ public class Operation {
                                 Match.Type nestedType = macroToMatchType(true, macro); // match each
                                 int startPos = matchTypeToStartPos(nestedType);
                                 macro = macro.substring(startPos);
-                                Object evalResult = context.engine.eval(macro);
+                                Object evalResult = evalMarker(expStr, macro, actual.getValue());
                                 try (Value evalValue = new Value(evalResult)) {
                                     Operation mo = new Operation(context, nestedType, actual, evalValue, matchEachEmptyAllowed);
                                     return mo.execute();
@@ -428,11 +443,7 @@ public class Operation {
                 }
                 macro = StringUtils.trimToNull(macro);
                 if (macro != null && questionPos != -1) {
-                    context.engine.put("$", context.root.actual.getValue());
-                    context.engine.put("_", actual.getValue());
-                    Object evalResult = context.engine.eval(macro);
-                    context.engine.remove("$");
-                    context.engine.remove("_");
+                    Object evalResult = evalMarker(expStr, macro, actual.getValue());
                     if (!Terms.isTruthy(evalResult)) {
                         return fail("evaluated to 'false'");
                     }

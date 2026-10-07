@@ -326,9 +326,14 @@ public class Value implements SimpleObject, AutoCloseable {
      *               null for a fresh engine that sees no caller variables
      */
     public Result is(Engine engine, Match.Type matchType, Object expected) {
+        return is(engine, null, matchType, expected);
+    }
+
+    /** @param policy decides per marker whether it runs in {@code engine} or in a fresh one; null for all */
+    public Result is(Engine engine, MarkerPolicy policy, Match.Type matchType, Object expected) {
         Result result;
         try (Value expectedValue = new Value(parseIfJsonOrXmlString(expected), context, onResult)) {
-            Operation op = new Operation(engine, matchType, this, expectedValue);
+            Operation op = new Operation(engine, policy, matchType, this, expectedValue, false);
             op.execute();
             result = op.getResult();
         }

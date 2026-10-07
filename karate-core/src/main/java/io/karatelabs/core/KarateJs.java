@@ -664,11 +664,9 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 if (rt == null) {
                     rt = getRuntime();
                 }
-                Engine matchEngine = rt == null ? engine : rt.matchEngine(expected);
                 try (Value value = Match.evaluate(actual, null, null)) {
-                    return value.is(matchEngine, Match.Type.EQUALS, expected).toMap();
-                } catch (RuntimeException e) {
-                    throw matchEngine == null ? ScenarioRuntime.sandboxedMatchError(e) : e;
+                    return rt == null ? value.is(engine, Match.Type.EQUALS, expected).toMap()
+                            : value.is(rt.getEngine(), rt.markerPolicy(), Match.Type.EQUALS, expected).toMap();
                 }
             } else {
                 // One-argument string form: karate.match("foo == expected").

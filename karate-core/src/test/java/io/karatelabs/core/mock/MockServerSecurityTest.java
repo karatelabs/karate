@@ -452,4 +452,52 @@ class MockServerSecurityTest {
             server.stopAsync();
         }
     }
+
+    // ---- second order: what an author-written marker yields off the wire is itself a marker ----
+
+    @Test
+    void testMarkerYieldedByAuthorMarkerCannotRunByDefault() {
+        for (String step : List.of(
+                "def res = karate.match('string', '#(request.poc)')",
+                "def res = karate.match('string', '##(request.poc)')",
+                "def res = karate.match(['string'], '#[] request.poc')",
+                "match 'string' == '#(request.poc)'",
+                "match 'string' == '#(^request.poc)'",
+                "match 'string' == '#string? karate.match(_, request.poc).pass'")) {
+            MockServer server = probeMock(step, null);
+            assertInert(server, probe(server));
+        }
+    }
+
+    @Test
+    void testMarkerYieldedByAuthorMarkerRunsWhenOptedIn() {
+        MockServer server = probeMock("def res = karate.match('string', '#(request.poc)')",
+                "* configure requestExpressionsEnabled = true");
+        assertEvaluated(server, probe(server));
+    }
+
+    @Test
+    void testMarkerQuotedInCommentCannotRunByDefault() {
+        // a comment is not the author writing the marker into a step
+        MockServer server = probeMock("match 'string' == request.poc\n# a rejected example: " + MUTATING_MARKER, null);
+        assertInert(server, probe(server));
+    }
+
+    @Test
+    void testMatchMarkersInDocStringAndTableStillSeeMockVariables() {
+        String feature = "Feature: match\nScenario: pathMatches('/probe')\n"
+                + "* def secret = 'x'\n* def schemas = { item: { id: '#number' } }\n"
+                + "* table expected\n| tag |\n| '#? _ == secret' |\n"
+                + "* match request.tags == expected\n"
+                + "* match request ==\n\"\"\"\n{ items: '#[] schemas.item', tags: '#[] #? _.tag == secret' }\n\"\"\"\n"
+                + "* def response = 'ok'\n";
+        MockServer server = MockServer.featureString(feature).port(0).start();
+        try {
+            HttpResponse res = probe(server)
+                    .body(Map.of("items", List.of(Map.of("id", 1)), "tags", List.of(Map.of("tag", "x")))).invoke();
+            assertEquals(200, res.getStatus(), res.getBodyString());
+        } finally {
+            server.stopAsync();
+        }
+    }
 }

@@ -70,8 +70,16 @@ public class Match {
     }
 
     public static Result execute(Engine engine, Type matchType, Object actual, Object expected, boolean matchEachEmptyAllowed) {
+        return execute(engine, null, matchType, actual, expected, matchEachEmptyAllowed);
+    }
+
+    /**
+     * @param policy decides per expected-side marker whether it runs in {@code engine} or in a fresh
+     *               one that sees no variables; null lets every marker run in {@code engine}
+     */
+    public static Result execute(Engine engine, MarkerPolicy policy, Type matchType, Object actual, Object expected, boolean matchEachEmptyAllowed) {
         try (Value actualValue = new Value(actual); Value expectedValue = new Value(expected)) {
-            Operation op = new Operation(engine, matchType, actualValue, expectedValue, matchEachEmptyAllowed);
+            Operation op = new Operation(engine, policy, matchType, actualValue, expectedValue, matchEachEmptyAllowed);
             op.execute();
             return op.getResult();
         }
