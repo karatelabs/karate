@@ -274,7 +274,7 @@ public class SuiteResult {
                         // since it is already rendered above the step line.
                         String failureMessage = sr.getFailureReason();
                         if (failureMessage != null) {
-                            Console.println("      " + Console.yellow(failureMessage));
+                            Console.println("      " + Console.yellow(failureMessage.replace("\n", "\n      ")));
                         }
                     }
                 }

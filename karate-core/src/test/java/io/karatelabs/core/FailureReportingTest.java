@@ -333,6 +333,39 @@ class FailureReportingTest {
     }
 
     @Test
+    void testPrintSummaryIndentsEveryLineOfMultiLineError() throws Exception {
+        Path feature = tempDir.resolve("multi-line-fail.feature");
+        Files.writeString(feature, """
+                Feature: Multi-line failure
+
+                Scenario: contains fails
+                * def ids = [23, 42]
+                * match ids contains 99
+                """);
+
+        ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        Console.setOutput(new PrintStream(captured, true, "UTF-8"));
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(true)
+                .parallel(1);
+
+        assertTrue(result.isFailed());
+        String output = captured.toString("UTF-8");
+        int blockStart = output.indexOf("failed features:");
+        assertTrue(blockStart >= 0, "expected 'failed features:' block in output: " + output);
+        int blockEnd = output.indexOf("\n====", blockStart);
+        String block = output.substring(blockStart, blockEnd < 0 ? output.length() : blockEnd);
+        assertTrue(block.contains("      match failed: CONTAINS"), block);
+        assertTrue(block.contains("\n        $ | actual does not contain expected"), block);
+        for (String line : block.substring(block.lastIndexOf('\n', block.indexOf("match failed:")) + 1).split("\n")) {
+            assertTrue(line.isBlank() || line.startsWith("      "), "line not indented under the step: [" + line + "]");
+        }
+    }
+
+    @Test
     void testErrorWithLocationDecoratesThrowableForJUnit() throws Exception {
         // Regression: the Throwable re-thrown to JUnit / surefire (and dumped raw in the console
         // [ERROR] line) must carry the failing feature-file location — otherwise the reader only
