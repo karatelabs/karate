@@ -16,7 +16,7 @@
     <description>Karate integration with Gatling for performance testing</description>
 
     <properties>
-        <gatling.version>3.15.1</gatling.version>
+        <gatling.version>3.16.0</gatling.version>
         <scala.version>3.7.4</scala.version>
     </properties>
 
@@ -55,7 +55,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.9.10</version>
+                <version>4.10.0</version>
                 <configuration>
                     <scalaVersion>${scala.version}</scalaVersion>
                 </configuration>
