@@ -29,6 +29,10 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
 >   variable (`#[] schema`, `##(schema)`, `#? _ == expected`) now resolves only when written in the
 >   mock feature itself; a marker held in a `read()` schema or built at runtime fails with a message
 >   naming the opt-in, `configure requestExpressionsEnabled = true` #3067.
+>   Also under **Breaking Changes**: in a mock, an embedded `#(...)` inside a value built by JS
+>   (`({ a: '#(' + name + ')' })`, a `karate.call()` result, a file read through an ext provider) is
+>   left verbatim unless that exact token is written in the mock feature or a file it `read()`s;
+>   `configure requestExpressionsEnabled = true` restores evaluation #3067.
 >   Also under **Breaking Changes**: a feature called from a mock (`call`, `callonce`, `karate.call()`)
 >   now runs with the mock's defaults — `Java.type()`, `karate.exec()` / `karate.fork()` are off and
 >   request data it receives stays inert; a helper that needs them has the mock opt in with

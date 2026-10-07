@@ -23,13 +23,21 @@
  */
 package io.karatelabs.core.mock;
 
+import io.karatelabs.common.Json;
+import io.karatelabs.common.Resource;
+import io.karatelabs.core.MockHandler;
 import io.karatelabs.core.MockServer;
+import io.karatelabs.core.ScenarioRuntime;
+import io.karatelabs.core.TestUtils;
+import io.karatelabs.gherkin.Feature;
 import io.karatelabs.http.ApacheHttpClient;
 import io.karatelabs.http.HttpClient;
+import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -608,6 +616,103 @@ class MockServerSecurityTest {
         MockServer server = probeMock("call read('" + HELPERS + "mock-call-match.feature@js') request",
                 "* configure requestExpressionsEnabled = true");
         assertEvaluated(server, probe(server));
+    }
+
+    // ---- request text reshaped by JS is still request data ----
+
+    private static final String EMBEDDED_MARKER = "#(karate.set('leaked', secret) || 'x')";
+
+    @Test
+    void testRequestTextReshapedByJsCannotRunByDefault() {
+        // a string JS built out of request text carries no mark, so the token itself is judged
+        for (String reshaped : List.of(
+                "'Hello ' + request.poc",
+                "`Hi ${request.poc}`",
+                "request.poc.replace('@', '')",
+                "'v=' + headerValue('x-poc')")) {
+            MockServer server = probeMock("def reshaped = ({ poc: " + reshaped + " })", null);
+            try {
+                HttpResponse res = probe(server).header("x-poc", EMBEDDED_MARKER)
+                        .body(Map.of("poc", EMBEDDED_MARKER)).invoke();
+                assertEquals(200, res.getStatus(), res.getBodyString());
+                assertEquals("undefined", leaked(server));
+            } finally {
+                server.stopAsync();
+            }
+        }
+    }
+
+    private MockServer.Builder reshapeMock(String configure) {
+        String feature = "Feature: echo\n"
+                + (configure == null ? "" : "Background:\n" + configure + "\n")
+                + "Scenario: pathMatches('/echo')\n* def response = ({ poc: 'Hello ' + request.poc })\n";
+        return MockServer.featureString(feature).port(0);
+    }
+
+    @Test
+    void testRequestTextReshapedByJsIsServedVerbatim() {
+        assertEquals("Hello " + JS_EXPR, roundTrip(reshapeMock(null).start(), JS_EXPR));
+    }
+
+    @Test
+    void testRequestTextReshapedByJsEvaluatedWhenOptedIn() {
+        assertEquals("Hello 2", roundTrip(reshapeMock("* configure requestExpressionsEnabled = true").start(), JS_EXPR));
+    }
+
+    @Test
+    void testCalledFeatureReshapedRequestTextStaysInert() {
+        assertEquals("Hello " + JS_EXPR, roundTrip(callMock("mock-call-concat.feature", null).start(), JS_EXPR));
+    }
+
+    @Test
+    void testEmbeddedExpressionsWrittenInFeatureOrReadFileStillRun() {
+        String feature = "Feature: template\nScenario: pathMatches('/probe')\n"
+                + "* def secret = 'x'\n* def greeting = 'hi'\n* def name = 'bob'\n"
+                + "* def fromFile = read('" + HELPERS + "mock-template.json')\n"
+                + "* def response = ({ file: fromFile, text: karate.readAsString('" + HELPERS + "mock-template.txt'),"
+                + " inline: 'Hello #(secret)', whole: '#(secret)' })\n";
+        MockServer server = MockServer.featureString(feature).port(0).start();
+        try {
+            HttpResponse res = probe(server).invoke();
+            assertEquals(200, res.getStatus(), res.getBodyString());
+            Map<String, Object> expected = Map.of(
+                    "file", Map.of("greeting", "hi", "inline", "Hello bob!"),
+                    "text", "Hello bob!\n", "inline", "Hello x", "whole", "x");
+            assertEquals(expected, res.getBodyConverted());
+        } finally {
+            server.stopAsync();
+        }
+    }
+
+    // ---- a mock answering on a thread where another scenario is live still applies its own policy ----
+
+    /** In-JVM glue: a plain scenario that drives a mock handler directly, as a Java step would. */
+    public static class Glue {
+
+        static MockHandler handler;
+
+        public static int apply() {
+            HttpRequest request = new HttpRequest();
+            request.setMethod("POST");
+            request.setPath("/probe");
+            request.putHeader("Content-Type", "application/json");
+            request.setBody(Json.stringifyStrict(Map.of("poc", "#? karate.set('leaked', 'yes') || true"))
+                    .getBytes(StandardCharsets.UTF_8));
+            return handler.apply(request).getStatus();
+        }
+    }
+
+    @Test
+    void testKarateMatchInMockIgnoresTheScenarioLiveOnTheThread() {
+        String mock = "Feature: match\nScenario: pathMatches('/probe')\n"
+                + "* def res = karate.match('string', request.poc)\n* def response = 'ok'\n";
+        Glue.handler = new MockHandler(Feature.read(Resource.text(mock)));
+        ScenarioRuntime sr = TestUtils.run("* def Glue = Java.type('io.karatelabs.core.mock.MockServerSecurityTest$Glue')\n"
+                + "* def status = Glue.apply()\n");
+        TestUtils.assertPassed(sr);
+        assertEquals(500, TestUtils.get(sr, "status"));
+        assertNull(TestUtils.get(sr, "leaked"));
+        assertNull(Glue.handler.getVariable("leaked"));
     }
 
     @Test

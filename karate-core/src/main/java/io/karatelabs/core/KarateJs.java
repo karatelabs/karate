@@ -237,19 +237,19 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 return provider.read(resource, fragment);
             }
             return switch (resource.getExtension()) {
-                case "json" -> JSONValue.parseKeepingOrder(resource.getText());
+                case "json" -> JSONValue.parseKeepingOrder(authorText(resource.getText()));
                 case "js" -> engine.eval(resource);
                 case "feature" -> {
                     Feature feature = Feature.read(resource);
                     yield tagSelector != null ? new FeatureCall(feature, tagSelector) : feature;
                 }
                 case "xml" -> {
-                    Document doc = Xml.toXmlDoc(resource.getText());
+                    Document doc = Xml.toXmlDoc(authorText(resource.getText()));
                     processXmlEmbeddedExpressions(doc);
                     yield doc;
                 }
-                case "csv" -> DataUtils.fromCsv(resource.getText());
-                case "yml", "yaml" -> DataUtils.fromYaml(resource.getText());
+                case "csv" -> DataUtils.fromCsv(authorText(resource.getText()));
+                case "yml", "yaml" -> DataUtils.fromYaml(authorText(resource.getText()));
                 // Binary file types - return raw bytes (V1 compatibility)
                 case "pdf", "png", "jpg", "jpeg", "gif", "ico", "mp4", "bin", "zip", "gz", "tar",
                      "xlsx", "xls", "docx", "doc", "pptx", "ppt" -> FileUtils.toBytes(resource.getStream());
@@ -258,7 +258,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                     // files not on the extension list above return bytes instead of
                     // being silently corrupted by a lossy text decode
                     byte[] bytes = FileUtils.toBytes(resource.getStream());
-                    yield hasBinaryMagic(bytes) ? bytes : FileUtils.toString(bytes);
+                    yield hasBinaryMagic(bytes) ? bytes : authorText(FileUtils.toString(bytes));
                 }
             };
         };
@@ -448,8 +448,25 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 throw new RuntimeException("read() needs at least one argument");
             }
             Resource resource = root.resolve(args[0] + "");
-            return resource.getText();
+            return authorText(resource.getText());
         };
+    }
+
+    // what a mock reads from a file is the author's text, so an embedded expression in it may run
+    private String authorText(String text) {
+        ScenarioRuntime rt = getRuntime();
+        if (rt != null) {
+            rt.addAuthorText(text);
+        }
+        return text;
+    }
+
+    // The scenario live on this thread, unless this bridge serves a mock: a mock answers on the
+    // server's thread, where in-JVM glue may have a non-mock scenario current, and the request's
+    // markers must stay under the mock's policy.
+    private ScenarioRuntime liveRuntime() {
+        ScenarioRuntime rt = mockHandler == null ? ScenarioRuntime.currentOrNull() : null;
+        return rt != null ? rt : getRuntime();
     }
 
     /**
@@ -531,10 +548,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 // to evalKarateExpression). The hand-rolled JsonPath split that used to live
                 // here understood none of the other forms, and handed jayway the raw target
                 // so an XML or JSON-string variable silently answered nothing.
-                ScenarioRuntime rt = ScenarioRuntime.currentOrNull();
-                if (rt == null) {
-                    rt = getRuntime();
-                }
+                ScenarioRuntime rt = liveRuntime();
                 try {
                     result = rt == null ? engine.eval(expr) : rt.getExecutor().evalKarateExpression(expr);
                 } catch (Exception e) {
@@ -660,10 +674,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 Object expected = args[1];
                 // markers in expected ('##(schemas.foo)', '#[] schemas.foo') resolve against the
                 // currently executing scenario, as the one-arg form below does
-                ScenarioRuntime rt = ScenarioRuntime.currentOrNull();
-                if (rt == null) {
-                    rt = getRuntime();
-                }
+                ScenarioRuntime rt = liveRuntime();
                 try (Value value = Match.evaluate(actual, null, null)) {
                     return rt == null ? value.is(engine, Match.Type.EQUALS, expected).toMap()
                             : value.is(rt.getEngine(), rt.markerPolicy(), Match.Type.EQUALS, expected).toMap();
@@ -683,10 +694,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 // captured getRuntime() (A) surfaced a "ReferenceError: response is not
                 // defined". Fall back to the captured runtime outside a live scenario
                 // (e.g. mock context).
-                ScenarioRuntime rt = ScenarioRuntime.currentOrNull();
-                if (rt == null) {
-                    rt = getRuntime();
-                }
+                ScenarioRuntime rt = liveRuntime();
                 if (rt == null) {
                     throw new RuntimeException("karate.match(String) is not available in this context");
                 }

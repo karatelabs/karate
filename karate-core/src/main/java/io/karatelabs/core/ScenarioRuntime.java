@@ -137,7 +137,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     // opt-in only, since it re-opens the injection surface. Defaults to off (request data is data).
     private boolean requestExpressionsEnabled;
     private ScenarioRuntime mockCaller; // the mock runtime a called feature serves, see inheritMockPosture
-    private String authorText; // see markerPolicy
+    private StringBuilder authorText; // see markerPolicy
+    private final Set<String> authorTextsAdded = new LinkedHashSet<>();
 
     // Debug support - step navigation
     private List<Step> steps;
@@ -1771,13 +1772,35 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         return isMock() && !requestExpressionsEnabled ? markerPolicy : null;
     }
 
+    /**
+     * Whether an embedded expression found in a value the scenario's JS produced may run: the same
+     * rule as {@link #markerPolicy}, since request text reshaped by JS ({@code 'Hi ' + request.name})
+     * carries no request-derived mark.
+     */
+    public boolean embeddedTrusted(String token) {
+        MarkerPolicy policy = markerPolicy();
+        return policy == null || policy.trusted(token);
+    }
+
+    /** Text a mock {@code read()} from a file is the author's, as the feature's own text is. */
+    public void addAuthorText(String text) {
+        // a mock's runtime outlives requests that re-read the same file - append each text once
+        if (isMock() && authorTextsAdded.add(text)) {
+            authorText().append('\n').append(text);
+        }
+    }
+
+    private StringBuilder authorText() {
+        if (authorText == null) {
+            authorText = new StringBuilder(withoutComments(scenario.getFeature().getResource().getText()));
+        }
+        return authorText;
+    }
+
     private final MarkerPolicy markerPolicy = new MarkerPolicy() {
         @Override
         public boolean trusted(String marker) {
-            if (authorText == null) {
-                authorText = withoutComments(scenario.getFeature().getResource().getText());
-            }
-            return authorText.contains(marker);
+            return authorText().indexOf(marker) != -1;
         }
 
         @Override

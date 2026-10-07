@@ -3455,6 +3455,11 @@ public class StepExecutor {
      * Process a string that may contain embedded expressions.
      */
     private Object processEmbeddedString(String str, boolean lenient, boolean forMatch) {
+        // a JS-produced value (lenient) may hold request text reshaped past its mark; in a mock
+        // such a token runs only when it is author text (see ScenarioRuntime.embeddedTrusted)
+        if (lenient && str.startsWith("#") && !runtime.embeddedTrusted(str)) {
+            return str;
+        }
         // Check for optional embedded: ##(...)
         if (str.startsWith("##(") && str.endsWith(")")) {
             String expr = str.substring(3, str.length() - 1);
@@ -3600,6 +3605,11 @@ public class StepExecutor {
             }
 
             String expr = str.substring(exprStart, j - 1);
+            if (lenient && !runtime.embeddedTrusted(str.substring(hashPos, j))) {
+                result.append(str, hashPos, j); // see processEmbeddedString
+                i = j;
+                continue;
+            }
             Object value;
             try {
                 value = runtime.eval(expr);
