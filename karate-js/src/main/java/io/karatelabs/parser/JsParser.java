@@ -2526,23 +2526,45 @@ public class JsParser extends BaseParser {
 
     /** §13.1.1: an identifier is never a ReservedWord spelled with escapes, nor {@code yield} / {@code await} where they are operators. */
     private void checkIdentifier(Token token) {
-        String name = token.getText();
-        if (name.length() != token.length && JsLexer.RESERVED_WORDS.contains(name)) {
+        // the common case, no escape: compare the raw spelling and extract no text
+        String name = token.buffer.escapedIdentifiers && hasEscape(token) ? token.getText() : null;
+        if (name != null && JsLexer.RESERVED_WORDS.contains(name)) {
             error("keyword '" + name + "' must not contain escape sequences");
         }
-        if (inGenerator && "yield".equals(name) || inAsyncBody && "await".equals(name)) {
-            error("'" + name + "' is a reserved word here");
+        if (inGenerator && spells(token, name, "yield") || inAsyncBody && spells(token, name, "await")) {
+            error("'" + token.getText() + "' is a reserved word here");
         }
-        if (STRICT_RESERVED.contains(name)) {
-            if (strictReservedIdents == null) {
-                strictReservedIdents = new HashSet<>();
+        char first = name == null ? source.charAt(token.pos) : name.charAt(0);
+        if (first != 'i' && first != 'l' && first != 'p' && first != 's' && first != 'y') {
+            return;
+        }
+        for (String word : STRICT_RESERVED) {
+            if (spells(token, name, word)) {
+                if (strictReservedIdents == null) {
+                    strictReservedIdents = new HashSet<>();
+                }
+                strictReservedIdents.add(token);
+                return;
             }
-            strictReservedIdents.add(token);
         }
     }
 
-    private static final Set<String> STRICT_RESERVED = Set.of(
-            "implements", "interface", "let", "package", "private", "protected", "public", "static", "yield");
+    private boolean hasEscape(Token token) {
+        for (int i = token.pos, end = token.pos + token.length; i < end; i++) {
+            if (source.charAt(i) == '\\') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** {@code name} is the decoded text of an escaped token, null when the raw spelling is the name. */
+    private boolean spells(Token token, String name, String word) {
+        return name == null ? isIdentText(token, word) : name.equals(word);
+    }
+
+    private static final String[] STRICT_RESERVED = {
+            "implements", "interface", "let", "package", "private", "protected", "public", "static", "yield"};
 
     private Token lastConsumedToken() {
         return markerNode().getLast().token;

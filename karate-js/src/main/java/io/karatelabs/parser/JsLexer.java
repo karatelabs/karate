@@ -656,7 +656,7 @@ public class JsLexer extends BaseLexer {
                 col++;
             } else if (c == '\\' && peek(1) == 'u') {
                 scanIdentifierEscape(pos == tokenStart);
-                escaped = true;
+                escaped = buffer.escapedIdentifiers = true;
             } else if (Character.isHighSurrogate(c) && isIdentifierCodePoint(source.codePointAt(pos), pos == tokenStart)) {
                 pos += 2;
                 col += 2;

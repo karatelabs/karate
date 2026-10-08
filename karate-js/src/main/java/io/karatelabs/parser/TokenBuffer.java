@@ -58,6 +58,9 @@ public class TokenBuffer {
     // cover the String elements, not the array reference holding them. Read once into a local.
     private volatile String[] texts;
 
+    // set by the lexer when any IdentifierName carries a backslash-u escape
+    boolean escapedIdentifiers;
+
     // Parallel array for parsed literal values - lazily allocated, memoized on first use.
     // Caching the text alone still leaves Double.parseDouble running on every evaluation of a
     // numeric literal; this holds the parsed value itself.
@@ -170,7 +173,7 @@ public class TokenBuffer {
 
     private String extractText(int index, int pos, int length) {
         String text = resource.getText().substring(pos, pos + length);
-        return tokens[index].type == TokenType.IDENT ? JsLexer.identifierName(text) : text;
+        return escapedIdentifiers && tokens[index].type == TokenType.IDENT ? JsLexer.identifierName(text) : text;
     }
 
     public Token getToken(int index) {
