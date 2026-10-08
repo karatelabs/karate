@@ -117,6 +117,9 @@ public abstract class BaseParser {
             return;
         }
         String hint = AsiHint.forFailure(tokens, position);
+        if (hint == null) {
+            hint = StrayQuoteHint.forFailure(tokens, position);
+        }
         if (token.getResource().isFile()) {
             System.err.println("file://" + token.getResource().getUri().getPath() + ":" + token.getPositionDisplay() + " " + message);
         }

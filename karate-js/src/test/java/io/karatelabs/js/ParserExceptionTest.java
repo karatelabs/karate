@@ -94,6 +94,35 @@ class ParserExceptionTest {
         assertNoAsiHint(engine, "if (true)\n(1 +)");
     }
 
+    @Test
+    void testDoubledQuoteHintsAtStrayQuote() {
+        Engine engine = new Engine();
+        ParserException pe = assertThrows(ParserException.class,
+                () -> engine.eval("bot.act('#a', 'input', 'x');\nbot.act('[data-test=\"username\"]', 'input', ''standard_user');"));
+        assertTrue(pe.getMessage().endsWith("\nhint: line 2 col 44: '' is an empty string followed directly by"
+                + " standard_user — a doubled or stray quote?"), pe.getMessage());
+        // the failure lands on the statement start, the object value, or the operand before it
+        assertHint(engine, "const s = ''x';", "hint: line 1 col 11: '' is an empty string followed directly by x");
+        assertHint(engine, "x = {a: ''b'}", "hint: line 1 col 9: '' is an empty string followed directly by b");
+        assertHint(engine, "f(a + ''x')", "hint: line 1 col 7: '' is an empty string followed directly by x");
+        assertHint(engine, "f(\"a\" \"b\")", "hint: line 1 col 3: \"a\" is a string followed directly by \"b\""
+                + " — a stray quote, or a missing ',' or '+'?");
+    }
+
+    @Test
+    void testStrayQuoteHintDoesNotFireOnValidNeighbours() {
+        Engine engine = new Engine();
+        assertNoAsiHint(engine, "f('a' + b, )x");
+        assertNoAsiHint(engine, "f(`a${b}` c)");
+        assertNoAsiHint(engine, "var s = 'a'\nfoo(;");
+        assertNoAsiHint(engine, "var o = {'a': b, 'c' in d +};");
+    }
+
+    private static void assertHint(Engine engine, String script, String hint) {
+        ParserException pe = assertThrows(ParserException.class, () -> engine.eval(script));
+        assertTrue(pe.getMessage().contains("\n" + hint), pe.getMessage());
+    }
+
     private static void assertNoAsiHint(Engine engine, String script) {
         ParserException pe = assertThrows(ParserException.class, () -> engine.eval(script));
         assertFalse(pe.getMessage().contains("hint:"), pe.getMessage());
