@@ -42,8 +42,8 @@ skip:
     # dropping the class-fields/methods-private feature rules also unshadows
     # 61 non-class tests that all FAIL — those rules canNOT be removed yet
     # despite the surface being implemented. Un-skip still not clean: floor
-    # without generators is ~500 residual FAILs. Gate: (a) member-name
-    # identifier lexer fix, (b) class early-error sweep, (c) features:
+    # without generators is ~500 residual FAILs. Gate: (a) re-measure now
+    # that escaped / astral identifiers lex, (b) class early-error sweep, (c) features:
     # [decorators] rule. Until then the path-skip stays; the engine
     # capability is proven by JsClassTest.
     - path: test/language/**/class/**

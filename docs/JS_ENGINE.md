@@ -1702,6 +1702,27 @@ delete) and destructuring-pattern leaves. Read paths were always complete:
 holds; note the host seam (`Engine.eval`) still unwraps `UNDEFINED` to Java
 `null`, which is easy to misread as an engine bug when probing from Java.
 
+### Statement termination & identifiers
+
+**ASI (§12.10) is the only implicit statement end.** `JsParser.eos()` accepts
+a `;`, a following `}` or end of input, or a LineTerminator before the next
+token; any other same-line token is a SyntaxError raised there
+(`var x = 'a' b`, `x = 1 y = 2`). It must not return false: the statement's
+tokens are already consumed, and the next `statement()` alternative would
+absorb the rest of the line. do-while ends at its `)` and needs no `eos()`.
+
+**IdentifierNames lex escapes and astral code points.** `\uXXXX` / `\u{…}`
+and surrogate-pair ID_Start / ID_Continue code points stay inside one IDENT;
+`Token.getText()` is the StringValue (decoded once, in `TokenBuffer`).
+Contextual keywords (`async`, `get`, `set`, `static`, `yield`, `await`) are
+matched on the raw source (`isIdentText` / `lastConsumedIs`), so an escaped
+spelling is never the keyword. `JsParser.checkIdentifier` runs at every
+binding, label and reference position: an escaped ReservedWord is an error
+there (a property name may spell one), as is `yield` in a generator or
+`await` in an async body (top-level `await` stays an identifier); the
+strict-only reserved words are collected there and rejected by the strict
+walk. A `\` anywhere else outside a literal is a lexer SyntaxError.
+
 ### Object literals & destructuring
 
 **Reserved words as object-literal keys.** `T_OBJECT_ELEM` /

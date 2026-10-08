@@ -151,21 +151,26 @@ public class TokenBuffer {
      * instead, which is the whole point of a cache being optional.
      */
     String getText(int index, int pos, int length) {
-        if (index < 0) {
+        if (index < 0 || index >= count) {
             return resource.getText().substring(pos, pos + length);
         }
         String[] cache = texts;
         if (cache == null) {
             cache = texts = new String[cacheSize()];
         }
-        if (index >= cache.length) { // not registered here, or added after the cache was sized
-            return resource.getText().substring(pos, pos + length);
+        if (index >= cache.length) { // added after the cache was sized
+            return extractText(index, pos, length);
         }
         String text = cache[index];
         if (text == null) {
-            text = cache[index] = resource.getText().substring(pos, pos + length);
+            text = cache[index] = extractText(index, pos, length);
         }
         return text;
+    }
+
+    private String extractText(int index, int pos, int length) {
+        String text = resource.getText().substring(pos, pos + length);
+        return tokens[index].type == TokenType.IDENT ? JsLexer.identifierName(text) : text;
     }
 
     public Token getToken(int index) {

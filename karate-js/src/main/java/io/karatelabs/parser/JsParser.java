@@ -58,6 +58,8 @@ public class JsParser extends BaseParser {
     // generator goes back to treating `yield` as an identifier, and arrows are
     // never generators.
     private boolean inGenerator = false;
+    // inAsync minus the top level: where `await` is reserved even as an identifier.
+    private boolean inAsyncBody = false;
 
     // The source text, for the allocation-free identifier comparisons that decide
     // the `async` / `await` contextual keywords (see isIdentText).
@@ -136,6 +138,10 @@ public class JsParser extends BaseParser {
     // key — gates the duplicate-proto-setter early error so ordinary literals pay only
     // a boolean test per node.
     private boolean sawProtoKey;
+
+    // Identifier-position tokens spelling a word reserved only in strict code (§13.1.1);
+    // strictness is known only in the early-error walk, which rejects them there.
+    private Set<Token> strictReservedIdents;
 
     public JsParser(Resource resource) {
         this(resource, false);
@@ -243,6 +249,8 @@ public class JsParser extends BaseParser {
             Node child = node.get(i);
             if (!child.isToken()) {
                 earlyErrors(child, childStrict, childInPatternContext(node, i, inPattern), childPrivates, childLabels);
+            } else if (childStrict && strictReservedIdents != null && strictReservedIdents.contains(child.token)) {
+                throw new ParserException("'" + child.getText() + "' is a reserved word in strict mode");
             }
         }
     }
@@ -1874,7 +1882,13 @@ public class JsParser extends BaseParser {
         }
         TokenType next = peek();
         // ASI also fires at `}` and end of input, with no LineTerminator needed.
-        return next == R_CURLY || next == EOF || !noLineTerminatorBefore();
+        if (next == R_CURLY || next == EOF || !noLineTerminatorBefore()) {
+            return true;
+        }
+        // The statement's tokens are already consumed, so a false here would let the next
+        // alternative in statement() parse the rest of the line as part of this statement.
+        error(SEMI);
+        return true;
     }
 
     private boolean expr_list(boolean mandatory) {
@@ -1929,7 +1943,7 @@ public class JsParser extends BaseParser {
 
     private boolean var_decl(boolean requireInit) {
         enter(NodeType.VAR_DECL);
-        boolean hasBinding = lit_array() || lit_object() || consumeIf(IDENT);
+        boolean hasBinding = lit_array() || lit_object() || consumeIdentifier();
         if (!hasBinding) {
             return exit(false, false);
         }
@@ -1981,7 +1995,7 @@ public class JsParser extends BaseParser {
             // as var_decl so `catch ([a,b])` / `catch ({e})` parse through the
             // destructuring cover-grammar, not just bare idents.
             if (consumeIf(L_PAREN)) {
-                if (!(lit_array() || lit_object() || consumeIf(IDENT))) {
+                if (!(lit_array() || lit_object() || consumeIdentifier())) {
                     error(IDENT, L_BRACKET, L_CURLY);
                 }
                 consumeSoft(R_PAREN);
@@ -2158,6 +2172,7 @@ public class JsParser extends BaseParser {
     private void label_ref() {
         if (peekIf(IDENT) && noLineTerminatorBefore()) {
             consumeNext();
+            checkIdentifier(lastConsumedToken());
             sawLabel = true;
         }
     }
@@ -2170,6 +2185,7 @@ public class JsParser extends BaseParser {
             return false;
         }
         enter(NodeType.LABELLED_STMT, IDENT);
+        checkIdentifier(lastConsumedToken());
         sawLabel = true;
         consumeSoft(COLON);
         statement(true);
@@ -2499,6 +2515,45 @@ public class JsParser extends BaseParser {
      *  against the source directly: this sits on the per-expression path for the contextual
      *  keywords, and {@link Token#getText()} would allocate the memoized-text array for
      *  identifiers nothing else asks about. Callers check the token type. */
+    /** consumeIf(IDENT) at a BindingIdentifier / LabelIdentifier / IdentifierReference. */
+    private boolean consumeIdentifier() {
+        if (!consumeIf(IDENT)) {
+            return false;
+        }
+        checkIdentifier(lastConsumedToken());
+        return true;
+    }
+
+    /** §13.1.1: an identifier is never a ReservedWord spelled with escapes, nor {@code yield} / {@code await} where they are operators. */
+    private void checkIdentifier(Token token) {
+        String name = token.getText();
+        if (name.length() != token.length && JsLexer.RESERVED_WORDS.contains(name)) {
+            error("keyword '" + name + "' must not contain escape sequences");
+        }
+        if (inGenerator && "yield".equals(name) || inAsyncBody && "await".equals(name)) {
+            error("'" + name + "' is a reserved word here");
+        }
+        if (STRICT_RESERVED.contains(name)) {
+            if (strictReservedIdents == null) {
+                strictReservedIdents = new HashSet<>();
+            }
+            strictReservedIdents.add(token);
+        }
+    }
+
+    private static final Set<String> STRICT_RESERVED = Set.of(
+            "implements", "interface", "let", "package", "private", "protected", "public", "static", "yield");
+
+    private Token lastConsumedToken() {
+        return markerNode().getLast().token;
+    }
+
+    /** The token just consumed is an IDENT spelled exactly {@code text} — a contextual keyword has no escaped form. */
+    private boolean lastConsumedIs(String text) {
+        Token token = lastConsumedToken();
+        return token.type == IDENT && isIdentText(token, text);
+    }
+
     private boolean isIdentText(Token token, String text) {
         if (token.length != text.length()) {
             return false;
@@ -2528,13 +2583,15 @@ public class JsParser extends BaseParser {
     private boolean fn_body(boolean async, boolean generator) {
         boolean prevAsync = inAsync;
         boolean prevGenerator = inGenerator;
-        inAsync = async;
+        boolean prevAsyncBody = inAsyncBody;
+        inAsync = inAsyncBody = async;
         inGenerator = generator;
         try {
             return block(true);
         } finally {
             inAsync = prevAsync;
             inGenerator = prevGenerator;
+            inAsyncBody = prevAsyncBody;
         }
     }
 
@@ -2544,13 +2601,15 @@ public class JsParser extends BaseParser {
     private boolean fn_body_or_expr(boolean async) {
         boolean prevAsync = inAsync;
         boolean prevGenerator = inGenerator;
-        inAsync = async;
+        boolean prevAsyncBody = inAsyncBody;
+        inAsync = inAsyncBody = async;
         inGenerator = false; // arrows are never generators — `yield` reverts to identifier
         try {
             return block(false) || expr(-1, false);
         } finally {
             inAsync = prevAsync;
             inGenerator = prevGenerator;
+            inAsyncBody = prevAsyncBody;
         }
     }
 
@@ -2633,12 +2692,16 @@ public class JsParser extends BaseParser {
             }
             error("a function declaration requires a name");
         }
-        return fn_expr();
+        return fn_expr(true);
     }
 
     private boolean fn_expr() {
+        return fn_expr(false);
+    }
+
+    private boolean fn_expr(boolean declaration) {
         if (enter(NodeType.FN_EXPR, FUNCTION)) {
-            return fn_expr_tail(false);
+            return fn_expr_tail(false, declaration);
         }
         // `async function …`, declaration or expression. `async` is a contextual keyword
         // and only a modifier when `function` follows it on the same line — with a
@@ -2653,11 +2716,11 @@ public class JsParser extends BaseParser {
         markerNode().async = true;
         consumeNext(); // `async`
         consumeNext(); // `function`
-        return fn_expr_tail(true);
+        return fn_expr_tail(true, declaration);
     }
 
     // Everything after the `function` keyword: optional name, parameters, body.
-    private boolean fn_expr_tail(boolean async) {
+    private boolean fn_expr_tail(boolean async, boolean declaration) {
         boolean generator = consumeIf(STAR);
         if (generator) {
             if (async) {
@@ -2665,7 +2728,17 @@ public class JsParser extends BaseParser {
             }
             markerNode().generator = true;
         }
-        consumeIf(IDENT);
+        if (declaration) {
+            consumeIdentifier();
+        } else { // a function expression binds its name in its own scope
+            boolean prevGenerator = inGenerator;
+            boolean prevAsyncBody = inAsyncBody;
+            inGenerator = generator;
+            inAsyncBody = async;
+            consumeIdentifier();
+            inGenerator = prevGenerator;
+            inAsyncBody = prevAsyncBody;
+        }
         fn_decl_args();
         fn_body(async, generator);
         return exit();
@@ -2699,7 +2772,7 @@ public class JsParser extends BaseParser {
         enter(NodeType.FN_DECL_ARG);
         if (consumeIf(DOT_DOT_DOT)) {
             // BindingRestElement → BindingIdentifier | BindingPattern (`...[a, b]`)
-            if (!(consumeIf(IDENT) || lit_array() || lit_object())) {
+            if (!(consumeIdentifier() || lit_array() || lit_object())) {
                 error(IDENT, L_BRACKET, L_CURLY);
             }
             if (!peekIf(R_PAREN)) {
@@ -2707,7 +2780,7 @@ public class JsParser extends BaseParser {
             }
             return exit();
         }
-        boolean result = consumeIf(IDENT) || lit_array() || lit_object();
+        boolean result = consumeIdentifier() || lit_array() || lit_object();
         if (result && consumeIf(EQ)) {
             expr(-1, true);
         }
@@ -2777,7 +2850,7 @@ public class JsParser extends BaseParser {
         if (!enter(NodeType.CLASS_EXPR, CLASS)) {
             return false;
         }
-        consumeIf(IDENT); // optional class name
+        consumeIdentifier(); // optional class name
         if (consumeIf(EXTENDS)) { // heritage: `extends <LeftHandSideExpression>`
             expr(13, true); // priority 13 = LHS level (same as `new` operand)
         }
@@ -2849,8 +2922,7 @@ public class JsParser extends BaseParser {
             if (peekIf(L_PAREN)) {
                 break; // the just-consumed token is the method name (the key)
             }
-            String text = lastConsumedText();
-            if (("static".equals(text) || "get".equals(text) || "set".equals(text))
+            if ((lastConsumedIs("static") || lastConsumedIs("get") || lastConsumedIs("set"))
                     && (peekAnyOf(T_CLASS_KEY_NAME) || peekIf(L_BRACKET) || peekIf(STAR))) {
                 continue; // it was a modifier — loop to consume the real key
             }
@@ -2859,7 +2931,7 @@ public class JsParser extends BaseParser {
             // per the spec's no-LineTerminator restriction. Until this existed the async
             // was silently dropped — the member parsed as a field named `async` plus an
             // ordinary (synchronous) method.
-            if ("async".equals(text) && (peekAnyOf(T_CLASS_KEY_NAME) || peekIf(L_BRACKET) || peekIf(STAR))
+            if (lastConsumedIs("async") && (peekAnyOf(T_CLASS_KEY_NAME) || peekIf(L_BRACKET) || peekIf(STAR))
                     && !lineTerminatorFollows(markerNode().getLast().token)) {
                 async = true;
                 continue;
@@ -2925,6 +2997,7 @@ public class JsParser extends BaseParser {
         if (!enter(NodeType.REF_EXPR, IDENT)) {
             return false;
         }
+        checkIdentifier(lastConsumedToken());
         lineTerminatorBeforeArrowIsAnError();
         if (enter(NodeType.FN_ARROW_EXPR, EQ_GT)) {
             if (fn_body_or_expr(false)) {
@@ -3039,8 +3112,7 @@ public class JsParser extends BaseParser {
         // `get`/`set` was consumed by enter as an IDENT. It is an accessor keyword
         // only when followed by a property-name token; otherwise fall through so
         // {get}, {get: 1}, {get() {}} etc. continue to work as regular entries.
-        if (lastConsumed() == IDENT
-                && ("get".equals(lastConsumedText()) || "set".equals(lastConsumedText()))
+        if ((lastConsumedIs("get") || lastConsumedIs("set"))
                 && peekAnyOf(T_ACCESSOR_KEY_START)) {
             return object_method_elem(false);
         }
@@ -3048,7 +3120,7 @@ public class JsParser extends BaseParser {
         // `async` counts as one only when a property name follows on the same line, so
         // {async: 1}, {async} and {async() {}} (a method actually named `async`) are
         // untouched. The async-ness is recorded on the synthetic FN_EXPR.
-        if (lastConsumed() == IDENT && "async".equals(lastConsumedText())
+        if (lastConsumedIs("async")
                 && peekAnyOf(T_ACCESSOR_KEY_START)
                 && !lineTerminatorFollows(markerNode().getLast().token)) {
             return object_method_elem(true);
@@ -3080,6 +3152,10 @@ public class JsParser extends BaseParser {
             return exit();
         }
         if (consumeIf(COMMA) || peekIf(R_CURLY)) { // es6 enhanced object literals
+            Token key = markerNode().getFirst().token;
+            if (key != null && key.type == IDENT) {
+                checkIdentifier(key); // shorthand: the key is also an IdentifierReference
+            }
             return exit();
         }
         boolean spread = false;

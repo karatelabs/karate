@@ -534,7 +534,7 @@ Touch only when a priority above drags it in:
   `phase: parse` tests the engine parses instead of rejecting; scope with
   `jq -r 'select(.error_type=="MissingParseError").path'`). Roughly a third
   is regexp-literal validation, plus a fragmented destructuring-pattern
-  tail, escaped-keyword misuse,
+  tail,
   getter/setter arity, the non-simple-param `"use strict"` prologue,
   and (new with async support, ~30
   tests) the async-function early errors — `await` in formals, `super()`
@@ -621,8 +621,8 @@ early-error validation) is advanced-pattern territory.
 | Slice | What's blocking it |
 |---|---|
 | `test/language/statements/for-of` | IteratorClose machinery is in place (`Interpreter.destructurePattern`/`evalForStmt` + `JsIterator.close`). Remaining: assignment-pattern target-eval-order (`[ obj[sideEffect()] ] of …` must evaluate the target reference before stepping the iterator — the `*thrw-close*` family, a rare spec corner); fn-name inference for `[x = (function(){})] of …`; negative-parse tightenings. |
-| `test/language/expressions/object` | Escaped-keyword cover-name dominates; computed-key / method-def tail. *(`__proto__` set/duplicate and the spread CopyDataProperties family shipped 2026-08-16.)* |
-| `test/language/expressions/assignment` | Corrected 2026-08-16: the "destructuring parse tail" attribution was wrong — `({[a]:b, ...rest} = vals)` parses fine. Actual causes: escaped-keyword cover-names (~87) + the trailing-dot numeric literal `1.` (all 7 `dstr/obj-rest-non-string-computed-property-*`). |
+| `test/language/expressions/object` | Computed-key / method-def tail. *(`__proto__` set/duplicate and the spread CopyDataProperties family shipped 2026-08-16.)* |
+| `test/language/expressions/assignment` | Corrected 2026-08-16: the "destructuring parse tail" attribution was wrong — `({[a]:b, ...rest} = vals)` parses fine. Residual: destructuring IteratorClose (`array-elem-trlg-iter-*-rtrn/thrw`, `array-rest-iter-rtrn-close`), a `dstr` early-error tail, fn-name inference on the LHS. |
 | `test/language/{statements,expressions}/function` + `arrow-function` | fn-name inference for `[x = (function(){})]`-style defaults; IteratorClose-on-throw; rest-element edges. |
 | `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS now fires under in-body `"use strict"` (the `onlyStrict`-flagged variants stay SKIP until the runner runs a strict pass). Corrected 2026-08-16: the `A5.*_T2/T3` family is **not** an Annex-B non-identifier-LHS issue — all 44 FAILs here (and ~90 suite-wide, incl. prefix/postfix inc/dec and `identifier-resolution`) are the **`with` statement**: `with` isn't a token, lexes as an identifier, `with (x)` parses as a call, and the following block derails. Real-world value low (illegal in strict mode); the path-skip only covers `statements/with/`. |
 | `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion and empty-`for`-header semantics handle the headline cases. 2026-08-16 closed: optional-catch-binding+`finally`, `default`-in-any-position, shared CaseBlock environment. Residual in `for/`: loop completion-value `undefined`-vs-`null` (`head-init-*-check-empty-inc-empty-completion.js`) and `let` as a plain identifier in a for head (`head-lhs-let.js`, parser); in `switch/`: `scope-lex-open-*` TDZ corners + feature-gated variants. |
@@ -724,8 +724,8 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   `async-functions` / `decorators`); see the [Skip list](#skip-list) note for
   the path-skip un-skip plan. Fresh un-skip re-measure (2026-08-16) with
   bucket counts lives in the `expectations.yaml` comment on the class
-  path rule; dominant blocker is the member-name identifier lexer, not
-  the public-field tail.
+  path rule; its dominant blocker, the member-name identifier lexer, is
+  fixed (escaped / astral identifiers lex), so re-measure before un-skipping.
 - **Symbol primitive — the remaining half.** The identity-keyed slot store
   and `typeof` landed (see Active priorities); what is left: `Symbol.prototype`
   (`description`, `toString`, `valueOf`), the registry (`Symbol.for` / `keyFor`),

@@ -118,6 +118,52 @@ class ParserExceptionTest {
         assertNoAsiHint(engine, "var o = {'a': b, 'c' in d +};");
     }
 
+    @Test
+    void testSameLineTokenAfterStatementIsParseError() {
+        Engine engine = new Engine();
+        for (String script : new String[]{
+                "var x = 'a' b;", "x = 1 y = 2", "let a = b c", "const c = 1 d", "var e = 1, f = 2 g",
+                "function h() { return x y }", "throw x y", "l: for (;;) { break l z }",
+                "l: for (;;) { continue l z }", "a = 1 'b'", "f() g()"}) {
+            assertThrows(ParserException.class, () -> engine.eval(script), script);
+        }
+        assertHint(engine, "var x = 'a' b;", "hint: line 1 col 9: 'a' is a string followed directly by b");
+    }
+
+    @Test
+    void testAsiStillInsertedWhereSpecAllows() {
+        Engine engine = new Engine();
+        assertEquals(3, ((Number) engine.eval("var a = 1\nvar b = 2\na + b")).intValue());
+        assertEquals(7, ((Number) engine.eval("function f() { return 7 } f()")).intValue());
+        engine.eval("var g = 4");
+        assertEquals(4, ((Number) engine.eval("g")).intValue());
+        assertEquals(2, ((Number) engine.eval("var c = 1, d = 1\nc\n++d\nd")).intValue());
+        assertEquals(1, ((Number) engine.eval("c")).intValue());
+        assertNull(engine.eval("function r() { return\n42 } r()"));
+        assertEquals(3, ((Number) engine.eval("var i = 0; do i++; while (i < 3) i")).intValue());
+        assertEquals(5, ((Number) engine.eval("var k = 0; if (true) { k = 5 } k")).intValue());
+    }
+
+    @Test
+    void testEscapedAndAstralIdentifiers() {
+        Engine engine = new Engine();
+        assertEquals(1, ((Number) engine.eval("var \\u0062 = 1; b")).intValue());
+        assertEquals(2, ((Number) engine.eval("var a\\u{62}c = 2; abc")).intValue());
+        assertEquals(3, ((Number) engine.eval("var 𐀀x = 3; 𐀀x")).intValue());
+        assertThrows(ParserException.class, () -> engine.eval("var \\u0063ase = 1"));
+        assertEquals(4, ((Number) engine.eval("({ \\u0069f: 4 }).i\\u{66}")).intValue());
+        assertThrows(ParserException.class, () -> engine.eval("var \\u0030x = 1"));
+        assertThrows(ParserException.class, () -> engine.eval("var a\\u00 = 1"));
+        assertThrows(ParserException.class, () -> engine.eval("a \\ b"));
+        // an escaped contextual keyword is only ever an identifier, and only where that word may be one
+        assertEquals(5, ((Number) engine.eval("var st\\u0061tic = 5; static")).intValue());
+        assertThrows(ParserException.class, () -> engine.eval("'use strict'; var st\\u0061tic = 1"));
+        assertThrows(ParserException.class, () -> engine.eval("function* g() { var yi\\u0065ld; }"));
+        assertThrows(ParserException.class, () -> engine.eval("async function f() { \\u0061wait: 1 }"));
+        assertThrows(ParserException.class, () -> engine.eval("({ g\\u0065t m() { return 1 } })"));
+        engine.eval("function* h() { (function yield() {}) }");
+    }
+
     private static void assertHint(Engine engine, String script, String hint) {
         ParserException pe = assertThrows(ParserException.class, () -> engine.eval(script));
         assertTrue(pe.getMessage().contains("\n" + hint), pe.getMessage());

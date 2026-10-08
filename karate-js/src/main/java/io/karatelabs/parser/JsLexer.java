@@ -27,6 +27,7 @@ import io.karatelabs.common.Resource;
 
 import java.util.ArrayDeque;
 import java.util.List;
+import java.util.Set;
 
 import static io.karatelabs.parser.TokenType.*;
 
@@ -150,7 +151,9 @@ public class JsLexer extends BaseLexer {
         }
 
         // Unicode identifiers (rare)
-        if (c > 127 && Character.isJavaIdentifierStart(c)) {
+        if (c > 127 && Character.isJavaIdentifierStart(c) && c != VERTICAL_TILDE
+                || c == '\\' && peek(1) == 'u'
+                || Character.isHighSurrogate(c) && isIdentifierCodePoint(source.codePointAt(pos), true)) {
             return scanIdentifier();
         }
 
@@ -633,6 +636,7 @@ public class JsLexer extends BaseLexer {
     // ========== Identifiers and Keywords ==========
 
     private TokenType scanIdentifier() {
+        boolean escaped = false;
         // Fast path for ASCII identifiers (most common case)
         while (pos < length) {
             char c = source.charAt(pos);
@@ -641,7 +645,7 @@ public class JsLexer extends BaseLexer {
                 pos++;
                 col++;
             } else if (c > 127 && (c == '\u200C' || c == '\u200D'
-                    || (Character.isUnicodeIdentifierPart(c) && !Character.isIdentifierIgnorable(c)))) {
+                    || (Character.isUnicodeIdentifierPart(c) && !Character.isIdentifierIgnorable(c) && c != VERTICAL_TILDE))) {
                 // Unicode identifier part — rare but must handle. Spec §12.7:
                 // IdentifierPart is ID_Continue plus ZWNJ/ZWJ (U+200C/U+200D);
                 // Java's isJavaIdentifierPart also admits ignorable Cf format
@@ -650,11 +654,91 @@ public class JsLexer extends BaseLexer {
                 // SyntaxError.
                 pos++;
                 col++;
+            } else if (c == '\\' && peek(1) == 'u') {
+                scanIdentifierEscape(pos == tokenStart);
+                escaped = true;
+            } else if (Character.isHighSurrogate(c) && isIdentifierCodePoint(source.codePointAt(pos), pos == tokenStart)) {
+                pos += 2;
+                col += 2;
             } else {
                 break;
             }
         }
-        return keywordOrIdent(tokenStart, pos - tokenStart);
+        // an escaped keyword is still an IdentifierName (a property name); JsParser rejects it elsewhere
+        return escaped ? IDENT : keywordOrIdent(tokenStart, pos - tokenStart);
+    }
+
+    // U+2E2F is Lm, so the JDK calls it identifier material, but it is Pattern_Syntax and so not ID_Start / ID_Continue
+    private static final char VERTICAL_TILDE = '\u2E2F';
+
+    static final Set<String> RESERVED_WORDS = Set.of(
+            "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do",
+            "else", "enum", "export", "extends", "false", "finally", "for", "function", "if", "import", "in",
+            "instanceof", "new", "null", "return", "super", "switch", "this", "throw", "true", "try", "typeof",
+            "var", "void", "while", "with");
+
+    // backslash-u HHHH or backslash-u {H...} inside an IdentifierName; the decoded code point must itself be identifier material
+    private void scanIdentifierEscape(boolean start) {
+        int cp = -1;
+        if (peek(2) == '{') {
+            int j = 3;
+            long value = 0;
+            while (isHexDigit(peek(j)) && value <= 0x10FFFF) {
+                value = value * 16 + Character.digit(peek(j), 16);
+                j++;
+            }
+            if (j > 3 && peek(j) == '}' && value <= 0x10FFFF) {
+                cp = (int) value;
+                pos += j + 1;
+                col += j + 1;
+            }
+        } else if (isHexDigit(peek(2)) && isHexDigit(peek(3)) && isHexDigit(peek(4)) && isHexDigit(peek(5))) {
+            cp = Integer.parseInt(source.substring(pos + 2, pos + 6), 16);
+            pos += 6;
+            col += 6;
+        }
+        if (cp == -1 || !(cp == '$' || cp == '_' || isIdentifierCodePoint(cp, start))) {
+            throw new ParserException(String.format(
+                    "invalid escape sequence in identifier at %d:%d", tokenLine + 1, tokenCol + 1));
+        }
+    }
+
+    // ID_Start / ID_Continue (plus ZWNJ, ZWJ for a part). Unassigned code points pass: the JDK's
+    // Unicode tables can trail the spec's, and the lenient IDENT fallback treats them the same way.
+    private static boolean isIdentifierCodePoint(int cp, boolean start) {
+        if (cp == VERTICAL_TILDE) {
+            return false;
+        }
+        if (Character.getType(cp) == Character.UNASSIGNED) {
+            return true;
+        }
+        if (start) {
+            return Character.isUnicodeIdentifierStart(cp);
+        }
+        return cp == 0x200C || cp == 0x200D
+                || Character.isUnicodeIdentifierPart(cp) && !Character.isIdentifierIgnorable(cp);
+    }
+
+    /** The StringValue of an IdentifierName: its backslash-u escapes decoded. */
+    static String identifierName(String raw) {
+        if (raw.indexOf('\\') == -1) {
+            return raw;
+        }
+        StringBuilder sb = new StringBuilder(raw.length());
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c != '\\') {
+                sb.append(c);
+            } else if (raw.charAt(i + 2) == '{') {
+                int end = raw.indexOf('}', i);
+                sb.appendCodePoint(Integer.parseInt(raw.substring(i + 3, end), 16));
+                i = end;
+            } else {
+                sb.append((char) Integer.parseInt(raw.substring(i + 2, i + 6), 16));
+                i += 5;
+            }
+        }
+        return sb.toString();
     }
 
     // `#` + IdentifierName, one token including the hash. A bare `#` has no other
@@ -874,6 +958,10 @@ public class JsLexer extends BaseLexer {
             case '%':
                 return match('=') ? PERCENT_EQ : PERCENT;
 
+            case '\\': // only an identifier's backslash-u escape may appear outside a literal
+                throw new ParserException(String.format(
+                        "unexpected character '\\' at %d:%d", tokenLine + 1, tokenCol + 1));
+
             default:
                 // A non-ASCII char in a category that can never be identifier
                 // material or whitespace is a SyntaxError (§12.2) — e.g. U+180E
@@ -884,7 +972,7 @@ public class JsLexer extends BaseLexer {
                 // as identifiers.
                 if (c > 127) {
                     int type = Character.getType(c);
-                    if (type == Character.FORMAT || type == Character.CONTROL
+                    if (type == Character.FORMAT || type == Character.CONTROL || c == VERTICAL_TILDE
                             || type == Character.LINE_SEPARATOR || type == Character.PARAGRAPH_SEPARATOR) {
                         throw new ParserException(String.format(
                                 "unexpected character '\\u%04X' at %d:%d", (int) c, tokenLine + 1, tokenCol + 1));
