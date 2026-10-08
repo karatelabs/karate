@@ -276,7 +276,7 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
             // makes the signout definite from the client side instead of
             // leaving a defunct cookie hanging around.
             if (context.wasExplicitlyClosed()) {
-                clearSessionCookie(response);
+                clearSessionCookie(context.getRequest(), response);
             }
             return;
         }
@@ -288,16 +288,11 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
         // callbacks are GETs back from the IdP and would lose state). Apps
         // that need cross-site POST callbacks (OAuth response_mode=form_post,
         // e.g. Microsoft via MSAL4J >=1.18) opt in to SameSite=None via
-        // ServerConfig.sessionSameSite(SameSite.NONE) — None requires Secure,
-        // which is added automatically below outside dev mode.
+        // ServerConfig.sessionSameSite(SameSite.NONE).
         SameSite sameSite = config.getSessionSameSite();
         String cookieValue = config.getSessionCookieName() + "=" + session.getId()
                 + "; Path=/; HttpOnly; SameSite=" + sameSite.headerValue();
-        // SameSite=None cookies MUST be Secure per the spec — browsers reject
-        // them otherwise. Force Secure for None even in dev mode (a
-        // None-without-Secure cookie is silently dropped, which is more
-        // confusing than the dev failing to test https locally).
-        if (!config.isDevMode() || sameSite == SameSite.NONE) {
+        if (isSecure(context.getRequest(), sameSite)) {
             cookieValue += "; Secure";
         }
         appendSetCookie(response, cookieValue);
@@ -309,14 +304,28 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
      * matches and removes the existing cookie — most browsers ignore a clear
      * whose {@code Path}/{@code SameSite}/{@code Secure} don't match.
      */
-    private void clearSessionCookie(HttpResponse response) {
+    private void clearSessionCookie(HttpRequest request, HttpResponse response) {
         SameSite sameSite = config.getSessionSameSite();
         String cookieValue = config.getSessionCookieName() + "=; Path=/; HttpOnly; Max-Age=0"
                 + "; SameSite=" + sameSite.headerValue();
-        if (!config.isDevMode() || sameSite == SameSite.NONE) {
+        if (isSecure(request, sameSite)) {
             cookieValue += "; Secure";
         }
         appendSetCookie(response, cookieValue);
+    }
+
+    /**
+     * Secure only over https (direct TLS or {@code X-Forwarded-Proto}, see
+     * {@link HttpServerHandler#toRequest}): browsers drop a Secure cookie set over
+     * plain http on any host but localhost. SameSite=None is always Secure —
+     * browsers reject None without it.
+     */
+    private static boolean isSecure(HttpRequest request, SameSite sameSite) {
+        if (sameSite == SameSite.NONE) {
+            return true;
+        }
+        String urlBase = request == null ? null : request.getUrlBase();
+        return urlBase != null && urlBase.regionMatches(true, 0, "https:", 0, 6);
     }
 
     /**

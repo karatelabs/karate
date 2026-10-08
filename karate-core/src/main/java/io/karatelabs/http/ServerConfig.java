@@ -335,8 +335,8 @@ public class ServerConfig {
      * callback URL). Lax cookies are dropped on cross-site POSTs by every
      * standards-compliant browser, so the session cookie set during the
      * pre-redirect signin flow would not survive the IdP's POST back.
-     * {@code None} requires {@code Secure}, which is added automatically
-     * outside dev mode.
+     * {@code None} requires {@code Secure}, which is always added (otherwise
+     * the session cookie is {@code Secure} only over https).
      * <p>
      * When using {@code None}, ensure the path receiving the cross-site POST
      * is in {@link #csrfExemptPaths(String...)} (the IdP cannot send your

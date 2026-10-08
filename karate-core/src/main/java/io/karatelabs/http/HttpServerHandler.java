@@ -55,7 +55,7 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) {
         HttpRequest request;
         try {
-            request = toRequest(req);
+            request = toRequest(req, server.isSsl());
         } catch (Exception e) {
             // A malformed REQUEST LINE fails here, before any handler exists to answer it — a bad
             // percent-escape in the query string (`?state=%zz`) makes Netty's QueryStringDecoder throw
@@ -135,6 +135,10 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
     }
 
     static HttpRequest toRequest(FullHttpRequest req) {
+        return toRequest(req, false);
+    }
+
+    static HttpRequest toRequest(FullHttpRequest req, boolean ssl) {
         HttpRequest request = new HttpRequest();
         request.setUrl(req.uri());
         request.setMethod(req.method().name());
@@ -150,7 +154,7 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         if (host != null) {
             String proto = hh.get("X-Forwarded-Proto");
             if (proto == null) {
-                proto = "http";
+                proto = ssl ? "https" : "http";
             }
             request.setUrlBase(proto + "://" + host);
         }

@@ -36,6 +36,17 @@ class HttpServerHandlerTest {
     }
 
     @Test
+    void testToRequestSetsHttpsOverTls() {
+        FullHttpRequest nettyRequest = new DefaultFullHttpRequest(
+                HttpVersion.HTTP_1_1, HttpMethod.GET, "/signin");
+        nettyRequest.headers().set("Host", "myapp.example.com");
+
+        HttpRequest request = HttpServerHandler.toRequest(nettyRequest, true);
+
+        assertEquals("https://myapp.example.com", request.jsGet("urlBase"));
+    }
+
+    @Test
     void testToRequestWithoutHostHeader() {
         FullHttpRequest nettyRequest = new DefaultFullHttpRequest(
                 HttpVersion.HTTP_1_1, HttpMethod.GET, "/test");

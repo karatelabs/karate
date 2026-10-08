@@ -102,6 +102,10 @@ public class HttpRequest implements SimpleObject {
         }
     }
 
+    public String getUrlBase() {
+        return urlBase;
+    }
+
     public void setUrlBase(String urlBase) {
         this.urlBase = urlBase;
     }

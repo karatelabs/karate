@@ -84,8 +84,7 @@ class SameSiteAndCsrfExemptTest {
         String cookie = setCookie(response);
         assertNotNull(cookie, "session init must Set-Cookie");
         assertTrue(cookie.contains("SameSite=Lax"), "default should be SameSite=Lax: " + cookie);
-        // dev mode → no Secure flag (so localhost http works)
-        assertFalse(cookie.contains("Secure"), "Secure not set in dev mode for Lax: " + cookie);
+        assertFalse(cookie.contains("Secure"), "Secure not set over http for Lax: " + cookie);
     }
 
     @Test
@@ -134,6 +133,21 @@ class SameSiteAndCsrfExemptTest {
         String cookie = setCookie(response);
         assertNotNull(cookie);
         assertTrue(cookie.contains("SameSite=Lax"), "null should fall back to Lax: " + cookie);
+    }
+
+    @Test
+    void testSessionCookieSecureOnlyOverHttps() {
+        // browsers drop a Secure cookie set over plain http on any non-localhost host
+        InMemoryTestHarness h = harness(baseConfig().devMode(false).csrfEnabled(false));
+
+        String http = setCookie(h.get("http://10.0.0.5:8080/api/session?action=init"));
+        assertNotNull(http);
+        assertFalse(http.contains("Secure"), "plain http must not set Secure: " + http);
+        assertTrue(http.contains("HttpOnly") && http.contains("SameSite=Lax"), http);
+
+        String https = setCookie(h.get("https://myapp.example.com/api/session?action=init"));
+        assertNotNull(https);
+        assertTrue(https.contains("; Secure"), "https must set Secure: " + https);
     }
 
     // =================================================================================================================
