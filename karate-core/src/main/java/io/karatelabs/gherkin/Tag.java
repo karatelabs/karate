@@ -41,9 +41,15 @@ public class Tag {
     private final String text;
     private final String name;
     private final List<String> values;
+    private final SourceSpan span;
 
     public Tag(int line, String text) {
+        this(line, text, null);
+    }
+
+    public Tag(int line, String text, SourceSpan span) {
         this.line = line;
+        this.span = span;
         this.text = text.substring(1);
         int pos = text.indexOf('=');
         if (pos != -1) {
@@ -62,6 +68,11 @@ public class Tag {
 
     public int getLine() {
         return line;
+    }
+
+    /** Null when the tag was not parsed from source. */
+    public SourceSpan getSpan() {
+        return span;
     }
 
     public String getText() {

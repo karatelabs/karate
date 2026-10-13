@@ -69,7 +69,9 @@ public class Step {
 
     private int line;
     private int endLine;
+    private SourceSpan span;
     private List<String> comments;
+    private List<SourceSpan> commentSpans = List.of();
     private String prefix;
     private String keyword;
     private String text;
@@ -198,6 +200,18 @@ public class Step {
         this.endLine = endLine;
     }
 
+    /**
+     * Prefix through the end of the docstring or table, unlike {@link #getEndLine()} which
+     * stops at the step line. Null when the step was not parsed from source.
+     */
+    public SourceSpan getSpan() {
+        return span;
+    }
+
+    public void setSpan(SourceSpan span) {
+        this.span = span;
+    }
+
     public String getPrefix() {
         return prefix;
     }
@@ -256,6 +270,15 @@ public class Step {
 
     public void setComments(List<String> comments) {
         this.comments = comments;
+    }
+
+    /** The comment lines directly above this step (after the previous step), untrimmed. */
+    public List<SourceSpan> getCommentSpans() {
+        return commentSpans;
+    }
+
+    public void setCommentSpans(List<SourceSpan> commentSpans) {
+        this.commentSpans = commentSpans;
     }
 
     public boolean isFake() {

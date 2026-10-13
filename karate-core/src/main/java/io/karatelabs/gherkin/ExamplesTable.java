@@ -34,6 +34,7 @@ public class ExamplesTable {
     private Table table;
     private List<Tag> tags;
     private int line;
+    private SourceSpan span;
     private String name;
 
     public ExamplesTable() {
@@ -72,6 +73,15 @@ public class ExamplesTable {
 
     public void setLine(int line) {
         this.line = line;
+    }
+
+    /** From the Examples keyword through the section's last token; tags have their own spans. */
+    public SourceSpan getSpan() {
+        return span;
+    }
+
+    public void setSpan(SourceSpan span) {
+        this.span = span;
     }
 
     public String getName() {

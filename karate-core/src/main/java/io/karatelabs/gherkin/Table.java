@@ -58,6 +58,7 @@ public class Table {
     private final List<Column> cols;
     private final List<Integer> lineNumbers;
     private final String dynamicExpression;
+    private List<SourceSpan> rowSpans;
 
     public String getDynamicExpression() {
         return dynamicExpression;
@@ -73,6 +74,15 @@ public class Table {
 
     public int getLineNumberForRow(int i) {
         return lineNumbers.get(i);
+    }
+
+    /** Row {@code i} from its first pipe through its last token; null when the table was not parsed from source. */
+    public SourceSpan getRowSpan(int i) {
+        return rowSpans == null ? null : rowSpans.get(i);
+    }
+
+    void setRowSpans(List<SourceSpan> rowSpans) {
+        this.rowSpans = rowSpans;
     }
 
     public Table replace(String token, String value) {

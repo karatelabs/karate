@@ -37,6 +37,7 @@ import static io.karatelabs.parser.TokenType.*;
 public class GherkinLexer extends BaseLexer {
 
     private GherkinState gState = GherkinState.GHERKIN;
+    private boolean descLineStart;
     private int matchParenDepth = 0; // tracks () nesting in GS_STEP_MATCH state
 
     private enum GherkinState {
@@ -256,14 +257,17 @@ public class GherkinLexer extends BaseLexer {
                 gState = GherkinState.GHERKIN;
             }
             // Stay in GS_DESC if not transitioning
+            descLineStart = true;
             return WS_LF;
         }
 
-        // Consume rest of line as description
+        // Consume rest of line as description, or as a comment when the line starts with #
+        boolean comment = descLineStart && c == '#';
+        descLineStart = false;
         while (!isAtEnd() && peek() != '\r' && peek() != '\n') {
             advance();
         }
-        return G_DESC;
+        return comment ? G_COMMENT : G_DESC;
     }
 
     private boolean shouldTransitionToGherkin() {

@@ -39,6 +39,7 @@ public class Feature {
     private final Resource resource;
 
     private int line;
+    private List<SourceSpan> commentSpans = List.of();
     private List<Tag> tags;
     private String name;
     private String description;
@@ -166,6 +167,15 @@ public class Feature {
 
     public void setLine(int line) {
         this.line = line;
+    }
+
+    /** Every comment line in the file, in source order, untrimmed. */
+    public List<SourceSpan> getCommentSpans() {
+        return commentSpans;
+    }
+
+    public void setCommentSpans(List<SourceSpan> commentSpans) {
+        this.commentSpans = commentSpans;
     }
 
     public String getName() {

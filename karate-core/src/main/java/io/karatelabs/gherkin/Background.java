@@ -31,6 +31,7 @@ public class Background {
     public static final String KEYWORD = "Background";
 
     private int line;
+    private SourceSpan span;
     private List<Step> steps;
 
     public int getLine() {
@@ -39,6 +40,15 @@ public class Background {
 
     public void setLine(int line) {
         this.line = line;
+    }
+
+    /** From the Background keyword through the section's last token; tags have their own spans. */
+    public SourceSpan getSpan() {
+        return span;
+    }
+
+    public void setSpan(SourceSpan span) {
+        this.span = span;
     }
 
     public List<Step> getSteps() {

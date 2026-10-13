@@ -38,6 +38,7 @@ public class Scenario {
     private final int exampleIndex;
 
     private int line;
+    private SourceSpan span;
     private List<Tag> tags;
     private String name;
     private String description;
@@ -110,6 +111,7 @@ public class Scenario {
         s.description = description;
         s.tags = tags;
         s.line = line;
+        s.span = span;
         s.dynamicExpression = dynamicExpression;
         s.steps = new ArrayList<>(steps.size());
         for (Step step : steps) {
@@ -123,6 +125,8 @@ public class Scenario {
             temp.setDocString(step.getDocString());
             temp.setTable(step.getTable());
             temp.setComments(step.getComments());
+            temp.setSpan(step.getSpan());
+            temp.setCommentSpans(step.getCommentSpans());
         }
         return s;
     }
@@ -213,6 +217,15 @@ public class Scenario {
 
     public void setLine(int line) {
         this.line = line;
+    }
+
+    /** From the Scenario keyword through the section's last token; tags have their own spans. */
+    public SourceSpan getSpan() {
+        return span;
+    }
+
+    public void setSpan(SourceSpan span) {
+        this.span = span;
     }
 
     public List<Tag> getTags() {

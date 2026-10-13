@@ -278,6 +278,7 @@ public class GherkinParser extends BaseParser {
 
     private Feature transformToFeature(Node ast) {
         Feature feature = new Feature(resource);
+        feature.setCommentSpans(commentSpans(tokens));
         List<Tag> pendingTags = null;
 
         for (int i = 0, n = ast.size(); i < n; i++) {
@@ -322,7 +323,7 @@ public class GherkinParser extends BaseParser {
         for (int i = 0, n = tagsNode.size(); i < n; i++) {
             Node child = tagsNode.get(i);
             if (child.isToken() && child.token.type == G_TAG) {
-                Tag tag = new Tag(child.token.line + 1, child.token.getText());
+                Tag tag = new Tag(child.token.line + 1, child.token.getText(), SourceSpan.of(child.token, child.token));
                 tags.add(tag);
                 // TODO remove this v1 @parallel deprecation warning in karate v3
                 if ("parallel".equals(tag.getName()) && PARALLEL_TAG_WARNED.compareAndSet(false, true)) {
@@ -371,6 +372,7 @@ public class GherkinParser extends BaseParser {
                 case TOKEN -> {
                     if (child.token.type == G_BACKGROUND) {
                         bg.setLine(child.token.line + 1);
+                        bg.setSpan(SourceSpan.of(child.token, lastToken(node)));
                     }
                 }
                 case G_STEP -> steps.add(transformStep(feature, null, steps.size(), child));
@@ -399,6 +401,7 @@ public class GherkinParser extends BaseParser {
                 case TOKEN -> {
                     if (child.token.type == G_SCENARIO) {
                         scenario.setLine(child.token.line + 1);
+                        scenario.setSpan(SourceSpan.of(child.token, lastToken(node)));
                     }
                 }
                 case G_NAME_DESC -> {
@@ -434,6 +437,7 @@ public class GherkinParser extends BaseParser {
                 case TOKEN -> {
                     if (child.token.type == G_SCENARIO_OUTLINE) {
                         outline.setLine(child.token.line + 1);
+                        outline.setSpan(SourceSpan.of(child.token, lastToken(node)));
                     }
                 }
                 case G_NAME_DESC -> {
@@ -462,6 +466,7 @@ public class GherkinParser extends BaseParser {
                 case TOKEN -> {
                     if (child.token.type == G_EXAMPLES) {
                         examples.setLine(child.token.line + 1);
+                        examples.setSpan(SourceSpan.of(child.token, lastToken(node)));
                     }
                 }
                 case G_NAME_DESC -> {
@@ -491,10 +496,13 @@ public class GherkinParser extends BaseParser {
                         List<Token> tokenComments = child.token.getComments();
                         if (!tokenComments.isEmpty()) {
                             List<String> comments = new ArrayList<>();
+                            List<SourceSpan> commentSpans = new ArrayList<>();
                             for (Token t : tokenComments) {
                                 comments.add(t.getText().trim());
+                                commentSpans.add(SourceSpan.of(t, t));
                             }
                             step.setComments(comments);
+                            step.setCommentSpans(commentSpans);
                         }
                     }
                     case G_KEYWORD -> step.setKeyword(child.token.getText());
@@ -521,8 +529,31 @@ public class GherkinParser extends BaseParser {
         } else {
             step.setEndLine(step.getLine());
         }
-
+        step.setSpan(SourceSpan.of(node.getFirstToken(), lastToken(node)));
         return step;
+    }
+
+    private static Token lastToken(Node node) {
+        if (node.isToken()) {
+            return node.token;
+        }
+        for (int i = node.size() - 1; i >= 0; i--) {
+            Token token = lastToken(node.get(i));
+            if (token != null) {
+                return token;
+            }
+        }
+        return null;
+    }
+
+    private static List<SourceSpan> commentSpans(List<Token> tokens) {
+        List<SourceSpan> spans = new ArrayList<>();
+        for (Token token : tokens) {
+            for (Token comment : token.getComments()) {
+                spans.add(SourceSpan.of(comment, comment));
+            }
+        }
+        return spans;
     }
 
     private String extractStepText(Node stepLineNode) {
@@ -633,6 +664,7 @@ public class GherkinParser extends BaseParser {
     private Table transformTable(Node tableNode) {
         List<List<String>> rows = new ArrayList<>();
         List<Integer> lineNumbers = new ArrayList<>();
+        List<SourceSpan> rowSpans = new ArrayList<>();
 
         for (int i = 0, n = tableNode.size(); i < n; i++) {
             Node rowNode = tableNode.get(i);
@@ -663,11 +695,16 @@ public class GherkinParser extends BaseParser {
                 if (!cells.isEmpty()) {
                     rows.add(cells);
                     lineNumbers.add(line);
+                    rowSpans.add(SourceSpan.of(rowNode.getFirstToken(), lastToken(rowNode)));
                 }
             }
         }
-
-        return rows.isEmpty() ? null : new Table(rows, lineNumbers);
+        if (rows.isEmpty()) {
+            return null;
+        }
+        Table table = new Table(rows, lineNumbers);
+        table.setRowSpans(rowSpans);
+        return table;
     }
 
     // ========== Static Match Expression Parser ==========

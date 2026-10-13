@@ -909,4 +909,199 @@ class GherkinParserTest {
         assertNull(outline.getSteps().get(0).getDocString());
     }
 
+
+    private String span(SourceSpan span) {
+        return span.text(feature.getResource().getText());
+    }
+
+    @Test
+    void testStepSpanExtendsThroughDocString() {
+        feature("""
+                Feature:
+                Scenario:
+                  * def a =
+                    \"\"\"
+                    { b: 1 }
+                    \"\"\"
+                  * print a
+                """);
+        Step step = scenario.getSteps().get(0);
+        assertEquals(3, step.getLine());
+        assertEquals(3, step.getEndLine()); // report-visible end line is unchanged
+        assertEquals(new SourceSpan(step.getSpan().start(), step.getSpan().end(), 3, 6), step.getSpan());
+        assertEquals("* def a =\n    \"\"\"\n    { b: 1 }\n    \"\"\"", span(step.getSpan()));
+        assertEquals("* print a", span(scenario.getSteps().get(1).getSpan()));
+    }
+
+    @Test
+    void testStepSpanExtendsThroughTable() {
+        feature("""
+                Feature:
+                Scenario:
+                  * table t
+                    | a | b |
+                    | 1 | 2 |
+                  * print t
+                """);
+        Step step = scenario.getSteps().get(0);
+        assertEquals(3, step.getEndLine());
+        assertEquals(5, step.getSpan().endLine());
+        assertEquals("* table t\n    | a | b |\n    | 1 | 2 |", span(step.getSpan()));
+        assertEquals("| 1 | 2 |", span(step.getTable().getRowSpan(1)));
+        assertEquals(5, step.getTable().getRowSpan(1).line());
+    }
+
+    @Test
+    void testCommentSpans() {
+        feature("""
+                Feature:
+                Scenario:
+                  * print 1
+                  # owned by two  \s
+                  * print 2
+                  # trailing
+                """);
+        Step first = scenario.getSteps().get(0);
+        Step second = scenario.getSteps().get(1);
+        assertEquals("* print 1", span(first.getSpan()));
+        assertTrue(first.getCommentSpans().isEmpty());
+        assertNull(first.getComments());
+        SourceSpan comment = second.getCommentSpans().getFirst();
+        assertEquals("# owned by two   ", span(comment));
+        assertEquals(4, comment.line());
+        assertEquals("# owned by two", second.getComments().getFirst()); // legacy accessor stays trimmed
+        List<SourceSpan> all = feature.getCommentSpans();
+        assertEquals(2, all.size());
+        assertEquals(comment, all.get(0));
+        assertEquals("# trailing", span(all.get(1)));
+        assertEquals(6, all.get(1).line());
+    }
+
+    @Test
+    void testSpansIndexRawCrlfText() {
+        feature("Feature:\r\n@t1\r\nScenario: s\r\n  * def a =\r\n    \"\"\"\r\n    x\r\n    \"\"\"\r\n  # c\r\n  * table t\r\n    | a |\r\n");
+        String text = feature.getResource().getText();
+        assertTrue(text.contains("\r\n"), "CRLF is not normalized");
+        Tag tag = scenario.getTags().getFirst();
+        assertEquals(text.indexOf("@t1"), tag.getSpan().start());
+        assertEquals("@t1", span(tag.getSpan()));
+        assertEquals(2, tag.getSpan().line());
+        assertEquals("# c", span(scenario.getSteps().get(1).getCommentSpans().getFirst()));
+        Step docStep = scenario.getSteps().get(0);
+        assertEquals("* def a =\r\n    \"\"\"\r\n    x\r\n    \"\"\"", span(docStep.getSpan()));
+        assertEquals(4, docStep.getSpan().line());
+        assertEquals(7, docStep.getSpan().endLine());
+        assertEquals("x", docStep.getDocString());
+        Step tableStep = scenario.getSteps().get(1);
+        assertEquals("* table t\r\n    | a |", span(tableStep.getSpan()));
+        assertEquals(10, tableStep.getSpan().endLine());
+        assertEquals(scenario.getSpan().end(), tableStep.getSpan().end());
+        assertTrue(span(scenario.getSpan()).startsWith("Scenario: s\r\n"));
+    }
+
+    @Test
+    void testSpansIndexTextWithBom() {
+        byte[] bom = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+        byte[] body = "Feature: f\nScenario: s\n  * print 1\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] bytes = new byte[bom.length + body.length];
+        System.arraycopy(bom, 0, bytes, 0, bom.length);
+        System.arraycopy(body, 0, bytes, bom.length, body.length);
+        feature = new GherkinParser(Resource.bytes(bytes)).parse();
+        String text = feature.getResource().getText();
+        assertEquals('﻿', text.charAt(0), "BOM is kept as char 0");
+        assertEquals("f", feature.getName());
+        scenario = feature.getSections().getFirst().getScenario();
+        assertEquals(1, feature.getLine());
+        assertEquals(2, scenario.getLine());
+        Step step = scenario.getSteps().getFirst();
+        assertEquals(text.indexOf("* print 1"), step.getSpan().start());
+        assertEquals("* print 1", span(step.getSpan()));
+    }
+
+    @Test
+    void testOutlineAndExamplesSpans() {
+        feature("""
+                Feature:
+                Background:
+                  * def x = 1
+                Scenario Outline: o
+                  * print '<a>'
+                  @one
+                  Examples: first
+                    | a |
+                    | 1 |
+                  Examples: second
+                    | a |
+                    | 2 |
+                    | 3 |
+                """);
+        assertEquals("Background:\n  * def x = 1", span(feature.getBackground().getSpan()));
+        assertEquals(4, outline.getSpan().line());
+        assertEquals(13, outline.getSpan().endLine());
+        List<ExamplesTable> examples = outline.getExamplesTables();
+        assertEquals(2, examples.size());
+        ExamplesTable first = examples.get(0);
+        assertEquals("Examples: first\n    | a |\n    | 1 |", span(first.getSpan()));
+        assertEquals("@one", span(first.getTags().getFirst().getSpan()));
+        ExamplesTable second = examples.get(1);
+        assertEquals(10, second.getSpan().line());
+        assertEquals(13, second.getSpan().endLine());
+        assertEquals("| 3 |", span(second.getTable().getRowSpan(2)));
+        assertEquals(outline.getSpan().end(), second.getSpan().end());
+        // expanded scenarios carry the template step's span
+        Scenario expanded = outline.toScenario(null, 0, 10, null);
+        assertEquals(outline.getSteps().getFirst().getSpan(), expanded.getSteps().getFirst().getSpan());
+    }
+
+
+    @Test
+    void testCommentBelowSectionLineIsNotDescription() {
+        feature("""
+                Feature: f
+                # under feature
+                Background:
+                  # under background
+                  * def a = 1
+                Scenario: s
+                  # under scenario
+                  * print a
+                """);
+        assertNull(feature.getDescription());
+        assertEquals("f", feature.getName());
+        assertEquals("# under feature", span(feature.getCommentSpans().getFirst()));
+        Step bgStep = feature.getBackground().getSteps().getFirst();
+        assertEquals(List.of("# under background"), bgStep.getComments());
+        assertNull(scenario.getDescription());
+        Step step = scenario.getSteps().getFirst();
+        assertEquals(List.of("# under scenario"), step.getComments());
+        assertEquals("# under scenario", span(step.getCommentSpans().getFirst()));
+        assertEquals(3, feature.getCommentSpans().size());
+    }
+
+    @Test
+    void testCommentAfterMultiLineDescription() {
+        feature("""
+                Feature:
+                Scenario: s
+                  line one
+                  line two
+                  # the step title
+                  * print 1
+                """);
+        assertEquals("s", scenario.getName());
+        assertEquals("line one\nline two", scenario.getDescription());
+        assertEquals(List.of("# the step title"), scenario.getSteps().getFirst().getComments());
+        feature("""
+                Feature:
+                Scenario: s #1
+                  one
+                  # interleaved
+                  two
+                  * print 1
+                """);
+        assertEquals("s #1", scenario.getName());
+        assertEquals("one\ntwo", scenario.getDescription());
+        assertEquals("# interleaved", span(feature.getCommentSpans().getFirst()));
+    }
+
 }

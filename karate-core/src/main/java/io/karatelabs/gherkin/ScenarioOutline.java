@@ -33,6 +33,7 @@ public class ScenarioOutline {
     private final FeatureSection section;
 
     private int line;
+    private SourceSpan span;
     private List<Tag> tags;
     private String name;
     private String description;
@@ -74,6 +75,8 @@ public class ScenarioOutline {
             step.setDocString(original.getDocString());
             step.setTable(original.getTable());
             step.setComments(original.getComments());
+            step.setSpan(original.getSpan());
+            step.setCommentSpans(original.getCommentSpans());
         }
         numScenarios++;
         return s;
@@ -89,6 +92,15 @@ public class ScenarioOutline {
 
     public void setLine(int line) {
         this.line = line;
+    }
+
+    /** From the Scenario Outline keyword through its last Examples row; tags have their own spans. */
+    public SourceSpan getSpan() {
+        return span;
+    }
+
+    public void setSpan(SourceSpan span) {
+        this.span = span;
     }
 
     public List<Tag> getTags() {
