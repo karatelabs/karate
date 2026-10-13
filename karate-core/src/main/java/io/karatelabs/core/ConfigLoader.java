@@ -81,6 +81,15 @@ public final class ConfigLoader {
      * @param systemProperties overlay for this evaluation; null → the ambient JVM properties (unchanged behaviour)
      */
     public static Map<String, Object> configOnly(Path workingDir, String env, Map<String, String> systemProperties) {
+        return configOnly(workingDir, env, systemProperties, null);
+    }
+
+    /**
+     * {@link #configOnly(Path, String, Map)} with {@code systemEnv} layered over the process environment
+     * for {@code karate.sysenv} ({@code Runner.Builder.systemEnv}); null → the process environment alone.
+     */
+    public static Map<String, Object> configOnly(Path workingDir, String env, Map<String, String> systemProperties,
+                                                 Map<String, String> systemEnv) {
         if (workingDir == null) {
             return new LinkedHashMap<>();
         }
@@ -93,6 +102,7 @@ public final class ConfigLoader {
         if (systemProperties != null) {
             systemProperties.forEach(builder::systemProperty);
         }
+        builder.systemEnv(systemEnv);
         Suite suite = builder.buildSuite();
         // a synthetic, stepless, TOP-LEVEL scenario: constructing its ScenarioRuntime runs the config
         // phase (ScenarioRuntime.initEngine -> evalConfig) and nothing else — no steps are executed.

@@ -489,7 +489,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             Object fallback = args.length > 1 ? args[1] : null;
             Object first = args[0];
             if (first == null) return fallback;
-            String value = System.getenv(first.toString());
+            String value = getEnvVar(first.toString());
             return (value == null || value.isEmpty()) ? fallback : value;
         };
     }

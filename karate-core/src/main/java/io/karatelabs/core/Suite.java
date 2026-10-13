@@ -91,6 +91,8 @@ public class Suite {
     /** Explicit {@code Runner.Builder.captureStepLogs()}, or null — see {@link #isCaptureStepLogs()}. */
     private final Boolean captureStepLogs;
     public final Map<String, String> systemProperties;
+    /** {@code Runner.Builder.systemEnv}, immutable; empty when none was given. */
+    private final Map<String, String> systemEnv;
     public final List<RunListener> listeners;
     public final List<RunListenerFactory> listenerFactories;
     public final DriverProvider driverProvider;
@@ -237,6 +239,7 @@ public class Suite {
         this.systemProperties = builder.getSystemProperties() != null
                 ? Collections.unmodifiableMap(new HashMap<>(builder.getSystemProperties()))
                 : null;
+        this.systemEnv = builder.getSystemEnv() != null ? Map.copyOf(builder.getSystemEnv()) : Map.of();
         this.listeners = List.copyOf(builder.getListeners());
         this.listenerFactories = List.copyOf(builder.getListenerFactories());
         // Programmatic ext globals injected via Runner.Builder.global(...) — the run-free binding
@@ -1273,6 +1276,17 @@ public class Suite {
      */
     public Map<String, String> getSystemProperties() {
         return new SystemPropertiesView(systemProperties);
+    }
+
+    /** This Suite's environment overlay ({@code Runner.Builder.systemEnv}), immutable; empty when none. */
+    public Map<String, String> getSystemEnv() {
+        return systemEnv;
+    }
+
+    /** One environment variable, what {@code karate.sysenv(name)} reads: this Suite's overlay, then the process. */
+    public String getEnvVar(String name) {
+        String value = systemEnv.get(name);
+        return value != null ? value : System.getenv(name);
     }
 
     /**

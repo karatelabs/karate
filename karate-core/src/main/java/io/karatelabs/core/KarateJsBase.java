@@ -467,6 +467,12 @@ abstract class KarateJsBase implements SimpleObject {
         return suite != null ? suite.getSystemProperty(name) : System.getProperty(name);
     }
 
+    /** One environment variable, the {@code karate.sysenv(name)} path: the Suite's overlay first. */
+    String getEnvVar(String name) {
+        Suite suite = getSuite();
+        return suite != null ? suite.getEnvVar(name) : System.getenv(name);
+    }
+
     private Suite getSuite() {
         ScenarioRuntime rt = getRuntime();
         if (rt != null && rt.getFeatureRuntime() != null) {

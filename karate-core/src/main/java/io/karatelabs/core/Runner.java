@@ -183,6 +183,7 @@ public final class Runner {
                     builder.systemProperty(e.getKey(), e.getValue());
                 }
             }
+            builder.systemEnv(template.getSystemEnv());
             // Propagate injected cache stores so callSingle/callOnce results survive
             // across this Suite (one virtual user) and back into the protocol-owned
             // cache for the next virtual user to see.
@@ -273,6 +274,7 @@ public final class Runner {
         // null = decide from the run: on everywhere except perf mode (see Suite.isCaptureStepLogs)
         private Boolean captureStepLogs;
         private Map<String, String> systemProperties;
+        private Map<String, String> systemEnv;
         private final Map<String, Object> globals = new java.util.LinkedHashMap<>();
         private LogLevel logLevel = LogLevel.DEBUG;
         private String consoleLevel; // SLF4J/Logback level; null = inherit (logback.xml default)
@@ -405,6 +407,25 @@ public final class Runner {
                 systemProperties = new HashMap<>();
             }
             systemProperties.put(key, value);
+            return this;
+        }
+
+        /**
+         * Environment variables layered over the process environment for this Suite only:
+         * {@code karate.sysenv} and {@code boot.sysenv} read them first. Snapshotted when the
+         * Suite is built, so Suites running side by side never see each other's values.
+         */
+        public Builder systemEnv(Map<String, String> env) {
+            if (env != null && !env.isEmpty()) {
+                if (systemEnv == null) {
+                    systemEnv = new HashMap<>();
+                }
+                env.forEach((k, v) -> {
+                    if (k != null && v != null) {
+                        systemEnv.put(k, v);
+                    }
+                });
+            }
             return this;
         }
 
@@ -911,6 +932,7 @@ public final class Runner {
         /** null when unset — the Suite decides from perf mode. */
         Boolean getCaptureStepLogs() { return captureStepLogs; }
         Map<String, String> getSystemProperties() { return systemProperties; }
+        Map<String, String> getSystemEnv() { return systemEnv; }
         Map<String, Object> getProgrammaticGlobals() { return globals; }
         List<RunListener> getListeners() { return listeners; }
         List<RunListenerFactory> getListenerFactories() { return listenerFactories; }

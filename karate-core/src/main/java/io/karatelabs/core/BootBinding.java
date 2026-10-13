@@ -104,7 +104,7 @@ public class BootBinding {
      */
     public String sysenv(String name, String defaultValue) {
         if (name == null) return defaultValue;
-        String value = System.getenv(name);
+        String value = suite != null ? suite.getEnvVar(name) : System.getenv(name);
         return (value == null || value.isEmpty()) ? defaultValue : value;
     }
 

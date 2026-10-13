@@ -62,6 +62,10 @@ karate/
 | `Runner` | Fluent API entry point for test execution |
 | `CommandProvider` | SPI for CLI subcommand registration |
 
+### Suite isolation
+
+A Suite's inputs — `karate.env`, the merged system-property map, and the env overlay (`Runner.Builder.systemEnv`) — are fixed when it is built and read from the Suite, never back from JVM globals, so Suites run side by side in one JVM without sharing state. A host hook (listener, client factory, ext) is Suite-scoped, never static. Known exception: `Runner.java` (~1040) still runs `systemProperties.forEach(System::setProperty)` — tracked in karate-ext `docs/BACKLOG.md`, "`Runner` writes the builder's system properties into JVM globals, breaking Suite isolation".
+
 ---
 
 ## Step Keywords
@@ -190,7 +194,7 @@ Source: `ScenarioRuntime.isDryRunSkip()`, `KarateJsBase.getSuiteData()`.
 | **Logging** | `log()`, `logger.debug/info/warn/error()`, `embed()` |
 | **Info** | `env`, `os`, `properties`, `config`, `feature`, `scenario`, `suite`, `tags`, `tagValues` |
 | **Driver** | `driver` (lazy getter — JS-side equivalent of the `* driver ...` step; re-inits cleanly after `driver.quit()`) |
-| **System** | `sysenv(name [, default])`, `sysprop(name [, default])` |
+| **System** | `sysenv(name [, default])` (the Suite's env overlay, then the OS environment), `sysprop(name [, default])` |
 | **Templating** | `doc()`, `render()` |
 
 Full listing: see `KarateJs.java`, `KarateJsUtils.java` in karate-core.
@@ -750,7 +754,7 @@ class → boot-time failure that fails the Suite loud.
 | Member | Purpose |
 |---|---|
 | `boot.env` | Value of `karate.env` (CLI `-e` flag). |
-| `boot.sysenv(name [, default])` | Read an OS environment variable; falls back to `default` when unset or empty. |
+| `boot.sysenv(name [, default])` | Read the Suite's env overlay, then the OS environment; falls back to `default` when unset or empty. |
 | `boot.sysprop(name [, default])` | Read a JVM system property; reads from the Suite's merged property map (CLI `-D` plus `Runner.Builder.systemProperties`) when available. |
 | `boot.read(path)` | Read a text file relative to workdir (e.g. an OpenAPI spec). |
 | `boot.log(msg)` | INFO log with `[boot]` prefix. |
