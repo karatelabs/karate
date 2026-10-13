@@ -2539,6 +2539,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         return driver;
     }
 
+    /** Whether a {@code karate.channel()} was registered on this scenario (closed at scenario end). */
+    public boolean hasChannels() {
+        return channels != null && !channels.isEmpty();
+    }
+
     /**
      * Get the driver scope ("scenario" or "caller").
      */
