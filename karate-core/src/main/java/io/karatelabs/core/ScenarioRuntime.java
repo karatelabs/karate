@@ -996,9 +996,13 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 if (!sharedScope) {
                     // Isolated scope - shallow copy maps and lists so mutations don't affect parent
                     value = shallowCopy(value);
-                    // Remember what we seeded so the call result can exclude inherited scope
-                    inheritedVariables.put(entry.getKey(), value);
                 }
+                // Remember what we seeded so the call result can exclude inherited scope. In
+                // shared scope the bound value keeps the caller's reference (no copy), so the
+                // same identity check excludes it there too - a nested shared-scope call would
+                // otherwise hand the enclosing isolated call a full binding set that includes
+                // the caller's Example-row columns, which its delta would then report as its own.
+                inheritedVariables.put(entry.getKey(), value);
                 karate.engine.put(entry.getKey(), value);
             }
             // Inherit cookie jar from caller so called feature shares session cookies
@@ -1019,8 +1023,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 Object value = entry.getValue();
                 if (!sharedScope) {
                     value = shallowCopy(value);
-                    inheritedVariables.put(entry.getKey(), value);
                 }
+                // See the callerScenario branch: record inherited names in shared scope too.
+                inheritedVariables.put(entry.getKey(), value);
                 karate.engine.put(entry.getKey(), value);
             }
             inheritCookieJarFromCaller(lastExecuted);
@@ -1641,6 +1646,17 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
     public void setVariable(String name, Object value) {
         assignedVariables.add(name);
+        karate.engine.put(name, value);
+    }
+
+    /**
+     * Bind a variable in this scenario's scope WITHOUT recording it as the scenario's own
+     * contribution. Used when propagating a value the scenario itself merely inherited
+     * (e.g. a shared-scope call handing the caller back a variable it only read): the name
+     * must stay out of {@code assignedVariables} so an enclosing isolated call's delta
+     * (StepUtils.calleeDelta) does not mistake it for the callee's own and leak it upward.
+     */
+    public void putUnclaimedVariable(String name, Object value) {
         karate.engine.put(name, value);
     }
 
