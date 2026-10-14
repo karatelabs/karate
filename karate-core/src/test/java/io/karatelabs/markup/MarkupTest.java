@@ -1497,6 +1497,17 @@ class MarkupTest {
     }
 
     @Test
+    void testKaIslandNestedArraysAreNotInlineExpressions() {
+        Engine js = new Engine();
+        js.put("rows", java.util.List.of(java.util.List.of("sku", "qty"), java.util.List.of("[[x]]", "[(y)]")));
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String rendered = markup.processString("<div><div ka:island=\"rows\"/><p>[[rows.length]]</p></div>", null);
+        assertTrue(rendered.contains("[[\"sku\",\"qty\"],[\"[[x]]\",\"[(y)]\"]]"),
+                "the JSON body is emitted verbatim, never read as [[…]] / [(…)] inlining: " + rendered);
+        assertTrue(rendered.contains("<p>2</p>"), "inlining after the island still applies: " + rendered);
+    }
+
+    @Test
     void testKaIslandNullValue() {
         Engine js = new Engine();
         js.put("missing", null);

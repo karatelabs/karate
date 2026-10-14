@@ -25,6 +25,7 @@ package io.karatelabs.markup;
 
 import io.karatelabs.common.Json;
 import org.thymeleaf.context.ITemplateContext;
+import org.thymeleaf.inline.NoOpInliner;
 import org.thymeleaf.model.AttributeValueQuotes;
 import org.thymeleaf.model.ICloseElementTag;
 import org.thymeleaf.model.IModel;
@@ -123,6 +124,8 @@ class KaIslandProcessor extends AbstractElementModelProcessor {
         model.add(scriptOpen);
         model.add(body);
         model.add(scriptClose);
+        // JSON nests arrays as `[[`, which text inlining would evaluate as an expression
+        sh.setInliner(NoOpInliner.INSTANCE);
     }
 
 }
