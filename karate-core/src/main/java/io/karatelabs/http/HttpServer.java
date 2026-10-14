@@ -43,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -89,6 +90,7 @@ public class HttpServer implements Stoppable {
     // the request handler runs here, off the event loop, so a handler that calls back into this server
     // (or any that blocks) never holds the loop its own answer needs
     final ExecutorService handlers = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("http-handler-", 0).factory());
+    private final long stopTimeoutMillis;
 
     public static HttpServer start(int port, Function<HttpRequest, HttpResponse> handler) {
         return builder().port(port).handler(handler).start();
@@ -145,6 +147,7 @@ public class HttpServer implements Stoppable {
         private int maxHeaderSize = DEFAULT_MAX_HEADER_SIZE;
         private int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
         private int workerThreads;
+        private long stopTimeoutMillis = 15_000;
 
         private Builder() {
         }
@@ -152,6 +155,12 @@ public class HttpServer implements Stoppable {
         /** Event-loop threads for connections; 0 (the default) is Netty's own default. */
         public Builder workerThreads(int threads) {
             this.workerThreads = threads;
+            return this;
+        }
+
+        /** How long a stop waits for in-flight work before forcing it; 15 seconds by default. */
+        public Builder stopTimeout(Duration timeout) {
+            this.stopTimeoutMillis = timeout.toMillis();
             return this;
         }
 
@@ -255,19 +264,28 @@ public class HttpServer implements Stoppable {
         stopAndWait();
     }
 
-    public void stopAndWait() {
+    /** The port is free on return. False when a request handler is still running after the stop timeout and an
+     *  interrupt: anything it may still be using is not yet safe to release. */
+    public boolean stopAndWait() {
         stopAsync();
         try {
             // the closeFuture, not group termination, is what guarantees the port is free on return
             channel.closeFuture().sync();
             bossGroup.terminationFuture().sync();
             workerGroup.terminationFuture().sync();
-            handlers.awaitTermination(15, TimeUnit.SECONDS);
+            if (!handlers.awaitTermination(stopTimeoutMillis, TimeUnit.MILLISECONDS)) {
+                handlers.shutdownNow();
+                if (!handlers.awaitTermination(stopTimeoutMillis, TimeUnit.MILLISECONDS)) {
+                    logger.warn("stop: a request handler on port {} is still running after being interrupted", port);
+                    return false;
+                }
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Interrupted while shutting down HTTP server", e);
         }
         logger.debug("stop: shutdown complete");
+        return true;
     }
 
     public void stopAsync() {
@@ -278,8 +296,8 @@ public class HttpServer implements Stoppable {
         channel.close();
         // no quiet period: a server being torn down accepts nothing more, so waiting for one to
         // pass only delays the (blocking) stop — the timeout still bounds in-flight work
-        bossGroup.shutdownGracefully(0, 15, TimeUnit.SECONDS);
-        workerGroup.shutdownGracefully(0, 15, TimeUnit.SECONDS);
+        bossGroup.shutdownGracefully(0, stopTimeoutMillis, TimeUnit.MILLISECONDS);
+        workerGroup.shutdownGracefully(0, stopTimeoutMillis, TimeUnit.MILLISECONDS);
         handlers.shutdown();
     }
 
@@ -290,6 +308,7 @@ public class HttpServer implements Stoppable {
         this.sseHandler = b.sseHandler;
         this.wsHandler = b.wsHandler;
         this.sslContext = b.sslContext;
+        this.stopTimeoutMillis = b.stopTimeoutMillis;
         HttpDecoderConfig decoderConfig = new HttpDecoderConfig()
                 .setMaxInitialLineLength(b.maxInitialLineLength)
                 .setMaxHeaderSize(b.maxHeaderSize);

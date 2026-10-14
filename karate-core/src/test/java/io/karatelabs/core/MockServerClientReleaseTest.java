@@ -27,7 +27,14 @@ import io.karatelabs.gherkin.Feature;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -45,7 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>Asserted through the runtime's own released flag rather than a counting factory, because
  * {@code MockHandler} builds its runtimes with the default factory and takes no injection point.
  */
-class MockServerClientReleaseTest {
+public class MockServerClientReleaseTest {
 
     @SuppressWarnings("unchecked")
     private static Map<Feature, ScenarioRuntime> runtimesOf(MockHandler handler) throws Exception {
@@ -80,6 +87,49 @@ class MockServerClientReleaseTest {
         for (ScenarioRuntime runtime : runtimes.values()) {
             assertTrue(released(runtime),
                     "stopping the server must hand back the clients its feature runtimes hold");
+        }
+    }
+
+    static final CountDownLatch RELEASE = new CountDownLatch(1);
+    static final CountDownLatch ENTERED = new CountDownLatch(1);
+
+    /** The stuck mock's step: swallows the stop's interrupt and keeps waiting until the test lets it go. */
+    public static void waitOut() {
+        ENTERED.countDown();
+        while (true) {
+            try {
+                RELEASE.await();
+                return;
+            } catch (InterruptedException ignored) {
+                // the mock handler that outlives its server's stop
+            }
+        }
+    }
+
+    /** A handler still running after the stop gave up on it may still be using its client. */
+    @Test
+    void testAHandlerThatOutlivesTheStopKeepsItsClient() throws Exception {
+        MockServer server = MockServer.featureString("""
+                Feature: mock
+
+                Scenario: pathMatches('/stuck')
+                  * Java.type('io.karatelabs.core.MockServerClientReleaseTest').waitOut()
+                  * def response = { ok: true }
+                """).port(0).javaBridgeEnabled(true).stopTimeout(Duration.ofMillis(300)).start();
+        Map<Feature, ScenarioRuntime> runtimes = runtimesOf(server.getHandler());
+        HttpClient.newHttpClient().sendAsync(HttpRequest.newBuilder(URI.create(server.getUrl() + "/stuck")).build(),
+                HttpResponse.BodyHandlers.discarding());
+        assertTrue(ENTERED.await(5, TimeUnit.SECONDS), "the mock scenario was entered");
+
+        server.stopAndWait();
+        for (ScenarioRuntime runtime : runtimes.values()) {
+            assertFalse(released(runtime), "released under a handler that is still running");
+        }
+
+        RELEASE.countDown();
+        server.stopAndWait();
+        for (ScenarioRuntime runtime : runtimes.values()) {
+            assertTrue(released(runtime), "released once the handler has finished");
         }
     }
 

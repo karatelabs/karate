@@ -35,6 +35,9 @@ import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -53,8 +56,10 @@ class HttpServerReentrantHandlerTest {
         return CLIENT.send(req, java.net.http.HttpResponse.BodyHandlers.ofString()).body();
     }
 
-    /** One response off the wire: the status line and headers, then exactly Content-Length body characters. */
-    static String body(BufferedReader in) throws Exception {
+    /** One response off the wire, as "status body": the status line and headers, then exactly Content-Length
+     *  body characters. */
+    static String response(BufferedReader in) throws Exception {
+        String status = in.readLine().split(" ")[1];
         int length = -1;
         for (String line = in.readLine(); line != null && !line.isEmpty(); line = in.readLine()) {
             if (line.toLowerCase().startsWith("content-length:")) {
@@ -68,7 +73,20 @@ class HttpServerReentrantHandlerTest {
             assertTrue(n > 0, "the body ended early");
             read += n;
         }
-        return new String(body);
+        return status + " " + new String(body);
+    }
+
+    static List<String> pipelined(HttpServer server, String first, String second) throws Exception {
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress("127.0.0.1", server.getPort()), 2000);
+            socket.setSoTimeout(5000);
+            OutputStream out = socket.getOutputStream();
+            out.write(("GET " + first + " HTTP/1.1\r\nHost: localhost\r\n\r\n"
+                    + "GET " + second + " HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+            out.flush();
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+            return List.of(response(in), response(in));
+        }
     }
 
     @Test
@@ -103,17 +121,54 @@ class HttpServerReentrantHandlerTest {
             }
             return response;
         }).start();
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress("127.0.0.1", server.getPort()), 2000);
-            socket.setSoTimeout(5000);
-            OutputStream out = socket.getOutputStream();
-            out.write(("GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\n"
-                    + "GET /fast HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.UTF_8));
-            out.flush();
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-            assertEquals(List.of("/slow", "/fast"), List.of(body(in), body(in)));
+        try {
+            assertEquals(List.of("200 /slow", "200 /fast"), pipelined(server, "/slow", "/fast"));
         } finally {
             server.stopAndWait();
         }
+    }
+
+    /** A request the server cannot parse is answered in its turn, after the one before it. */
+    @Test
+    void aMalformedRequestBehindABlockingOneIsAnsweredInOrder() throws Exception {
+        HttpServer server = HttpServer.builder().workerThreads(1).handler(req -> {
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return HttpResponse.text(req.getPath());
+        }).start();
+        try {
+            List<String> answers = pipelined(server, "/slow", "/?state=%zz");
+            assertEquals("200 /slow", answers.get(0));
+            assertTrue(answers.get(1).startsWith("400 "), answers.get(1));
+        } finally {
+            server.stopAndWait();
+        }
+    }
+
+    /** A handler still blocked when the grace period ends is interrupted, and the stop waits for it to finish. */
+    @Test
+    void stopInterruptsAHandlerStillBlockedAfterTheGracePeriod() throws Exception {
+        CountDownLatch entered = new CountDownLatch(1);
+        AtomicBoolean interrupted = new AtomicBoolean();
+        HttpServer server = HttpServer.builder().stopTimeout(Duration.ofMillis(500)).handler(req -> {
+            entered.countDown();
+            try {
+                new CountDownLatch(1).await();
+            } catch (InterruptedException e) {
+                interrupted.set(true);
+            }
+            return HttpResponse.text("late");
+        }).start();
+        java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder(URI.create("http://localhost:" + server.getPort() + "/block"))
+                .timeout(Duration.ofSeconds(10)).GET().build();
+        CLIENT.sendAsync(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+        assertTrue(entered.await(5, TimeUnit.SECONDS), "the handler was entered");
+        long started = System.nanoTime();
+        server.stopAndWait();
+        assertTrue(System.nanoTime() - started < TimeUnit.SECONDS.toNanos(5), "the stop waited out neither timeout");
+        assertTrue(interrupted.get(), "the blocked handler was interrupted before stop returned");
     }
 }

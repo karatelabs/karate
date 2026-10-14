@@ -23,6 +23,7 @@
  */
 package io.karatelabs.core;
 
+import io.karatelabs.output.ResultListener;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -36,7 +37,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -60,6 +63,26 @@ public class SuiteMockServerTest {
         if (g != null) {
             g.await();
         }
+    }
+
+    static volatile Path nestedRoot;
+    static volatile boolean nestedPassed;
+    static volatile boolean nestedMockOutlivedItsSuite;
+    static final List<MockServer> nestedTaken = new ArrayList<>();
+
+    /** The nesting scenario's step: runs a second Suite to completion on this thread, then once more detaching. */
+    public static void runNested() {
+        AtomicReference<Integer> port = new AtomicReference<>();
+        nestedPassed = suite(nestedRoot, "checks/ping.feature", port).parallel(1).isPassed();
+        nestedMockOutlivedItsSuite = listening(port.get());
+        suite(nestedRoot, "checks/ping.feature", port)
+                .listener(event -> {
+                    if (event instanceof SuiteRunEvent se && se.type() == RunEventType.SUITE_EXIT) {
+                        nestedTaken.addAll(se.source().detachServers());
+                    }
+                    return true;
+                })
+                .parallel(1);
     }
 
     void project() throws IOException {
@@ -99,9 +122,38 @@ public class SuiteMockServerTest {
                   Then status 200
                   * Java.type('io.karatelabs.core.SuiteMockServerTest').hold()
                 """);
+        Files.writeString(checks.resolve("nested.feature"), """
+                Feature: nested
+
+                Scenario: run another Suite from a step
+                  * Java.type('io.karatelabs.core.SuiteMockServerTest').runNested()
+                """);
+        Files.writeString(mock.resolve("outer.feature"), """
+                Feature: outer mock
+
+                Background:
+                  * def inner = karate.start('/mock/api.feature')
+
+                Scenario: pathMatches('/ping')
+                  * def response = { inner: '#(inner.port)' }
+                """);
+        Files.writeString(checks.resolve("outer.feature"), """
+                Feature: outer
+
+                Scenario: ping the mock whose Background started another
+                  * def outer = karate.start('/mock/outer.feature')
+                  Given url outer.url
+                  And path 'ping'
+                  When method get
+                  Then status 200
+                """);
     }
 
     Runner.Builder suite(String feature, AtomicReference<Integer> port) {
+        return suite(root, feature, port);
+    }
+
+    static Runner.Builder suite(Path root, String feature, AtomicReference<Integer> port) {
         return Runner.path(root.resolve(feature).toString())
                 .workingDir(root).configDir(root.toString())
                 .outputDir(root.resolve("target").resolve(feature.replace('/', '-')))
@@ -184,6 +236,92 @@ public class SuiteMockServerTest {
         assertTrue(listening(port.get()), "the detached mock survives the Suite");
         taken.get(0).stopAndWait();
         assertFalse(listening(port.get()));
+    }
+
+    @Test
+    void aResultListenerThatThrowsAtSuiteEndStillLetsTheMockStop() throws Exception {
+        project();
+        AtomicReference<Integer> port = new AtomicReference<>();
+        Runner.Builder builder = suite("checks/ping.feature", port).resultListener(new ResultListener() {
+            @Override
+            public void onSuiteEnd(SuiteResult result) {
+                throw new IllegalStateException("report failed");
+            }
+        });
+        assertThrows(IllegalStateException.class, () -> builder.parallel(1));
+        assertFalse(listening(port.get()), "the mock outlived a Suite whose listener threw");
+    }
+
+    /** A Suite run from a step of another (Java glue) evaluates its config before any of its scenarios is current
+     *  on the thread: the mock that config starts is still the nested Suite's own. */
+    @Test
+    void aSuiteNestedInAScenarioOwnsTheMockItsConfigStarted() throws Exception {
+        project();
+        nestedRoot = root;
+        nestedTaken.clear();
+        AtomicReference<Integer> port = new AtomicReference<>();
+        SuiteResult result = suite("checks/nested.feature", port).parallel(1);
+        assertTrue(result.isPassed(), () -> result.getErrors().toString());
+        assertTrue(nestedPassed);
+        assertFalse(nestedMockOutlivedItsSuite, "the nested Suite stopped the mock its config started");
+        assertEquals(1, nestedTaken.size(), "the nested Suite's detach hands over its config's mock");
+        nestedTaken.get(0).stopAndWait();
+    }
+
+    /** A mock's Background runs while karate.start() opens it, so what it starts belongs to the same Suite. */
+    @Test
+    void aMockStartedFromAMockBackgroundStopsWithTheSuite() throws Exception {
+        project();
+        AtomicReference<Integer> outer = new AtomicReference<>();
+        AtomicReference<Integer> inner = new AtomicReference<>();
+        SuiteResult result = suite("checks/outer.feature", outer)
+                .listener(event -> {
+                    if (event instanceof HttpRunEvent h && h.type() == RunEventType.HTTP_EXIT) {
+                        inner.set(Integer.parseInt(h.response().getBodyString().replaceAll("\\D", "")));
+                    }
+                    return true;
+                })
+                .parallel(1);
+        assertTrue(result.isPassed(), () -> result.getErrors().toString());
+        assertFalse(listening(outer.get()), "the outer mock stopped");
+        assertFalse(listening(inner.get()), "the mock the outer's Background started stopped too");
+    }
+
+    /** A host detaching while the Suite's own shutdown detaches: each server goes to exactly one of them. */
+    @Test
+    void concurrentDetachesTakeEachServerOnce() throws Exception {
+        project();
+        Suite suite = suite("checks/ping.feature", new AtomicReference<>()).buildSuite();
+        List<MockServer> pool = new ArrayList<>();
+        for (int i = 0; i < 40; i++) {
+            pool.add(MockServer.feature(root.resolve("mock/api.feature").toString()).start());
+        }
+        try {
+            for (int round = 0; round < 200; round++) {
+                pool.forEach(suite::ownServer);
+                CyclicBarrier go = new CyclicBarrier(2);
+                List<List<MockServer>> taken = new CopyOnWriteArrayList<>();
+                Thread a = new Thread(() -> taken.add(detachAfter(go, suite)));
+                Thread b = new Thread(() -> taken.add(detachAfter(go, suite)));
+                a.start();
+                b.start();
+                a.join();
+                b.join();
+                int r = round;
+                assertEquals(40, taken.get(0).size() + taken.get(1).size(), () -> "round " + r + ": a server taken twice");
+            }
+        } finally {
+            pool.forEach(MockServer::stopAndWait);
+        }
+    }
+
+    static List<MockServer> detachAfter(CyclicBarrier go, Suite suite) {
+        try {
+            go.await();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return suite.detachServers();
     }
 
     /** A host that injects the callSingle cache (karate-gatling) runs callSingle once for every Suite that shares it,

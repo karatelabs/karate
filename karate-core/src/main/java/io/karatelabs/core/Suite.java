@@ -604,47 +604,53 @@ public class Suite {
             // Fire SUITE_EXIT event
             fireEvent(SuiteRunEvent.exit(this, result));
         } finally {
-            if (result.getEndTime() == 0) {
-                result.setEndTime(System.currentTimeMillis());
+            try {
+                teardown(jsonlWriter);
+            } finally {
+                stopServers();
             }
-
-            // Shutdown driver provider if one exists
-            if (driverProvider != null) {
-                driverProvider.shutdown();
-            }
-
-            // Close JSONL event writer
-            if (jsonlWriter != null) {
-                try {
-                    removeJsonlListener(jsonlWriter);
-                    jsonlWriter.close();
-                } catch (Exception e) {
-                    logger.warn("Failed to close JSONL event stream: {}", e.getMessage());
-                }
-            }
-
-            // Ext onShutdown — best-effort; exceptions are logged + dropped per K43.
-            if (bootBinding != null) {
-                for (Ext ext : bootBinding.getExts()) {
-                    try {
-                        ext.onShutdown();
-                    } catch (Exception e) {
-                        logger.warn("ext onShutdown failed ({}): {}",
-                                ext.getClass().getName(), e.getMessage());
-                    }
-                    removeJsonlListener(ext);
-                }
-            }
-
-            // Notify listeners
-            for (ResultListener listener : resultListeners) {
-                listener.onSuiteEnd(result);
-            }
-
-            stopServers();
         }
 
         return result;
+    }
+
+    private void teardown(JsonLinesEventWriter jsonlWriter) {
+        if (result.getEndTime() == 0) {
+            result.setEndTime(System.currentTimeMillis());
+        }
+
+        // Shutdown driver provider if one exists
+        if (driverProvider != null) {
+            driverProvider.shutdown();
+        }
+
+        // Close JSONL event writer
+        if (jsonlWriter != null) {
+            try {
+                removeJsonlListener(jsonlWriter);
+                jsonlWriter.close();
+            } catch (Exception e) {
+                logger.warn("Failed to close JSONL event stream: {}", e.getMessage());
+            }
+        }
+
+        // Ext onShutdown — best-effort; exceptions are logged + dropped per K43.
+        if (bootBinding != null) {
+            for (Ext ext : bootBinding.getExts()) {
+                try {
+                    ext.onShutdown();
+                } catch (Exception e) {
+                    logger.warn("ext onShutdown failed ({}): {}",
+                            ext.getClass().getName(), e.getMessage());
+                }
+                removeJsonlListener(ext);
+            }
+        }
+
+        // Notify listeners
+        for (ResultListener listener : resultListeners) {
+            listener.onSuiteEnd(result);
+        }
     }
 
     // Thread-safe listener management for JSONL writer
@@ -1260,8 +1266,13 @@ public class Suite {
     /** The host seam: the servers this Suite started and would stop at the end of its run; from now on the caller
      *  stops them. */
     public List<MockServer> detachServers() {
-        List<MockServer> out = new ArrayList<>(servers);
-        servers.removeAll(out);
+        List<MockServer> out = new ArrayList<>();
+        for (MockServer server : servers) {
+            // remove() is the one atomic step: a host detaching while the run ends takes each server once
+            if (servers.remove(server)) {
+                out.add(server);
+            }
+        }
         return out;
     }
 

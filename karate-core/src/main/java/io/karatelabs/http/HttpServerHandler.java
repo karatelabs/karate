@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
@@ -66,8 +67,8 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
             // will never come, while the server happily serves every other connection. A hung request is
             // worse than any wrong status, so say 400 — the client sent something we cannot parse.
             logger.warn("bad request '{}': {}", req.uri(), e.getMessage());
-            ctx.writeAndFlush(error(HttpResponseStatus.BAD_REQUEST,
-                    "cannot parse the request URI: " + e.getMessage()));
+            FullHttpResponse res = error(HttpResponseStatus.BAD_REQUEST, "cannot parse the request URI: " + e.getMessage());
+            answerInTurn(ctx, done -> ctx.writeAndFlush(res).addListener(done));
             return;
         }
         if (server.wsHandler != null && isWsUpgrade(req)) {
@@ -91,14 +92,22 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
             }
             return;
         }
-        // `request` is a copy, so `req` can be released when this returns. The handler runs off the loop; this
-        // connection's requests are handled one after another, each after the one before it was answered,
-        // and the socket is not read again until the last queued one is — so answers keep request order
+        // `request` is a copy, so `req` can be released when this returns
+        answerInTurn(ctx, done -> handle(ctx, request, done));
+    }
+
+    // this connection's last queued answer; written on the loop, read where an answer completes
+    private volatile CompletableFuture<Void> tail = CompletableFuture.completedFuture(null);
+
+    // Runs off the loop, after this connection's previous answer was written — an unparseable request's 400
+    // included, or it would overtake the answer to the request before it — and the socket is not read again
+    // until the last queued answer is: answers keep request order
+    private void answerInTurn(ChannelHandlerContext ctx, Consumer<ChannelFutureListener> answer) {
         ctx.channel().config().setAutoRead(false);
         CompletableFuture<Void> answered = new CompletableFuture<>();
         CompletableFuture<Void> previous = tail;
         tail = answered;
-        previous.whenCompleteAsync((v, t) -> handle(ctx, request, answered), server.handlers);
+        previous.whenCompleteAsync((v, t) -> answer.accept(f -> answered.complete(null)), server.handlers);
         answered.whenComplete((v, t) -> {
             if (tail == answered) {
                 ctx.channel().config().setAutoRead(true);
@@ -106,11 +115,7 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         });
     }
 
-    // this connection's last queued answer; written on the loop, read where an answer completes
-    private volatile CompletableFuture<Void> tail = CompletableFuture.completedFuture(null);
-
-    private void handle(ChannelHandlerContext ctx, HttpRequest request, CompletableFuture<Void> answered) {
-        ChannelFutureListener done = f -> answered.complete(null);
+    private void handle(ChannelHandlerContext ctx, HttpRequest request, ChannelFutureListener done) {
         try {
             HttpResponse response = server.handler.apply(request);
             int delay = response.getDelay();

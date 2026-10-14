@@ -253,12 +253,22 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // still run fully so scenario outlines can resolve their example data (V1 parity).
         if (featureRuntime != null && featureRuntime.getSuite() != null && featureRuntime.isTopLevel()) {
             if (!isDryRunSkip()) {
+                // Config runs before call() makes this runtime current, so what it does on the thread (a
+                // mock it starts) would count for whatever scenario is current — a nesting Suite's.
+                ScenarioRuntime outerRuntime = CURRENT.get();
+                CURRENT.set(this);
                 try {
                     evalConfig();
                 } catch (Exception e) {
                     // Do NOT let this escape the constructor — see configError. call() reports it.
                     configError = e;
                     return;
+                } finally {
+                    if (outerRuntime != null) {
+                        CURRENT.set(outerRuntime);
+                    } else {
+                        CURRENT.remove();
+                    }
                 }
             }
         }

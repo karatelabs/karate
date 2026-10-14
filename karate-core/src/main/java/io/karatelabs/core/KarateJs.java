@@ -1008,14 +1008,35 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 throw new RuntimeException("start() argument must be a string path or config map");
             }
 
-            MockServer server = builder.start();
-            // the Suite running on this thread owns it, not the one a shared JS helper was captured in
-            ScenarioRuntime rt = liveRuntime();
-            if (rt != null && rt.getFeatureRuntime() != null && rt.getFeatureRuntime().getSuite() != null) {
-                rt.getFeatureRuntime().getSuite().ownServer(server);
+            Suite owner = startingFor();
+            Suite outer = STARTING_FOR.get();
+            STARTING_FOR.set(owner);
+            MockServer server;
+            try {
+                server = builder.start();
+            } finally {
+                if (outer == null) {
+                    STARTING_FOR.remove();
+                } else {
+                    STARTING_FOR.set(outer);
+                }
+            }
+            if (owner != null) {
+                owner.ownServer(server);
             }
             return server;
         };
+    }
+
+    // The Suite the karate.start() in flight on this thread is for: a mock's Background runs inside that start,
+    // on a runtime with no Suite, and what it starts belongs to the same one
+    private static final ThreadLocal<Suite> STARTING_FOR = new ThreadLocal<>();
+
+    // the Suite running on this thread owns it, not the one a shared JS helper was captured in
+    private Suite startingFor() {
+        ScenarioRuntime rt = liveRuntime();
+        Suite suite = rt != null && rt.getFeatureRuntime() != null ? rt.getFeatureRuntime().getSuite() : null;
+        return suite != null ? suite : STARTING_FOR.get();
     }
 
     /**

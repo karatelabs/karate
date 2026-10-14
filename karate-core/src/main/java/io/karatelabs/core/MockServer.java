@@ -34,6 +34,7 @@ import io.netty.handler.ssl.SslContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -127,11 +128,14 @@ public class MockServer implements SimpleObject {
      */
     public void stopAndWait() {
         logger.info("stopping mock server on port {}", port);
-        httpServer.stopAndWait();
         // The handler's per-feature runtimes each own an HTTP client and outlive every scenario,
         // so nothing else ever hands them back. Released after the server stops, so no in-flight
-        // mock request is still using one.
-        handler.releaseHttpClients();
+        // mock request is still using one — a handler the stop could not end keeps its client.
+        if (httpServer.stopAndWait()) {
+            handler.releaseHttpClients();
+        } else {
+            logger.warn("mock server on port {} stopped with a request still running: its clients are not released", port);
+        }
     }
 
     /**
@@ -344,6 +348,12 @@ public class MockServer implements SimpleObject {
          */
         public Builder maxContentLength(int bytes) {
             serverBuilder.maxContentLength(bytes);
+            return this;
+        }
+
+        /** See {@link HttpServer.Builder#stopTimeout(Duration)}. */
+        public Builder stopTimeout(Duration timeout) {
+            serverBuilder.stopTimeout(timeout);
             return this;
         }
 
