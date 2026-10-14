@@ -30,7 +30,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Strict RFC 8259 / ECMA-404 JSON parser. Public entry: {@link #parse(String)}.
+ * Strict RFC 8259 / ECMA-404 JSON parser. Public entries: {@link #parse(String)},
+ * and {@link #parseSpans(String)} for source offsets.
  * Returns {@link Map}/{@link List}/{@link String}/{@link Integer}/{@link Long}/
  * {@link BigInteger}/{@link Double}/{@link Boolean}/{@code null}. Throws
  * {@link JsErrorException} (SyntaxError shape) on invalid input.
@@ -64,11 +65,36 @@ public final class JsonParser {
         return value;
     }
 
-    private static final class ParseState {
+    /**
+     * Parses like {@link #parse(String)} but returns a {@link JsonSpan} tree of
+     * source offsets (UTF-16 indexes into {@code input}), keeping every
+     * duplicate key. A leading U+FEFF is accepted here only and reported as
+     * {@link JsonSpan.Doc#bom()}. Errors carry the same messages and positions
+     * as {@code parse}.
+     */
+    public static JsonSpan.Doc parseSpans(String input) {
+        if (input == null) {
+            throw JsErrorException.syntaxError("Unexpected end of JSON input");
+        }
+        SpanState state = new SpanState(input);
+        boolean bom = !input.isEmpty() && input.charAt(0) == '﻿';
+        if (bom) {
+            state.pos = 1;
+        }
+        state.skipWs();
+        JsonSpan root = state.parseSpan();
+        state.skipWs();
+        if (state.pos != input.length()) {
+            throw state.syntaxError("Unexpected token after JSON value");
+        }
+        return new JsonSpan.Doc(bom, root);
+    }
 
-        private final String s;
-        private final int len;
-        private int pos;
+    private static class ParseState {
+
+        final String s;
+        final int len;
+        int pos;
 
         ParseState(String s) {
             this.s = s;
@@ -175,7 +201,7 @@ public final class JsonParser {
             }
         }
 
-        private String parseString() {
+        String parseString() {
             // we know s.charAt(pos) == '"'
             pos++;
             StringBuilder sb = new StringBuilder();
@@ -252,7 +278,7 @@ public final class JsonParser {
             return (char) v;
         }
 
-        private Object parseNumber() {
+        Object parseNumber() {
             int start = pos;
             boolean isFloat = false;
             if (s.charAt(pos) == '-') {
@@ -320,7 +346,7 @@ public final class JsonParser {
             }
         }
 
-        private Boolean parseBoolean() {
+        Boolean parseBoolean() {
             if (s.charAt(pos) == 't') {
                 if (pos + 4 <= len && s.charAt(pos + 1) == 'r' && s.charAt(pos + 2) == 'u' && s.charAt(pos + 3) == 'e') {
                     pos += 4;
@@ -335,7 +361,7 @@ public final class JsonParser {
             throw syntaxError("Invalid literal — expected 'false'");
         }
 
-        private Object parseNull() {
+        Object parseNull() {
             if (pos + 4 <= len && s.charAt(pos + 1) == 'u' && s.charAt(pos + 2) == 'l' && s.charAt(pos + 3) == 'l') {
                 pos += 4;
                 return null;
@@ -356,6 +382,117 @@ public final class JsonParser {
 
         JsErrorException syntaxError(String message) {
             return JsErrorException.syntaxError(message + " at position " + pos);
+        }
+
+    }
+
+    // a separate traversal, so parse() keeps its own hot path; the structural
+    // checks and messages mirror ParseState.parseObject / parseArray
+    private static final class SpanState extends ParseState {
+
+        SpanState(String s) {
+            super(s);
+        }
+
+        JsonSpan parseSpan() {
+            if (pos >= len) {
+                throw syntaxError("Unexpected end of JSON input");
+            }
+            int start = pos;
+            char c = s.charAt(pos);
+            switch (c) {
+                case '{':
+                    return parseObjectSpan();
+                case '[':
+                    return parseArraySpan();
+                case '"':
+                    return scalar(JsonSpan.Kind.STRING, start, parseString());
+                case 't':
+                case 'f':
+                    Boolean b = parseBoolean();
+                    return scalar(b ? JsonSpan.Kind.TRUE : JsonSpan.Kind.FALSE, start, b);
+                case 'n':
+                    return scalar(JsonSpan.Kind.NULL, start, parseNull());
+                default:
+                    if (c == '-' || (c >= '0' && c <= '9')) {
+                        return scalar(JsonSpan.Kind.NUMBER, start, parseNumber());
+                    }
+                    throw syntaxError("Unexpected token '" + c + "' in JSON");
+            }
+        }
+
+        private JsonSpan scalar(JsonSpan.Kind kind, int start, Object value) {
+            return new JsonSpan(kind, start, pos, List.of(), List.of(), value);
+        }
+
+        private JsonSpan parseObjectSpan() {
+            int start = pos;
+            pos++;
+            List<JsonSpan.Member> members = new ArrayList<>();
+            skipWs();
+            if (pos < len && s.charAt(pos) == '}') {
+                pos++;
+                return new JsonSpan(JsonSpan.Kind.OBJECT, start, pos, List.of(), List.of(), null);
+            }
+            while (true) {
+                skipWs();
+                if (pos >= len || s.charAt(pos) != '"') {
+                    throw syntaxError("Expected string key in object");
+                }
+                int keyStart = pos;
+                String key = parseString();
+                int keyEnd = pos;
+                skipWs();
+                if (pos >= len || s.charAt(pos) != ':') {
+                    throw syntaxError("Expected ':' after object key");
+                }
+                pos++;
+                skipWs();
+                members.add(new JsonSpan.Member(key, keyStart, keyEnd, parseSpan()));
+                skipWs();
+                if (pos >= len) {
+                    throw syntaxError("Unexpected end of JSON input in object");
+                }
+                char c = s.charAt(pos);
+                if (c == ',') {
+                    pos++;
+                    continue;
+                }
+                if (c == '}') {
+                    pos++;
+                    return new JsonSpan(JsonSpan.Kind.OBJECT, start, pos, List.copyOf(members), List.of(), null);
+                }
+                throw syntaxError("Expected ',' or '}' in object");
+            }
+        }
+
+        private JsonSpan parseArraySpan() {
+            int start = pos;
+            pos++;
+            List<JsonSpan> elements = new ArrayList<>();
+            skipWs();
+            if (pos < len && s.charAt(pos) == ']') {
+                pos++;
+                return new JsonSpan(JsonSpan.Kind.ARRAY, start, pos, List.of(), List.of(), null);
+            }
+            while (true) {
+                skipWs();
+                elements.add(parseSpan());
+                skipWs();
+                if (pos >= len) {
+                    throw syntaxError("Unexpected end of JSON input in array");
+                }
+                char c = s.charAt(pos);
+                if (c == ',') {
+                    pos++;
+                    continue;
+                }
+                if (c == ']') {
+                    pos++;
+                    return new JsonSpan(JsonSpan.Kind.ARRAY, start, pos, List.of(), List.copyOf(elements), null);
+                }
+                throw syntaxError("Expected ',' or ']' in array");
+            }
         }
 
     }
