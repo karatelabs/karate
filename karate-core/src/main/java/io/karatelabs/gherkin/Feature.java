@@ -45,6 +45,7 @@ public class Feature {
     private String description;
     private Background background;
     private List<FeatureSection> sections = new ArrayList<>();
+    private volatile String sourceHash;
 
     public static Feature read(String path) {
         return read(Resource.path(path));
@@ -65,6 +66,21 @@ public class Feature {
 
     public Resource getResource() {
         return resource;
+    }
+
+    /** SHA-256 hex of the exact source bytes this feature was parsed from (null when unreadable). */
+    public String getSourceHash() {
+        String temp = sourceHash;
+        if (temp == null && resource != null) {
+            try {
+                byte[] digest = java.security.MessageDigest.getInstance("SHA-256").digest(resource.getBytes());
+                temp = java.util.HexFormat.of().formatHex(digest);
+                sourceHash = temp;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return temp;
     }
 
     public String getPackageQualifiedName() {

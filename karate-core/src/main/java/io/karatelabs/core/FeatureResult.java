@@ -389,6 +389,7 @@ public class FeatureResult {
         map.put("relativePath", feature.getResource().getRelativePath());
         map.put("resultDate", RESULT_DATE_FORMAT.format(Instant.ofEpochMilli(endTime)));
         map.put("prefixedPath", feature.getResource().getPrefixedPath());
+        map.put("sourceHash", feature.getSourceHash());
 
         // Timing
         map.put("startTime", startTime);

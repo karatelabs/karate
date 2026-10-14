@@ -179,6 +179,18 @@ public interface Resource {
 
     InputStream getStream();
 
+    /**
+     * The content as raw bytes — for a file, the same bytes {@link #getText()} decoded, read
+     * once, so a hash of them names exactly the source that was parsed.
+     */
+    default byte[] getBytes() {
+        try (InputStream is = getStream()) {
+            return FileUtils.toBytes(is);
+        } catch (java.io.IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     String getRelativePath();
 
     String getText();
@@ -821,6 +833,15 @@ public interface Resource {
      */
     static Resource from(Path path, Path root, Path classpathRoot) {
         return new PathResource(path, root, false, classpathRoot);
+    }
+
+    /**
+     * A file resource whose content is {@code bytes} instead of what is on disk at {@code path}
+     * (which need not exist): it keeps the path's identity — uri, relative path, and resolution
+     * of relative / {@code classpath:} references from it — and never reads or writes that file.
+     */
+    static Resource overlay(Path path, byte[] bytes, Path root, Path classpathRoot) {
+        return new PathResource(path, root, false, classpathRoot, bytes.clone());
     }
 
     /**

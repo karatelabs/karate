@@ -252,6 +252,8 @@ public final class Runner {
         private final List<RunListener> listeners = new ArrayList<>();
         private final List<RunListenerFactory> listenerFactories = new ArrayList<>();
         private final List<ResultListener> resultListeners = new ArrayList<>();
+        // absolute normalized feature path -> the bytes to run in its place (see overlay)
+        private final Map<Path, byte[]> overlays = new HashMap<>();
 
         private String env;
         private List<String> tags;
@@ -340,6 +342,16 @@ public final class Runner {
             if (values != null) {
                 features.addAll(values);
             }
+            return this;
+        }
+
+        /**
+         * Run the feature at {@code path} from {@code bytes} in this run only, as if the file held them
+         * (relative refs, config, reports and ids resolve from {@code path}); nothing is read from or
+         * written to that file, which need not exist.
+         */
+        public Builder overlay(Path path, byte[] bytes) {
+            overlays.put(path.toAbsolutePath().normalize(), bytes.clone());
             return this;
         }
 
@@ -895,15 +907,23 @@ public final class Runner {
          * features already correctly anchored are returned unchanged; best-effort — never fails
          * resolution over a re-root.
          */
-        private static Feature reRoot(Feature feature, Path root, Path classpathRoot) {
+        private Feature reRoot(Feature feature, Path root, Path classpathRoot) {
             Resource resource = feature.getResource();
             Path cpRoot = classpathRoot != null ? classpathRoot : root;
             if (resource == null || !resource.isFile() || root == null
-                    || (root.equals(resource.getRoot()) && cpRoot.equals(resource.getClasspathRoot()))) {
+                    || (!overlays.containsKey(resource.getPath())
+                    && root.equals(resource.getRoot()) && cpRoot.equals(resource.getClasspathRoot()))) {
                 return feature;
             }
             try {
-                return Feature.read(Resource.from(resource.getPath(), root, cpRoot));
+                // an overlaid resource is re-anchored with its own bytes, never reparsed from disk
+                byte[] bytes = overlays.get(resource.getPath());
+                if (bytes == null && resource instanceof io.karatelabs.common.PathResource pr && pr.isOverlay()) {
+                    bytes = pr.getBytes();
+                }
+                return Feature.read(bytes != null
+                        ? Resource.overlay(resource.getPath(), bytes, root, cpRoot)
+                        : Resource.from(resource.getPath(), root, cpRoot));
             } catch (Exception e) {
                 return feature;
             }
@@ -1157,8 +1177,9 @@ public final class Runner {
 
             if (file.isDirectory()) {
                 resolveDirectory(file, target, root, classpathRoot);
-            } else if (file.exists() && file.getName().endsWith(".feature")) {
-                Feature feature = Feature.read(Resource.from(file.toPath(), root, classpathRoot));
+            } else if ((file.exists() || overlays.containsKey(file.toPath().toAbsolutePath().normalize()))
+                    && file.getName().endsWith(".feature")) {
+                Feature feature = readFeature(file.toPath(), root, classpathRoot);
                 target.add(feature);
                 // Store line filter for this feature
                 if (!lines.isEmpty()) {
@@ -1204,10 +1225,17 @@ public final class Runner {
                 if (file.isDirectory()) {
                     resolveDirectory(file, target, root, classpathRoot);
                 } else if (file.getName().endsWith(".feature")) {
-                    Feature feature = Feature.read(Resource.from(file.toPath(), root, classpathRoot));
+                    Feature feature = readFeature(file.toPath(), root, classpathRoot);
                     target.add(feature);
                 }
             }
+        }
+
+        private Feature readFeature(Path file, Path root, Path classpathRoot) {
+            byte[] bytes = overlays.get(file.toAbsolutePath().normalize());
+            return Feature.read(bytes != null
+                    ? Resource.overlay(file, bytes, root, classpathRoot)
+                    : Resource.from(file, root, classpathRoot));
         }
 
         @Override

@@ -75,6 +75,7 @@ public record FeatureRunEvent(
                 map.put("description", feature.getDescription());
                 map.put("tags", RunUtils.tagTexts(feature.getTags()));
                 map.put("line", feature.getLine());
+                map.put("sourceHash", feature.getSourceHash());
             }
             map.put("callDepth", source.getCallDepth());
         }

@@ -1653,4 +1653,36 @@ class ResourceTest {
         assertEquals("Hello World", present.getText());
     }
 
+    // An overlay is the file's identity over in-memory bytes: the disk content is never read,
+    // and references made from it resolve exactly as from the file.
+    @Test
+    void testOverlayKeepsPathIdentityOverMemoryBytes() throws Exception {
+        byte[] bytes = "Overlay".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Resource overlay = Resource.overlay(testFile.toPath(), bytes, tempDir, null);
+        bytes[0] = 'X'; // the caller's array is copied
+        assertEquals("Overlay", overlay.getText());
+        assertArrayEquals("Overlay".getBytes(java.nio.charset.StandardCharsets.UTF_8), overlay.getBytes());
+        try (InputStream is = overlay.getStream()) {
+            assertEquals("Overlay", FileUtils.toString(is));
+        }
+        assertTrue(overlay.isFile());
+        assertTrue(((PathResource) overlay).isOverlay());
+        assertEquals(testFile.toPath().toUri(), overlay.getUri());
+        assertEquals("test.txt", overlay.getRelativePath());
+        assertEquals("Nested Content", overlay.resolve("subdir/nested.txt").getText());
+        assertEquals("Hello World", Files.readString(testFile.toPath()));
+        // a path not on disk is still a file identity that exists in memory
+        Resource absent = Resource.overlay(tempDir.resolve("later.txt"), bytes, tempDir, null);
+        assertTrue(absent.exists());
+        assertEquals("Nested Content", absent.resolve("subdir/nested.txt").getText());
+    }
+
+    @Test
+    void testGetBytesIsTheBytesThatWereParsed() throws Exception {
+        Resource resource = Resource.from(testFile.toPath());
+        assertEquals("Hello World", resource.getText());
+        Files.writeString(testFile.toPath(), "Changed");
+        assertArrayEquals("Hello World".getBytes(java.nio.charset.StandardCharsets.UTF_8), resource.getBytes());
+    }
+
 }

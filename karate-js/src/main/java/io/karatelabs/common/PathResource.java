@@ -23,6 +23,7 @@
  */
 package io.karatelabs.common;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Files;
@@ -35,8 +36,10 @@ public class PathResource implements Resource {
     private final Path classpathRoot;
     private final boolean classpath;
     private final String relativePath;
+    // content given in memory (Resource.overlay): the file at path is never read
+    private final boolean overlay;
 
-    // lazy
+    // lazy, unless overlay
     private byte[] bytes;
     private String text;
     private String[] lines;
@@ -81,12 +84,23 @@ public class PathResource implements Resource {
      * @param classpathRoot the {@code classpath:}-miss fallback dir (null = root)
      */
     public PathResource(Path path, Path root, boolean classpath, Path classpathRoot) {
+        this(path, root, classpath, classpathRoot, null);
+    }
+
+    PathResource(Path path, Path root, boolean classpath, Path classpathRoot, byte[] overlayBytes) {
         // Always work with absolute normalized paths internally for consistency
         this.path = path.toAbsolutePath().normalize();
         this.root = root != null ? root.toAbsolutePath().normalize() : FileUtils.WORKING_DIR.toPath();
         this.classpathRoot = classpathRoot != null ? classpathRoot.toAbsolutePath().normalize() : this.root;
         this.classpath = classpath;
         this.relativePath = computeRelativePath();
+        this.overlay = overlayBytes != null;
+        this.bytes = overlayBytes;
+    }
+
+    /** True when the content is in-memory bytes standing in for the file (see {@link Resource#overlay}). */
+    public boolean isOverlay() {
+        return overlay;
     }
 
     private String computeRelativePath() {
@@ -132,7 +146,7 @@ public class PathResource implements Resource {
 
     @Override
     public boolean exists() {
-        return Files.exists(path);
+        return overlay || Files.exists(path);
     }
 
     @Override
@@ -203,6 +217,9 @@ public class PathResource implements Resource {
 
     @Override
     public InputStream getStream() {
+        if (overlay) {
+            return new ByteArrayInputStream(bytes);
+        }
         try {
             return Files.newInputStream(path);
         } catch (Exception e) {
@@ -219,13 +236,21 @@ public class PathResource implements Resource {
     public String getText() {
         if (text == null) {
             try {
-                bytes = Files.readAllBytes(path);
+                if (!overlay) {
+                    bytes = Files.readAllBytes(path);
+                }
                 text = FileUtils.toString(bytes);
             } catch (Exception e) {
                 throw new RuntimeException("Failed to read text from: " + path, e);
             }
         }
         return text;
+    }
+
+    @Override
+    public byte[] getBytes() {
+        getText();
+        return bytes.clone();
     }
 
     @Override
