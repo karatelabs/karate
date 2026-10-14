@@ -1020,6 +1020,10 @@ public final class Runner {
             return result;
         }
 
+        // IDE integration contract (debugger): the karate.debug.port system property, the class name
+        // io.karatelabs.debug.Main and its static SuiteResult run(String[]) are used by the Karate IDE
+        // plugins. Do not rename, change signatures, or change threading / event semantics without
+        // coordinating with them.
         private SuiteResult startDebugServerIfRequired(int threadCount) {
             // Skip if debugSupport() was already called — we're inside the debug server
             if (debugInterceptor != null) {
@@ -1053,6 +1057,8 @@ public final class Runner {
             }
         }
 
+        // CLI-style args for the debugger (see above). Adding a flag is safe; renaming or removing an
+        // existing one, or changing its meaning, needs coordinating with the Karate IDE plugins.
         private String[] buildDebugArgs(int debugPort, int threadCount) {
             List<String> args = new ArrayList<>();
             args.add("-d");

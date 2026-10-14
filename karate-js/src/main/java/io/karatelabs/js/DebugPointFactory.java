@@ -23,6 +23,8 @@
  */
 package io.karatelabs.js;
 
+// IDE integration contract (debugger): do not rename, change signatures, or change threading / event
+// semantics without coordinating with the Karate IDE plugins.
 public interface DebugPointFactory<T> {
 
     int JS_STATEMENT = 0;
