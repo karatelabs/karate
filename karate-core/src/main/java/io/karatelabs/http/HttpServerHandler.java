@@ -25,6 +25,7 @@ package io.karatelabs.http;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -39,6 +40,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
@@ -89,6 +91,26 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
             }
             return;
         }
+        // `request` is a copy, so `req` can be released when this returns. The handler runs off the loop; this
+        // connection's requests are handled one after another, each after the one before it was answered,
+        // and the socket is not read again until the last queued one is — so answers keep request order
+        ctx.channel().config().setAutoRead(false);
+        CompletableFuture<Void> answered = new CompletableFuture<>();
+        CompletableFuture<Void> previous = tail;
+        tail = answered;
+        previous.whenCompleteAsync((v, t) -> handle(ctx, request, answered), server.handlers);
+        answered.whenComplete((v, t) -> {
+            if (tail == answered) {
+                ctx.channel().config().setAutoRead(true);
+            }
+        });
+    }
+
+    // this connection's last queued answer; written on the loop, read where an answer completes
+    private volatile CompletableFuture<Void> tail = CompletableFuture.completedFuture(null);
+
+    private void handle(ChannelHandlerContext ctx, HttpRequest request, CompletableFuture<Void> answered) {
+        ChannelFutureListener done = f -> answered.complete(null);
         try {
             HttpResponse response = server.handler.apply(request);
             int delay = response.getDelay();
@@ -99,7 +121,7 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
                 // wire. Composes with delay (reset only after the delay elapses).
                 Runnable reset = () -> {
                     ctx.channel().config().setOption(io.netty.channel.ChannelOption.SO_LINGER, 0);
-                    ctx.close();
+                    ctx.close().addListener(done);
                 };
                 if (delay > 0) {
                     ctx.executor().schedule(reset, delay, TimeUnit.MILLISECONDS);
@@ -111,14 +133,18 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
             FullHttpResponse res = toResponse(response);
             if (delay > 0) {
                 // Use Netty's non-blocking scheduler for delay
-                ctx.executor().schedule(() -> ctx.writeAndFlush(res), delay, TimeUnit.MILLISECONDS);
+                ctx.executor().schedule(() -> ctx.writeAndFlush(res).addListener(done), delay, TimeUnit.MILLISECONDS);
             } else {
-                ctx.writeAndFlush(res);
+                ctx.writeAndFlush(res).addListener(done);
             }
         } catch (Exception e) {
             String message = e.getMessage();
             logger.error("http server error: {}", message);
-            ctx.writeAndFlush(error(message));
+            ctx.writeAndFlush(error(message)).addListener(done);
+        } catch (Throwable e) {
+            // off the loop, so exceptionCaught never sees this: the same answer it would give
+            logger.error("http server error: {}", e.toString());
+            ctx.writeAndFlush(error(e.getMessage())).addListener(done).addListener(ChannelFutureListener.CLOSE);
         }
     }
 

@@ -44,6 +44,8 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -84,6 +86,9 @@ public class HttpServer implements Stoppable {
     final Function<HttpRequest, HttpResponse> handler;
     final SseHandler sseHandler;
     final WsHandler wsHandler;
+    // the request handler runs here, off the event loop, so a handler that calls back into this server
+    // (or any that blocks) never holds the loop its own answer needs
+    final ExecutorService handlers = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("http-handler-", 0).factory());
 
     public static HttpServer start(int port, Function<HttpRequest, HttpResponse> handler) {
         return builder().port(port).handler(handler).start();
@@ -139,8 +144,15 @@ public class HttpServer implements Stoppable {
         private int maxInitialLineLength = DEFAULT_MAX_INITIAL_LINE_LENGTH;
         private int maxHeaderSize = DEFAULT_MAX_HEADER_SIZE;
         private int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
+        private int workerThreads;
 
         private Builder() {
+        }
+
+        /** Event-loop threads for connections; 0 (the default) is Netty's own default. */
+        public Builder workerThreads(int threads) {
+            this.workerThreads = threads;
+            return this;
         }
 
         /** See {@link HttpServer#start(String, int, Function, SseHandler, WsHandler)} for bind-host semantics. */
@@ -250,6 +262,7 @@ public class HttpServer implements Stoppable {
             channel.closeFuture().sync();
             bossGroup.terminationFuture().sync();
             workerGroup.terminationFuture().sync();
+            handlers.awaitTermination(15, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Interrupted while shutting down HTTP server", e);
@@ -267,6 +280,7 @@ public class HttpServer implements Stoppable {
         // pass only delays the (blocking) stop — the timeout still bounds in-flight work
         bossGroup.shutdownGracefully(0, 15, TimeUnit.SECONDS);
         workerGroup.shutdownGracefully(0, 15, TimeUnit.SECONDS);
+        handlers.shutdown();
     }
 
     private HttpServer(Builder b) {
@@ -281,7 +295,7 @@ public class HttpServer implements Stoppable {
                 .setMaxHeaderSize(b.maxHeaderSize);
         int maxContentLength = b.maxContentLength;
         bossGroup = new MultiThreadIoEventLoopGroup(1, ThreadUtils.daemonFactory("http-boss-"), NioIoHandler.newFactory());
-        workerGroup = new MultiThreadIoEventLoopGroup(ThreadUtils.daemonFactory("http-worker-"), NioIoHandler.newFactory());
+        workerGroup = new MultiThreadIoEventLoopGroup(b.workerThreads, ThreadUtils.daemonFactory("http-worker-"), NioIoHandler.newFactory());
         CorsConfig corsConfig = CorsConfigBuilder
                 .forAnyOrigin().allowNullOrigin()
                 .allowedRequestHeaders(HttpUtils.Header.keys())
