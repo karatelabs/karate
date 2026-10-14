@@ -1008,7 +1008,13 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 throw new RuntimeException("start() argument must be a string path or config map");
             }
 
-            return builder.start();
+            MockServer server = builder.start();
+            // the Suite running on this thread owns it, not the one a shared JS helper was captured in
+            ScenarioRuntime rt = liveRuntime();
+            if (rt != null && rt.getFeatureRuntime() != null && rt.getFeatureRuntime().getSuite() != null) {
+                rt.getFeatureRuntime().getSuite().ownServer(server);
+            }
+            return server;
         };
     }
 

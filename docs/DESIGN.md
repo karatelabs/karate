@@ -66,6 +66,8 @@ karate/
 
 A Suite's inputs — `karate.env`, the merged system-property map, and the env overlay (`Runner.Builder.systemEnv`) — are fixed when it is built and read from the Suite, never back from JVM globals, so Suites run side by side in one JVM without sharing state. A host hook (listener, client factory, ext) is Suite-scoped, never static. Known exception: `Runner.java` (~1040) still runs `systemProperties.forEach(System::setProperty)` — tracked in karate-ext `docs/BACKLOG.md`, "`Runner` writes the builder's system properties into JVM globals, breaking Suite isolation".
 
+A mock server `karate.start()` opens is owned by the Suite running on that thread and stopped (`stopAndWait`) at the end of `Suite.run()`, after the features, ext `onShutdown` and the result listeners — whether started by a scenario or by `callSingle` from config, since that cache is the Suite's too. A host that needs them longer takes them with `Suite.detachServers()` (e.g. from a `SUITE_EXIT` listener) and stops them itself. Under a host-injected `callSingleCache` (karate-gatling) a server started inside `callSingle` is left alone: it serves every Suite sharing that cache, so it lives as long as the cache.
+
 ---
 
 ## Step Keywords

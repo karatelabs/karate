@@ -137,6 +137,11 @@ public class Suite {
     // Abort flag for abortSuiteOnFailure support
     private final AtomicBoolean aborted = new AtomicBoolean();
 
+    // Servers karate.start() opened under this Suite, stopped when its run ends unless a host detached them.
+    private final List<MockServer> servers = new CopyOnWriteArrayList<>();
+    // A host-injected callSingle cache outlives this Suite, and so must what callSingle started.
+    private final boolean sharedCallSingleCache;
+
     // Per-thread listeners
     private final ThreadLocal<List<RunListener>> threadListeners = new ThreadLocal<>();
 
@@ -204,6 +209,7 @@ public class Suite {
     Suite(Runner.Builder builder, int threadCount) {
         // Caches — use injected stores when present (e.g. from karate-gatling protocol),
         // otherwise allocate fresh per-Suite stores.
+        this.sharedCallSingleCache = builder.getCallSingleCache() != null;
         this.CALLSINGLE_CACHE = builder.getCallSingleCache() != null
                 ? builder.getCallSingleCache() : new ConcurrentHashMap<>();
         this.callSingleLock = builder.getCallSingleLock() != null
@@ -634,6 +640,8 @@ public class Suite {
             for (ResultListener listener : resultListeners) {
                 listener.onSuiteEnd(result);
             }
+
+            stopServers();
         }
 
         return result;
@@ -1238,6 +1246,33 @@ public class Suite {
 
     public boolean isAborted() {
         return aborted.get();
+    }
+
+    /** A server {@code karate.start()} opened under this Suite: stopped when the run ends, except one started inside
+     *  {@code callSingle} under a host-injected cache, which lives as long as that cache. */
+    public void ownServer(MockServer server) {
+        if (sharedCallSingleCache && callSingleLock.isHeldByCurrentThread()) {
+            return;
+        }
+        servers.add(server);
+    }
+
+    /** The host seam: the servers this Suite started and would stop at the end of its run; from now on the caller
+     *  stops them. */
+    public List<MockServer> detachServers() {
+        List<MockServer> out = new ArrayList<>(servers);
+        servers.removeAll(out);
+        return out;
+    }
+
+    private void stopServers() {
+        for (MockServer server : detachServers()) {
+            try {
+                server.stopAndWait();
+            } catch (RuntimeException e) {
+                logger.warn("mock server on port {} did not stop: {}", server.getPort(), e.getMessage());
+            }
+        }
     }
 
     public SuiteResult getResult() {
