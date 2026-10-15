@@ -277,6 +277,7 @@ public final class Runner {
         private Boolean captureStepLogs;
         private Map<String, String> systemProperties;
         private Map<String, String> systemEnv;
+        private java.util.function.UnaryOperator<String> outputMask;
         private final Map<String, Object> globals = new java.util.LinkedHashMap<>();
         private LogLevel logLevel = LogLevel.DEBUG;
         private String consoleLevel; // SLF4J/Logback level; null = inherit (logback.xml default)
@@ -438,6 +439,16 @@ public final class Runner {
                     }
                 });
             }
+            return this;
+        }
+
+        /**
+         * A text transform applied to every report file this Suite writes, at the write: each
+         * JSONL event line, each HTML page's data, each Cucumber JSON and JUnit XML document. An
+         * embedder masks what the run's evidence must never hold (a credential the run sent).
+         */
+        public Builder outputMask(java.util.function.UnaryOperator<String> mask) {
+            this.outputMask = mask;
             return this;
         }
 
@@ -953,6 +964,7 @@ public final class Runner {
         Boolean getCaptureStepLogs() { return captureStepLogs; }
         Map<String, String> getSystemProperties() { return systemProperties; }
         Map<String, String> getSystemEnv() { return systemEnv; }
+        java.util.function.UnaryOperator<String> getOutputMask() { return outputMask; }
         Map<String, Object> getProgrammaticGlobals() { return globals; }
         List<RunListener> getListeners() { return listeners; }
         List<RunListenerFactory> getListenerFactories() { return listenerFactories; }

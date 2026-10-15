@@ -67,6 +67,7 @@ public class JsonLinesEventWriter implements RunListener, Closeable {
     private final Path jsonlPath;
     private final String env;
     private final int threadCount;
+    private final java.util.function.UnaryOperator<String> mask;
     private BufferedWriter writer;
     private volatile boolean closed = false;
 
@@ -78,10 +79,16 @@ public class JsonLinesEventWriter implements RunListener, Closeable {
      * @param threadCount the number of parallel threads
      */
     public JsonLinesEventWriter(Path outputDir, String env, int threadCount) {
+        this(outputDir, env, threadCount, null);
+    }
+
+    /** @param mask applied to each line before it is written ({@code Runner.Builder.outputMask}); may be null */
+    public JsonLinesEventWriter(Path outputDir, String env, int threadCount, java.util.function.UnaryOperator<String> mask) {
         // Write to karate-json subfolder for consistency with other JSON outputs
         this.jsonlPath = outputDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve(DEFAULT_FILENAME);
         this.env = env;
         this.threadCount = threadCount;
+        this.mask = mask;
     }
 
     /**
@@ -166,7 +173,7 @@ public class JsonLinesEventWriter implements RunListener, Closeable {
      */
     private synchronized void writeLine(String json) throws IOException {
         if (writer != null && !closed) {
-            writer.write(json);
+            writer.write(mask == null ? json : mask.apply(json));
             writer.newLine();
             writer.flush();  // Ensure atomic writes for tailing
         }

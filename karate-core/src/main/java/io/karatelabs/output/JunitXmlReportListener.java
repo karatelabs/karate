@@ -50,6 +50,7 @@ public class JunitXmlReportListener implements ResultListener {
     public static final String SUBFOLDER = "junit-xml";
 
     private final Path outputDir;
+    private java.util.function.UnaryOperator<String> mask;
 
     /**
      * Create a new JUnit XML report listener.
@@ -62,6 +63,7 @@ public class JunitXmlReportListener implements ResultListener {
 
     @Override
     public void onSuiteStart(Suite suite) {
+        mask = suite.outputMask;
         // Create output directory eagerly
         try {
             if (!Files.exists(outputDir)) {
@@ -83,8 +85,9 @@ public class JunitXmlReportListener implements ResultListener {
         // so the queue could only ever grow, never help. Writing inline also means a feature
         // cannot complete until its report is on disk, which bounds what is held in memory.
         try {
+            String xml = JunitXmlWriter.serializeFeature(result);
             JunitXmlWriter.writeSerialized(JunitXmlWriter.fileNameFor(result),
-                    JunitXmlWriter.serializeFeature(result), outputDir);
+                    mask == null ? xml : mask.apply(xml), outputDir);
         } catch (Exception e) {
             logger.warn("Failed to write JUnit XML for {}: {}", result.getDisplayName(), e.getMessage());
         }

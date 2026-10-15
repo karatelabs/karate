@@ -191,12 +191,19 @@ public final class HtmlReportWriter {
     /** Template + IO only. Safe to run after the source {@link FeatureResult} has been released. */
     public static void renderFeatureHtml(Map<String, Object> featureData, Path outputDir,
                                          Map<String, ReportAssets> reportAssets) throws IOException {
+        renderFeatureHtml(featureData, outputDir, reportAssets, null);
+    }
+
+    /** @param mask applied to the page's data ({@code Runner.Builder.outputMask}); may be null */
+    public static void renderFeatureHtml(Map<String, Object> featureData, Path outputDir,
+                                         Map<String, ReportAssets> reportAssets,
+                                         java.util.function.UnaryOperator<String> mask) throws IOException {
         Path featuresDir = outputDir.resolve(HtmlReportListener.SUBFOLDER);
         Files.createDirectories(featuresDir);
         String template = loadTemplate("karate-feature.html");
         String fileName = getFeatureFileName(featureData) + ".html";
         // feature pages live under feature-html/, so ext refs need the "../" prefix
-        writeInlined(featuresDir.resolve(fileName), template, featureData, reportAssets, "../");
+        writeInlined(featuresDir.resolve(fileName), template, featureData, reportAssets, "../", mask);
     }
 
     private static boolean hasEmbeds(FeatureResult result) {
@@ -342,6 +349,15 @@ public final class HtmlReportWriter {
                                          SuiteResult result, Path outputDir, String env,
                                          Map<String, ReportAssets> reportAssets,
                                          List<Map<String, Object>> summaryCards) throws IOException {
+        writeSummaryPages(features, result, outputDir, env, reportAssets, summaryCards, null);
+    }
+
+    /** @param mask applied to the page's data ({@code Runner.Builder.outputMask}); may be null */
+    public static void writeSummaryPages(List<Map<String, Object>> features,
+                                         SuiteResult result, Path outputDir, String env,
+                                         Map<String, ReportAssets> reportAssets,
+                                         List<Map<String, Object>> summaryCards,
+                                         java.util.function.UnaryOperator<String> mask) throws IOException {
         // Copy ext assets once at suite end — feature/summary/timeline pages all
         // reference ext/<name>/... so the files must be on disk before the report is viewed.
         copyExtAssets(reportAssets, outputDir);
@@ -375,7 +391,7 @@ public final class HtmlReportWriter {
             summaryPageData.put("summaryCards", summaryCards);
         }
         String summaryTemplate = loadTemplate("karate-summary.html");
-        writeInlined(outputDir.resolve("karate-summary.html"), summaryTemplate, summaryPageData, reportAssets, "");
+        writeInlined(outputDir.resolve("karate-summary.html"), summaryTemplate, summaryPageData, reportAssets, "", mask);
 
         // Write index redirect
         writeIndexRedirect(outputDir);
@@ -449,7 +465,7 @@ public final class HtmlReportWriter {
      * {@link #write(SuiteResult, Path, String)} path, which has no registered exts.
      */
     private static void writeInlined(Path target, String template, Object data) throws IOException {
-        writeInlined(target, template, data, null, "");
+        writeInlined(target, template, data, null, "", null);
     }
 
     /**
@@ -461,7 +477,8 @@ public final class HtmlReportWriter {
      * {@code res/}. Both ext fragments share the same prefix so their URLs agree.
      */
     private static void writeInlined(Path target, String template, Object data,
-                                     Map<String, ReportAssets> reportAssets, String relPrefix)
+                                     Map<String, ReportAssets> reportAssets, String relPrefix,
+                                     java.util.function.UnaryOperator<String> mask)
             throws IOException {
         // Splice the small fragments into the TEMPLATE first, and the report data last.
         // String.replace() copies everything it walks, so inlining the data first made each of
@@ -488,7 +505,8 @@ public final class HtmlReportWriter {
             // indentation on a deeply nested result tree is a large fraction of the bytes —
             // it was showing up as StringUtils.pad in the allocation profile. Same serializer
             // as before, only without the padding, so escaping is unchanged.
-            writeScriptSafe(writer, Json.of(data).toString(false, false, false));
+            String json = Json.of(data).toString(false, false, false);
+            writeScriptSafe(writer, mask == null ? json : mask.apply(json));
             int rest = at + DATA_PLACEHOLDER.length();
             writer.write(shell, rest, shell.length() - rest);
         }
@@ -1004,9 +1022,17 @@ public final class HtmlReportWriter {
     public static void writeTimelineHtml(List<Map<String, Object>> features,
                                          SuiteResult result, Path outputDir, String env,
                                          int threadCount, Map<String, ReportAssets> reportAssets) throws IOException {
+        writeTimelineHtml(features, result, outputDir, env, threadCount, reportAssets, null);
+    }
+
+    /** @param mask applied to the page's data ({@code Runner.Builder.outputMask}); may be null */
+    public static void writeTimelineHtml(List<Map<String, Object>> features,
+                                         SuiteResult result, Path outputDir, String env,
+                                         int threadCount, Map<String, ReportAssets> reportAssets,
+                                         java.util.function.UnaryOperator<String> mask) throws IOException {
         Map<String, Object> timelineData = buildTimelineData(features, result, env, threadCount);
         String template = loadTemplate("karate-timeline.html");
-        writeInlined(outputDir.resolve("karate-timeline.html"), template, timelineData, reportAssets, "");
+        writeInlined(outputDir.resolve("karate-timeline.html"), template, timelineData, reportAssets, "", mask);
     }
 
     /**

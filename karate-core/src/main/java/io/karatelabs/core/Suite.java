@@ -93,6 +93,8 @@ public class Suite {
     public final Map<String, String> systemProperties;
     /** {@code Runner.Builder.systemEnv}, immutable; empty when none was given. */
     private final Map<String, String> systemEnv;
+    /** {@code Runner.Builder.outputMask}: applied to every report file at its write; null when none. */
+    public final java.util.function.UnaryOperator<String> outputMask;
     public final List<RunListener> listeners;
     public final List<RunListenerFactory> listenerFactories;
     public final DriverProvider driverProvider;
@@ -246,6 +248,7 @@ public class Suite {
                 ? Collections.unmodifiableMap(new HashMap<>(builder.getSystemProperties()))
                 : null;
         this.systemEnv = builder.getSystemEnv() != null ? Map.copyOf(builder.getSystemEnv()) : Map.of();
+        this.outputMask = builder.getOutputMask();
         this.listeners = List.copyOf(builder.getListeners());
         this.listenerFactories = List.copyOf(builder.getListenerFactories());
         // Programmatic ext globals injected via Runner.Builder.global(...) — the run-free binding
@@ -567,7 +570,7 @@ public class Suite {
             }
         }
         if (jsonlEnabled) {
-            jsonlWriter = new JsonLinesEventWriter(outputDir, env, threadCount);
+            jsonlWriter = new JsonLinesEventWriter(outputDir, env, threadCount, outputMask);
             try {
                 jsonlWriter.init();
                 // Add to a mutable copy for event firing

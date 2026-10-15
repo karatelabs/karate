@@ -68,6 +68,7 @@ public class HtmlReportListener implements ResultListener {
     // ext <script>/<link> tags get spliced and ext static dirs copied. Empty when
     // no exts registered assets.
     private Map<String, io.karatelabs.core.ReportAssets> reportAssets = java.util.Collections.emptyMap();
+    private java.util.function.UnaryOperator<String> mask;
     // Suite captured at start so onSuiteEnd can read getSummaryCards() — exts add those in
     // onShutdown(), which runs after onSuiteStart but before this listener's onSuiteEnd write.
     private Suite suite;
@@ -88,6 +89,7 @@ public class HtmlReportListener implements ResultListener {
         suiteStartTime = System.currentTimeMillis();
         threadCount = suite.threadCount;
         reportAssets = suite.getReportAssets();
+        mask = suite.outputMask;
         this.suite = suite;
 
         // Embed file names use a 001_, 002_, ... sequence; reset per suite so
@@ -130,7 +132,7 @@ public class HtmlReportListener implements ResultListener {
         try {
             ensureResourcesCopied();
             HtmlReportWriter.renderFeatureHtml(
-                    HtmlReportWriter.prepareFeatureData(result, outputDir), outputDir, reportAssets);
+                    HtmlReportWriter.prepareFeatureData(result, outputDir), outputDir, reportAssets, mask);
         } catch (Exception e) {
             logger.warn("Failed to write feature HTML for {}: {}", result.getDisplayName(), e.getMessage());
         }
@@ -183,10 +185,10 @@ public class HtmlReportListener implements ResultListener {
 
             // Write summary pages using canonical feature maps
             List<Map<String, Object>> summaryCards = suite != null ? suite.getSummaryCards() : java.util.Collections.emptyList();
-            HtmlReportWriter.writeSummaryPages(featureMaps, result, outputDir, env, reportAssets, summaryCards);
+            HtmlReportWriter.writeSummaryPages(featureMaps, result, outputDir, env, reportAssets, summaryCards, mask);
 
             // Write timeline page using canonical feature maps
-            HtmlReportWriter.writeTimelineHtml(featureMaps, result, outputDir, env, threadCount, reportAssets);
+            HtmlReportWriter.writeTimelineHtml(featureMaps, result, outputDir, env, threadCount, reportAssets, mask);
 
             logger.debug("HTML report written to: {}", outputDir.resolve("karate-summary.html"));
 

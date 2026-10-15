@@ -50,6 +50,7 @@ public class CucumberJsonReportListener implements ResultListener {
     public static final String SUBFOLDER = "cucumber-json";
 
     private final Path outputDir;
+    private java.util.function.UnaryOperator<String> mask;
 
     /**
      * Create a new Cucumber JSON report listener.
@@ -62,6 +63,7 @@ public class CucumberJsonReportListener implements ResultListener {
 
     @Override
     public void onSuiteStart(Suite suite) {
+        mask = suite.outputMask;
         // Create output directory eagerly
         try {
             if (!Files.exists(outputDir)) {
@@ -83,8 +85,9 @@ public class CucumberJsonReportListener implements ResultListener {
         // so the queue could only ever grow, never help. Writing inline also means a feature
         // cannot complete until its report is on disk, which bounds what is held in memory.
         try {
+            String json = CucumberJsonWriter.serializeFeature(result);
             CucumberJsonWriter.writeSerialized(CucumberJsonWriter.fileNameFor(result),
-                    CucumberJsonWriter.serializeFeature(result), outputDir);
+                    mask == null ? json : mask.apply(json), outputDir);
         } catch (Exception e) {
             logger.warn("Failed to write Cucumber JSON for {}: {}", result.getDisplayName(), e.getMessage());
         }
