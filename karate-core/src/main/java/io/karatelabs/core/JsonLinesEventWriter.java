@@ -35,6 +35,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 
 /**
  * A {@link RunListener} that streams events to a JSON Lines (.jsonl) file.
@@ -67,7 +68,7 @@ public class JsonLinesEventWriter implements RunListener, Closeable {
     private final Path jsonlPath;
     private final String env;
     private final int threadCount;
-    private final java.util.function.UnaryOperator<String> mask;
+    private final UnaryOperator<String> mask;
     private BufferedWriter writer;
     private volatile boolean closed = false;
 
@@ -83,7 +84,7 @@ public class JsonLinesEventWriter implements RunListener, Closeable {
     }
 
     /** @param mask applied to each line before it is written ({@code Runner.Builder.outputMask}); may be null */
-    public JsonLinesEventWriter(Path outputDir, String env, int threadCount, java.util.function.UnaryOperator<String> mask) {
+    public JsonLinesEventWriter(Path outputDir, String env, int threadCount, UnaryOperator<String> mask) {
         // Write to karate-json subfolder for consistency with other JSON outputs
         this.jsonlPath = outputDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve(DEFAULT_FILENAME);
         this.env = env;

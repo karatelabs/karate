@@ -39,6 +39,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Writer;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,6 +51,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 
 /**
  * Generates HTML reports with inlined JSON data and Alpine.js client-side rendering.
@@ -178,12 +181,18 @@ public final class HtmlReportWriter {
      * nested step detail.
      */
     public static Map<String, Object> prepareFeatureData(FeatureResult result, Path outputDir) throws IOException {
+        return prepareFeatureData(result, outputDir, null);
+    }
+
+    /** @param mask applied to each text embed file ({@code Runner.Builder.outputMask}); may be null */
+    public static Map<String, Object> prepareFeatureData(FeatureResult result, Path outputDir,
+                                                         UnaryOperator<String> mask) throws IOException {
         Path featuresDir = outputDir.resolve(HtmlReportListener.SUBFOLDER);
         Path embedsDir = outputDir.resolve("embeds");
         Files.createDirectories(featuresDir);
 
         // Write embed files first (sets fileName on each Embed)
-        writeEmbedFiles(result, embedsDir);
+        writeEmbedFiles(result, embedsDir, mask);
 
         return buildFeatureData(result);
     }
@@ -197,7 +206,7 @@ public final class HtmlReportWriter {
     /** @param mask applied to the page's data ({@code Runner.Builder.outputMask}); may be null */
     public static void renderFeatureHtml(Map<String, Object> featureData, Path outputDir,
                                          Map<String, ReportAssets> reportAssets,
-                                         java.util.function.UnaryOperator<String> mask) throws IOException {
+                                         UnaryOperator<String> mask) throws IOException {
         Path featuresDir = outputDir.resolve(HtmlReportListener.SUBFOLDER);
         Files.createDirectories(featuresDir);
         String template = loadTemplate("karate-feature.html");
@@ -225,7 +234,7 @@ public final class HtmlReportWriter {
         return false;
     }
 
-    private static void writeEmbedFile(StepResult.Embed embed, Path embedsDir) throws IOException {
+    private static void writeEmbedFile(StepResult.Embed embed, Path embedsDir, UnaryOperator<String> mask) throws IOException {
         String baseName = embed.getName() != null
                 ? embed.getName().replaceAll("[^a-zA-Z0-9_-]", "_")
                 : "embed";
@@ -251,13 +260,30 @@ public final class HtmlReportWriter {
             if (isJsonMime(part.getMime())) {
                 continue;
             }
-            String ext = getExtensionForMimeType(part.getMime());
+            ResourceType rt = ResourceType.fromContentType(part.getMime());
+            String ext = rt != null && rt.getExtension() != null ? rt.getExtension() : "bin";
             String suffix = multi && part.getRole() != null ? "_" + part.getRole() : "";
             String fileName = String.format("%03d_%s%s.%s",
                     embedCounter.incrementAndGet(), baseName, suffix, ext);
-            Files.write(embedsDir.resolve(fileName), part.getData());
+            byte[] bytes = part.getData();
+            if (mask != null && rt != null && !rt.isBinary()) {
+                bytes = maskText(bytes, mask);
+            }
+            Files.write(embedsDir.resolve(fileName), bytes);
             part.setFileName(fileName);
         }
+    }
+
+    /** The mask over the bytes as UTF-8 text; bytes that are not UTF-8 are not text and pass through. */
+    private static byte[] maskText(byte[] bytes, UnaryOperator<String> mask) {
+        String text;
+        try {
+            text = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+        } catch (CharacterCodingException e) {
+            return bytes;
+        }
+        String masked = mask.apply(text);
+        return masked.equals(text) ? bytes : masked.getBytes(StandardCharsets.UTF_8);
     }
 
     /**
@@ -268,10 +294,12 @@ public final class HtmlReportWriter {
      * ({@code Suite.fireEvent}) before any listener serializes the result; idempotent (a part with a
      * fileName is skipped), so the HTML writer's later pass numbers each embed exactly once. Best-effort
      * — a write failure never breaks the run. JSON evidence stays inline (see {@link #writeEmbedFile}).
+     *
+     * @param mask applied to each text embed file ({@code Runner.Builder.outputMask}); may be null
      */
-    public static void externalizeEmbeds(FeatureResult result, Path outputDir) {
+    public static void externalizeEmbeds(FeatureResult result, Path outputDir, UnaryOperator<String> mask) {
         try {
-            writeEmbedFiles(result, outputDir.resolve("embeds"));
+            writeEmbedFiles(result, outputDir.resolve("embeds"), mask);
         } catch (IOException e) {
             logger.warn("Failed to externalize embeds: {}", e.getMessage());
         }
@@ -281,7 +309,7 @@ public final class HtmlReportWriter {
      * Write embed files to the embeds/ directory.
      * Sets the fileName on each Embed for JSON serialization.
      */
-    private static void writeEmbedFiles(FeatureResult result, Path embedsDir) throws IOException {
+    private static void writeEmbedFiles(FeatureResult result, Path embedsDir, UnaryOperator<String> mask) throws IOException {
         if (!hasEmbeds(result)) {
             return;  // No embeds to write
         }
@@ -294,12 +322,12 @@ public final class HtmlReportWriter {
             for (StepResult step : sr.getStepResults()) {
                 if (step.hasCallResults()) {
                     for (FeatureResult fr : step.getCallResults()) {
-                        writeEmbedFiles(fr, embedsDir);
+                        writeEmbedFiles(fr, embedsDir, mask);
                     }
                 }
                 if (step.getEmbeds() == null) continue;
                 for (StepResult.Embed embed : step.getEmbeds()) {
-                    writeEmbedFile(embed, embedsDir);
+                    writeEmbedFile(embed, embedsDir, mask);
                 }
             }
         }
@@ -311,18 +339,6 @@ public final class HtmlReportWriter {
      */
     private static boolean isJsonMime(String mimeType) {
         return mimeType != null && mimeType.toLowerCase().contains("json");
-    }
-
-    /**
-     * Get file extension for a MIME type using ResourceType.
-     */
-    private static String getExtensionForMimeType(String mimeType) {
-        ResourceType rt = ResourceType.fromContentType(mimeType);
-        if (rt != null && rt.getExtension() != null) {
-            return rt.getExtension();
-        }
-        // Fallback for unknown types
-        return "bin";
     }
 
     /**
@@ -357,7 +373,7 @@ public final class HtmlReportWriter {
                                          SuiteResult result, Path outputDir, String env,
                                          Map<String, ReportAssets> reportAssets,
                                          List<Map<String, Object>> summaryCards,
-                                         java.util.function.UnaryOperator<String> mask) throws IOException {
+                                         UnaryOperator<String> mask) throws IOException {
         // Copy ext assets once at suite end — feature/summary/timeline pages all
         // reference ext/<name>/... so the files must be on disk before the report is viewed.
         copyExtAssets(reportAssets, outputDir);
@@ -478,7 +494,7 @@ public final class HtmlReportWriter {
      */
     private static void writeInlined(Path target, String template, Object data,
                                      Map<String, ReportAssets> reportAssets, String relPrefix,
-                                     java.util.function.UnaryOperator<String> mask)
+                                     UnaryOperator<String> mask)
             throws IOException {
         // Splice the small fragments into the TEMPLATE first, and the report data last.
         // String.replace() copies everything it walks, so inlining the data first made each of
@@ -1029,7 +1045,7 @@ public final class HtmlReportWriter {
     public static void writeTimelineHtml(List<Map<String, Object>> features,
                                          SuiteResult result, Path outputDir, String env,
                                          int threadCount, Map<String, ReportAssets> reportAssets,
-                                         java.util.function.UnaryOperator<String> mask) throws IOException {
+                                         UnaryOperator<String> mask) throws IOException {
         Map<String, Object> timelineData = buildTimelineData(features, result, env, threadCount);
         String template = loadTemplate("karate-timeline.html");
         writeInlined(outputDir.resolve("karate-timeline.html"), template, timelineData, reportAssets, "", mask);

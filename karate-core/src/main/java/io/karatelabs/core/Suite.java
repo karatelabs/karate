@@ -44,6 +44,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.UnaryOperator;
 
 /**
  * Immutable suite configuration and execution engine.
@@ -94,7 +95,7 @@ public class Suite {
     /** {@code Runner.Builder.systemEnv}, immutable; empty when none was given. */
     private final Map<String, String> systemEnv;
     /** {@code Runner.Builder.outputMask}: applied to every report file at its write; null when none. */
-    public final java.util.function.UnaryOperator<String> outputMask;
+    public final UnaryOperator<String> outputMask;
     public final List<RunListener> listeners;
     public final List<RunListenerFactory> listenerFactories;
     public final DriverProvider driverProvider;
@@ -1106,7 +1107,7 @@ public class Suite {
         if (event.getType() == RunEventType.FEATURE_EXIT
                 && event instanceof FeatureRunEvent fre && fre.result() != null
                 && fre.source() != null && fre.source().getCallDepth() == 0) {
-            HtmlReportWriter.externalizeEmbeds(fre.result(), outputDir);
+            HtmlReportWriter.externalizeEmbeds(fre.result(), outputDir, outputMask);
         }
 
         boolean proceed = true;

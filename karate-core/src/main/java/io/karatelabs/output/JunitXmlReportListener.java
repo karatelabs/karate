@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.function.UnaryOperator;
 
 /**
  * A {@link ResultListener} that generates JUnit XML reports.
@@ -50,7 +51,7 @@ public class JunitXmlReportListener implements ResultListener {
     public static final String SUBFOLDER = "junit-xml";
 
     private final Path outputDir;
-    private java.util.function.UnaryOperator<String> mask;
+    private UnaryOperator<String> mask;
 
     /**
      * Create a new JUnit XML report listener.

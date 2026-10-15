@@ -41,6 +41,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
 
@@ -277,7 +278,7 @@ public final class Runner {
         private Boolean captureStepLogs;
         private Map<String, String> systemProperties;
         private Map<String, String> systemEnv;
-        private java.util.function.UnaryOperator<String> outputMask;
+        private UnaryOperator<String> outputMask;
         private final Map<String, Object> globals = new java.util.LinkedHashMap<>();
         private LogLevel logLevel = LogLevel.DEBUG;
         private String consoleLevel; // SLF4J/Logback level; null = inherit (logback.xml default)
@@ -444,10 +445,22 @@ public final class Runner {
 
         /**
          * A text transform applied to every report file this Suite writes, at the write: each
-         * JSONL event line, each HTML page's data, each Cucumber JSON and JUnit XML document. An
-         * embedder masks what the run's evidence must never hold (a credential the run sent).
+         * JSONL event line, each HTML page's data, each Cucumber JSON and JUnit XML document, and
+         * each text embed file under {@code embeds/}. An embedder masks what the run's evidence
+         * must never hold (a credential the run sent); the wire and the in-memory results are
+         * untouched. Masking what the run captures is {@code configure logging.mask}'s job — this
+         * is the backstop over the files.
+         * <p>
+         * The input is the document's serialized text, so a value appears as the format escapes
+         * it (JSON: {@code "} and {@code \} escaped, control characters as {@code \n} or a u-escape;
+         * XML: {@code & < > " '} as entities) and base64 where the format carries bytes — a JSON
+         * embed part inline in page data and JSONL, a step log and inline embeds in Cucumber JSON.
+         * A mask that must find a value in those forms matches them itself. The result must be
+         * valid in the same format: a replacement needs no escaping in JSON or XML. An embed file
+         * whose mime is text (not {@code ResourceType.isBinary}) is decoded as UTF-8, masked and
+         * re-encoded; a binary one is written as it was.
          */
-        public Builder outputMask(java.util.function.UnaryOperator<String> mask) {
+        public Builder outputMask(UnaryOperator<String> mask) {
             this.outputMask = mask;
             return this;
         }
@@ -964,7 +977,7 @@ public final class Runner {
         Boolean getCaptureStepLogs() { return captureStepLogs; }
         Map<String, String> getSystemProperties() { return systemProperties; }
         Map<String, String> getSystemEnv() { return systemEnv; }
-        java.util.function.UnaryOperator<String> getOutputMask() { return outputMask; }
+        UnaryOperator<String> getOutputMask() { return outputMask; }
         Map<String, Object> getProgrammaticGlobals() { return globals; }
         List<RunListener> getListeners() { return listeners; }
         List<RunListenerFactory> getListenerFactories() { return listenerFactories; }

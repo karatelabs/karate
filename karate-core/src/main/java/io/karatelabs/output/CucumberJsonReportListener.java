@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.function.UnaryOperator;
 
 /**
  * A {@link ResultListener} that generates Cucumber JSON reports.
@@ -50,7 +51,7 @@ public class CucumberJsonReportListener implements ResultListener {
     public static final String SUBFOLDER = "cucumber-json";
 
     private final Path outputDir;
-    private java.util.function.UnaryOperator<String> mask;
+    private UnaryOperator<String> mask;
 
     /**
      * Create a new Cucumber JSON report listener.

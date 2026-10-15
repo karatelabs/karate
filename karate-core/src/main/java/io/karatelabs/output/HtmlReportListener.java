@@ -37,6 +37,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.UnaryOperator;
 
 /**
  * A {@link ResultListener} that generates HTML reports.
@@ -68,7 +69,7 @@ public class HtmlReportListener implements ResultListener {
     // ext <script>/<link> tags get spliced and ext static dirs copied. Empty when
     // no exts registered assets.
     private Map<String, io.karatelabs.core.ReportAssets> reportAssets = java.util.Collections.emptyMap();
-    private java.util.function.UnaryOperator<String> mask;
+    private UnaryOperator<String> mask;
     // Suite captured at start so onSuiteEnd can read getSummaryCards() — exts add those in
     // onShutdown(), which runs after onSuiteStart but before this listener's onSuiteEnd write.
     private Suite suite;
@@ -132,7 +133,7 @@ public class HtmlReportListener implements ResultListener {
         try {
             ensureResourcesCopied();
             HtmlReportWriter.renderFeatureHtml(
-                    HtmlReportWriter.prepareFeatureData(result, outputDir), outputDir, reportAssets, mask);
+                    HtmlReportWriter.prepareFeatureData(result, outputDir, mask), outputDir, reportAssets, mask);
         } catch (Exception e) {
             logger.warn("Failed to write feature HTML for {}: {}", result.getDisplayName(), e.getMessage());
         }

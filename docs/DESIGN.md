@@ -578,7 +578,7 @@ The HTML report applies client-side **Prism.js** syntax highlighting to HTTP req
 
 ### Mask scope
 
-`mask` applies **only** to HTTP request/response logging. It does NOT scan `* print` or `karate.log` output — those are user-controlled channels. If a scenario's body could leak via prints, raise `logging.report: 'warn'` to drop INFO captures, or tag it `@report=false`.
+`mask` applies to HTTP request/response logging — the `HttpLogger` text, which is the only HTTP-derived content core writes to a report. Masked at the capture, a header or JSON path value reaches no artifact that carries the log: HTML page data, the JSONL stream, Cucumber JSON (where the log travels base64), JUnit XML. It does NOT scan `* print`, `karate.log` or `karate.embed` — user-controlled channels; raise `logging.report: 'warn'` to drop INFO captures, or tag the scenario `@report=false`. `HTTP_ENTER`/`HTTP_EXIT` carry the real request and response (a listener may mock or inspect them) and are not written to JSONL; an ext that builds an embed from them applies the mask itself before serializing — `LogContext.get().getMask()` (null when none), then `enabledForUri(uri)`, `maskHeader(name, value)`, `maskBody(text)`. A value that reaches a file by another road is the [output mask](#output-mask)'s to catch.
 
 ### Log Masking — declarative
 
@@ -659,6 +659,7 @@ target/karate-reports/
 ├── karate-summary.html               # Summary dashboard (default)
 ├── karate-timeline.html              # Gantt-style parallel execution view (default)
 ├── feature-html/                     # Per-feature interactive reports (default)
+├── embeds/                           # Embed parts written out of line (screenshots, text attachments)
 ├── karate-json/karate-events.jsonl   # JSON Lines event stream (opt-in)
 ├── cucumber-json/                    # Per-feature Cucumber JSON (opt-in)
 └── junit-xml/                        # Per-feature JUnit XML (opt-in)
@@ -678,6 +679,10 @@ Runner.path("features/")
 ```
 
 CLI: `-f html,karate:jsonl,cucumber:json,junit:xml`. Prefix with `~` to disable (`-f ~html`). Default is `html`. See `RunCommand.java`.
+
+### Output mask
+
+`Runner.Builder.outputMask(UnaryOperator<String>)` is applied to every report file the Suite writes, at the write: each JSONL line (`JsonLinesEventWriter`), each HTML page's data (`HtmlReportWriter.writeInlined`), each Cucumber JSON and JUnit XML document, and each text embed file under `embeds/` (`HtmlReportWriter.writeEmbedFile`: a part whose mime is not `ResourceType.isBinary` is decoded as UTF-8, masked and re-encoded; a binary part — image, PDF, video, unknown type, or bytes that are not UTF-8 — is written as it was). `configure logging.mask` masks at the capture and is the API for HTTP traffic; `outputMask` is an embedder's backstop for a value that reached the result by another road (a scenario name, a print, an ext's embed). The wire and the in-memory `SuiteResult` are untouched. The contract is on the Builder method: the mask sees serialized text — a value as the format escapes it, and base64 where the format carries bytes (a JSON embed part inline in page data and JSONL; a step log and inline embeds in Cucumber JSON) — and returns text valid in the same format. There is no byte mask: a credential is not a contiguous byte run in a compressed or pixel payload, and splicing bytes into an offset-bearing container (PNG chunks, PDF xref, MP4 atoms) corrupts it. An asset an ext writes itself (`Part.url`, `ext/`) is the ext's to mask. Source: `OutputMaskTest`, `LogMaskReportArtifactsTest`.
 
 ### JSON Lines event stream
 

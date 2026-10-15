@@ -355,6 +355,12 @@ Emit from a global/step via the thread-local log context:
 LogContext.get().embed(new StepResult.Embed("image-comparison", parts, meta));
 ```
 
+An embed built from HTTP traffic (an `HTTP_EXIT` request/response) carries the real values:
+apply the user's `configure logging.mask` before serializing — `LogContext.get().getMask()`
+(null when none), then `maskHeader` / `maskBody` (DESIGN.md § Mask scope). Core writes a text
+embed file through `Runner.Builder.outputMask` when one is set (DESIGN.md § Output mask); an
+asset the ext writes itself (a `url` part) is the ext's to mask.
+
 …or **from JS** (so an ext recipe in user space can emit) via the multi-part form of
 `karate.embed`:
 

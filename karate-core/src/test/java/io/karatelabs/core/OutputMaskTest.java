@@ -84,4 +84,40 @@ class OutputMaskTest {
         }
         assertTrue(masked >= 4, "the events, feature page, cucumber json and junit xml carry the masked name: " + masked);
     }
+
+    /** A text embed file is written through the mask; a binary one is written as it was. */
+    @Test
+    void textEmbedFileIsMaskedAndBinaryIsByteIdentical() throws Exception {
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, (byte) 0xFF, (byte) 0xFE, 't', 'o', 'k', '-', 's', 'e', 'c'};
+        Files.write(tempDir.resolve("pic.png"), png);
+        Path feature = tempDir.resolve("embeds.feature");
+        Files.writeString(feature, """
+                Feature: embeds
+                Scenario: attach
+                * karate.embed('note ' + karate.properties['secret'], 'text/plain', 'note')
+                * karate.embed(read('pic.png'), 'image/png', 'pic')
+                """);
+        Path reports = tempDir.resolve("reports");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reports)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .systemProperty("secret", SECRET)
+                .outputMask(text -> text.replace(SECRET, "***"))
+                .parallel(1);
+        assertTrue(result.isPassed());
+        List<Path> embeds;
+        try (Stream<Path> walk = Files.list(reports.resolve("embeds"))) {
+            embeds = walk.sorted().toList();
+        }
+        assertEquals(2, embeds.size(), "embeds: " + embeds);
+        Path note = embeds.stream().filter(f -> f.toString().endsWith(".txt")).findFirst().orElseThrow();
+        Path pic = embeds.stream().filter(f -> f.toString().endsWith(".png")).findFirst().orElseThrow();
+        assertEquals("note ***", Files.readString(note));
+        assertArrayEquals(png, Files.readAllBytes(pic));
+        String events = Files.readString(reports.resolve("karate-json").resolve("karate-events.jsonl"));
+        assertFalse(events.contains(SECRET));
+        assertTrue(events.contains("\"file\":\"" + note.getFileName() + "\""), events);
+    }
 }
