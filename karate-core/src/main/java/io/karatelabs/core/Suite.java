@@ -96,6 +96,8 @@ public class Suite {
     private final Map<String, String> systemEnv;
     /** {@code Runner.Builder.outputMask}: applied to every report file at its write; null when none. */
     public final UnaryOperator<String> outputMask;
+    /** {@code Runner.Builder.overlay}'s bytes by absolute path: a config file among them is read from them. */
+    private final Map<Path, byte[]> overlays;
     public final List<RunListener> listeners;
     public final List<RunListenerFactory> listenerFactories;
     public final DriverProvider driverProvider;
@@ -250,6 +252,7 @@ public class Suite {
                 : null;
         this.systemEnv = builder.getSystemEnv() != null ? Map.copyOf(builder.getSystemEnv()) : Map.of();
         this.outputMask = builder.getOutputMask();
+        this.overlays = Map.copyOf(builder.getOverlays());
         this.listeners = List.copyOf(builder.getListeners());
         this.listenerFactories = List.copyOf(builder.getListenerFactories());
         // Programmatic ext globals injected via Runner.Builder.global(...) — the run-free binding
@@ -413,7 +416,7 @@ public class Suite {
             if (resource != null && resource.exists()) {
                 return resource.isFile() && resource.getPath() != null
                         && resource.getPath().getFileSystem() == java.nio.file.FileSystems.getDefault()
-                        ? Resource.from(resource.getPath(), root, classpathRoot)
+                        ? configFile(resource.getPath())
                         : resource;
             }
         } catch (ResourceNotFoundException e) {
@@ -431,8 +434,8 @@ public class Suite {
                     ? List.of(workingDir) : List.of(workingDir, classpathRoot)) {
                 try {
                     Path candidate = dir.resolve(fileName);
-                    if (Files.exists(candidate)) {
-                        return Resource.from(candidate, root, classpathRoot);
+                    if (Files.exists(candidate) || overlays.containsKey(candidate.toAbsolutePath().normalize())) {
+                        return configFile(candidate);
                     }
                 } catch (Exception e) {
                     logger.debug("Could not load config from {}: {}", dir, e.getMessage());
@@ -452,6 +455,12 @@ public class Suite {
             logger.info("{} not found - no config variables will be set", probed);
         }
         return null;
+    }
+
+    /** A config file as this Suite reads it: from its overlay's bytes when the builder holds one for it. */
+    private Resource configFile(Path file) {
+        byte[] bytes = overlays.get(file.toAbsolutePath().normalize());
+        return bytes != null ? Resource.overlay(file, bytes, root, classpathRoot) : Resource.from(file, root, classpathRoot);
     }
 
     /**

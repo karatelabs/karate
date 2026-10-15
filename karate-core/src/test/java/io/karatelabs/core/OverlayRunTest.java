@@ -221,4 +221,26 @@ class OverlayRunTest {
         assertEquals("from overlay", scenarioName(top(overlaid)));
     }
 
+    @Test
+    void anOverlaidKarateConfigIsTheConfigTheRunReadsAndTheDiskKeepsItsOwn() throws Exception {
+        Path config = tempDir.resolve("karate-config.js");
+        byte[] before = Files.readAllBytes(config);
+        byte[] held = "function fn() { return { configValue: 'from-config', heldValue: 'held' } }".getBytes(StandardCharsets.UTF_8);
+        byte[] reads = OVERLAY.replace("* def who = 'overlay'", "* match heldValue == 'held'").getBytes(StandardCharsets.UTF_8);
+        SuiteResult result = builder("reports").overlay(featureFile, reads).overlay(config, held).parallel(1);
+        assertTrue(result.isPassed(), "the run reads the overlaid config");
+        assertArrayEquals(before, Files.readAllBytes(config));
+        assertFalse(builder("reports-disk").overlay(featureFile, reads).parallel(1).isPassed(), "a run without it reads the file");
+    }
+
+    @Test
+    void anOverlaidKarateConfigNotYetOnDiskIsRead() throws Exception {
+        Path config = tempDir.resolve("karate-config.js");
+        Files.delete(config);
+        byte[] held = "function fn() { return { configValue: 'from-config' } }".getBytes(StandardCharsets.UTF_8);
+        SuiteResult result = builder("reports").overlay(featureFile, OVERLAY.getBytes(StandardCharsets.UTF_8)).overlay(config, held).parallel(1);
+        assertTrue(result.isPassed(), "the run reads a config that exists only as an overlay");
+        assertFalse(Files.exists(config));
+    }
+
 }

@@ -350,7 +350,9 @@ public final class Runner {
         /**
          * Run the feature at {@code path} from {@code bytes} in this run only, as if the file held them
          * (relative refs, config, reports and ids resolve from {@code path}); nothing is read from or
-         * written to that file, which need not exist.
+         * written to that file, which need not exist. A {@code path} the Suite loads as a config file
+         * ({@code karate-config.js}, {@code karate-config-<env>.js}, {@code karate-base.js}) is read from
+         * {@code bytes} the same way.
          */
         public Builder overlay(Path path, byte[] bytes) {
             overlays.put(path.toAbsolutePath().normalize(), bytes.clone());
@@ -978,6 +980,7 @@ public final class Runner {
         Map<String, String> getSystemProperties() { return systemProperties; }
         Map<String, String> getSystemEnv() { return systemEnv; }
         UnaryOperator<String> getOutputMask() { return outputMask; }
+        Map<Path, byte[]> getOverlays() { return overlays; }
         Map<String, Object> getProgrammaticGlobals() { return globals; }
         List<RunListener> getListeners() { return listeners; }
         List<RunListenerFactory> getListenerFactories() { return listenerFactories; }
