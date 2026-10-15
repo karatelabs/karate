@@ -64,6 +64,9 @@ public class CdpClient {
     // router that must complete that send's response.
     private final ExecutorService frameRouter;
     private final ExecutorService eventDispatcher;
+    // Each lane's current thread (its factory writes the holder), for the fence's deadlock check.
+    private final Thread[] frameThread;
+    private final Thread[] dispatchThread = new Thread[1];
 
     static class PendingRequest {
         final CompletableFuture<CdpResponse> future;
@@ -88,26 +91,108 @@ public class CdpClient {
         // of order — e.g. Target.attachedToTarget / Target.detachedFromTarget pairs
         // swapping, or Runtime.executionContextCreated racing a session switch.
         // A dedicated single-thread executor restores per-connection ordering.
+        Thread[] frameThread = new Thread[1];
         ExecutorService frameRouter = Executors.newSingleThreadExecutor(
-                ThreadUtils.daemonFactory("cdp-frame-"));
+                tracking(ThreadUtils.daemonFactory("cdp-frame-"), frameThread));
         WsClientOptions options = WsClientOptions.builder(webSocketUrl)
                 .disablePing() // CDP handles its own keepalive
                 .maxPayloadSize(HttpUtils.MEGABYTE * 16) // Screenshots can be large
                 .callbackExecutor(frameRouter)
                 .build();
         WsClient ws = WsClient.connect(options);
-        CdpClient client = new CdpClient(ws, defaultTimeout, frameRouter);
+        CdpClient client = new CdpClient(ws, defaultTimeout, frameRouter, frameThread);
         client.waitForReady();
         return client;
     }
 
-    private CdpClient(WsClient ws, Duration defaultTimeout, ExecutorService frameRouter) {
+    /**
+     * The two lanes without a socket: frames arrive through {@link #route(String)}.
+     * For tests of the dispatch itself; nothing can be sent.
+     */
+    static CdpClient detached(Duration defaultTimeout) {
+        Thread[] frameThread = new Thread[1];
+        return new CdpClient(null, defaultTimeout, Executors.newSingleThreadExecutor(
+                tracking(ThreadUtils.daemonFactory("cdp-frame-"), frameThread)), frameThread);
+    }
+
+    private CdpClient(WsClient ws, Duration defaultTimeout, ExecutorService frameRouter, Thread[] frameThread) {
         this.ws = ws;
         this.defaultTimeout = defaultTimeout;
         this.frameRouter = frameRouter;
+        this.frameThread = frameThread;
         this.eventDispatcher = Executors.newSingleThreadExecutor(
-                ThreadUtils.daemonFactory("cdp-event-"));
-        setupMessageHandler();
+                tracking(ThreadUtils.daemonFactory("cdp-event-"), dispatchThread));
+        if (ws != null) {
+            setupMessageHandler();
+        }
+    }
+
+    private static ThreadFactory tracking(ThreadFactory factory, Thread[] holder) {
+        return r -> {
+            Thread t = factory.newThread(r);
+            holder[0] = t;
+            return t;
+        };
+    }
+
+    /** A frame as the socket hands it to the router: in arrival order, on the router thread. */
+    void route(String json) {
+        frameRouter.execute(() -> handleMessage(json));
+    }
+
+    ExecutorService frameRouter() {
+        return frameRouter;
+    }
+
+    /**
+     * A fence through both lanes: returns once every frame received before the call
+     * has been routed and every event among them has reached every handler and
+     * listener. {@code atFence} runs on the dispatcher at that point, between events,
+     * before the caller resumes. Forbidden on either lane's thread: the fence would
+     * wait on the thread that must run it.
+     */
+    public void awaitEventsDispatched(Runnable atFence) {
+        Thread current = Thread.currentThread();
+        if (current == frameThread[0] || current == dispatchThread[0]) {
+            throw new IllegalStateException("awaitEventsDispatched() cannot be called from the cdp "
+                    + current.getName() + " thread: it would deadlock");
+        }
+        CompletableFuture<Void> fence = new CompletableFuture<>();
+        try {
+            frameRouter.execute(() -> {
+                try {
+                    eventDispatcher.execute(() -> {
+                        try {
+                            if (atFence != null) {
+                                atFence.run();
+                            }
+                            fence.complete(null);
+                        } catch (Throwable t) {
+                            fence.completeExceptionally(t);
+                        }
+                    });
+                } catch (RejectedExecutionException e) {
+                    fence.completeExceptionally(e);
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            throw new IllegalStateException("cdp client closed", e);
+        }
+        try {
+            fence.get(defaultTimeout.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            throw new RuntimeException("CDP timeout for: event dispatch fence");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("interrupted waiting for the event dispatch fence", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            throw cause instanceof RuntimeException r ? r : new RuntimeException("event dispatch fence failed: " + cause, cause);
+        }
+    }
+
+    public void awaitEventsDispatched() {
+        awaitEventsDispatched(null);
     }
 
     /**
@@ -281,7 +366,7 @@ public class CdpClient {
      */
     CompletableFuture<CdpResponse> sendAsync(CdpMessage message) {
         // Fail fast if connection is closed
-        if (!ws.isOpen()) {
+        if (!isOpen()) {
             return CompletableFuture.failedFuture(
                     new WsException(WsException.Type.CONNECTION_CLOSED, "websocket not open"));
         }
@@ -384,7 +469,9 @@ public class CdpClient {
     // Lifecycle
 
     public void close() {
-        ws.close();
+        if (ws != null) {
+            ws.close();
+        }
         // The websocket close callback arrives asynchronously and may be rejected
         // once the executors below are shut down — fail any still-pending futures
         // here instead of relying on the onClose listener to do it.
@@ -398,7 +485,7 @@ public class CdpClient {
     }
 
     public boolean isOpen() {
-        return ws.isOpen();
+        return ws != null && ws.isOpen();
     }
 
     public Duration getDefaultTimeout() {

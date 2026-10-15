@@ -186,6 +186,11 @@ public class CdpDriver implements Driver {
     // full-timeout hang (seen in CI as "CDP timeout for: Page.captureScreenshot").
     private static final Duration FAILURE_SCREENSHOT_TIMEOUT = Duration.ofSeconds(5);
 
+    // Chrome's per-resource and total body buffers for Network.getResponseBody; a body
+    // evicted past them is unavailable to a traffic listener.
+    private static final int NETWORK_RESOURCE_BUFFER_BYTES = 8 * 1024 * 1024;
+    private static final int NETWORK_TOTAL_BUFFER_BYTES = 128 * 1024 * 1024;
+
     // OOPIF (Out-of-Process Iframe) tracking
     private final Map<String, Map<String, Object>> oopifTargets = new ConcurrentHashMap<>();
     private final Map<String, String> oopifSessions = new ConcurrentHashMap<>();
@@ -254,6 +259,20 @@ public class CdpDriver implements Driver {
      */
     public void removeCdpEventListener(CdpEventListener listener) {
         cdp.removeExternalListener(listener);
+    }
+
+    /**
+     * A fence through the CDP frame router and the event dispatcher: returns once every
+     * event received before the call has reached every listener; {@code atFence} runs on
+     * the dispatcher at that point. Must not be called from a CDP lane thread (a listener
+     * or event handler) — it throws rather than deadlock.
+     */
+    public void awaitEventsDispatched(Runnable atFence) {
+        cdp.awaitEventsDispatched(atFence);
+    }
+
+    public void awaitEventsDispatched() {
+        cdp.awaitEventsDispatched(null);
     }
 
     // ========== Script & binding injection ==========
@@ -638,7 +657,10 @@ public class CdpDriver implements Driver {
         // NOW enable domains - events will be properly captured
         cdp.method("Page.enable").send();
         cdp.method("Runtime.enable").send();
-        cdp.method("Network.enable").send(); // Required for cookie operations
+        cdp.method("Network.enable") // Required for cookie operations
+                .param("maxTotalBufferSize", NETWORK_TOTAL_BUFFER_BYTES)
+                .param("maxResourceBufferSize", NETWORK_RESOURCE_BUFFER_BYTES)
+                .send();
 
         // Tell Chrome to auto-attach to isolated cross-origin iframes (OOPIFs)
         cdp.method("Target.setAutoAttach")
