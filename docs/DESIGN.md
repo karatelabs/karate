@@ -504,8 +504,9 @@ configure logging = {
   report:  'debug',         // threshold for report-buffer capture (default DEBUG)
   console: 'info',          // Logback level override for the built-in karate.* categories; unset = logback.xml governs
   pretty:  true,            // pretty-print HTTP req/res JSON bodies (default true)
-  mask: {                   // HTTP-only redaction
-    headers:    ['Authorization', 'Cookie', 'X-Api-Key'],
+  mask: {                   // HTTP-only redaction; unset = the report-only defaults, false = off
+    defaults:   true,       // also mask Authorization, Cookie, Set-Cookie, Proxy-Authorization in reports
+    headers:    ['X-Api-Key'],
     jsonPaths:  ['$.password', '$..token'],
     patterns:   [{ regex: '\\bBearer [A-Za-z0-9._-]+\\b', replacement: 'Bearer ***' }],
     replacement: '***',
@@ -539,7 +540,7 @@ Both forms are supported and both stick across the scenario:
 
 ```javascript
 // karate-config.js — applies to every scenario in the suite
-karate.configure('logging', { mask: { headers: ['Authorization'] }, pretty: true });
+karate.configure('logging', { mask: { headers: ['X-Api-Key'] }, pretty: true });
 ```
 
 ```gherkin
@@ -578,16 +579,19 @@ The HTML report applies client-side **Prism.js** syntax highlighting to HTTP req
 
 ### Mask scope
 
-`mask` applies to HTTP request/response logging — the `HttpLogger` text, which is the only HTTP-derived content core writes to a report. Masked at the capture, a header or JSON path value reaches no artifact that carries the log: HTML page data, the JSONL stream, Cucumber JSON (where the log travels base64), JUnit XML. It does NOT scan `* print`, `karate.log` or `karate.embed` — user-controlled channels; raise `logging.report: 'warn'` to drop INFO captures, or tag the scenario `@report=false`. `HTTP_ENTER`/`HTTP_EXIT` carry the real request and response (a listener may mock or inspect them) and are not written to JSONL; an ext that builds an embed from them applies the mask itself before serializing — `LogContext.get().getMask()` (null when none), then `enabledForUri(uri)`, `maskHeader(name, value)`, `maskBody(text)`. A value that reaches a file by another road is the [output mask](#output-mask)'s to catch.
+`mask` applies to HTTP request/response logging — the `HttpLogger` text, which is the only HTTP-derived content core writes to a report. Masked at the capture, a header or JSON path value reaches no artifact that carries the log: HTML page data, the JSONL stream, Cucumber JSON (where the log travels base64), JUnit XML. It does NOT scan `* print`, `karate.log` or `karate.embed` — user-controlled channels; raise `logging.report: 'warn'` to drop INFO captures, or tag the scenario `@report=false`. `HTTP_ENTER`/`HTTP_EXIT` carry the real request and response (a listener may mock or inspect them) and are not written to JSONL; an ext that builds an embed from them applies the mask itself before serializing — `LogContext.get().getMask()` (null only under `mask: false`), then `enabledForUri(uri)`, `maskHeader(name, value)`, `maskBody(text)`. A value that reaches a file by another road is the [output mask](#output-mask)'s to catch.
 
 ### Log Masking — declarative
 
 The `mask` object replaces v1's `HttpLogModifier` Java interface. Compiled once per `configure logging` call into a `LogMask` instance stored on the thread-local `LogContext`. Each `HttpLogger.logRequest/logResponse` reads the current mask and applies:
 
-1. `headers` — case-insensitive header-name set; matching headers' values become `replacement`.
+0. **Defaults** — `Authorization`, `Cookie`, `Set-Cookie` and `Proxy-Authorization` (`LogMask.DEFAULT_HEADERS`) are masked in the **report buffer only**; the console (DEBUG headers, TRACE body) shows them as sent, since it is the developer's own terminal while reports are shared artifacts. With `mask` unset the mask is `LogMask.DEFAULT` (these four, nothing else).
+1. `headers` — case-insensitive header-name set; matching headers' values become `replacement` in the report **and** on the console. The list **adds to** the defaults — naming a credential header should never unmask the other three — and a default header named here is masked on the console too.
 2. `jsonPaths` — `$.x.y` (descend) and `$..x` (recursive) keys; matched values become `replacement`.
 3. `patterns` — regex/replacement pairs applied last, so they catch anything header / JSON-path didn't.
-4. `enableForUri(uri)` — optional JS predicate; when it returns falsy, no masking applies for that URL (useful for excluding `/health` so debugging stays easy).
+4. `enableForUri(uri)` — optional JS predicate; when it returns falsy, no masking applies for that URL (useful for excluding `/health` so debugging stays easy) — the defaults included.
+
+Opting out: `mask: { defaults: false, ... }` keeps only the user's rules (a map with `defaults: false` and no rule is OFF, with a warn); `mask: false` turns masking off entirely, reports carry the raw values. `mask: null` (or `true`) returns to the defaults. Each `configure logging = { mask }` replaces the previous mask whole — it is the one key the deep-merge does not reach into. For an ext, `LogMask.maskHeader`/`isHeaderMasked` answer for the report (defaults included) and `maskConsoleHeader` for the console; `LogContext.get().getMask()` is null only under `mask: false`. Source: `DefaultReportMaskTest`.
 
 ```javascript
 configure logging = {

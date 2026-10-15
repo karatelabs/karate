@@ -1827,7 +1827,7 @@ class HtmlReportWriterTest {
         Path feature = writeFeatureCallingHarness(tempDir, """
                 Feature: Mask Regex
                 Background:
-                * configure logging = { mask: { patterns: [{ regex: 'Bearer [A-Za-z0-9._-]+', replacement: 'Bearer ***' }] } }
+                * configure logging = { mask: { defaults: false, patterns: [{ regex: 'Bearer [A-Za-z0-9._-]+', replacement: 'Bearer ***' }] } }
                 Scenario: bearer pattern redacted in HTTP log
                 * def tok = karate.properties['test.bearer']
                 * url 'http://127.0.0.1:__PORT__'

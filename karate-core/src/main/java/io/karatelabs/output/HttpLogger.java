@@ -63,6 +63,11 @@ public class HttpLogger {
 
     public static void logHeaders(StringBuilder sb, int num, String prefix,
                                   Map<String, List<String>> headers, LogMask mask) {
+        logHeaders(sb, num, prefix, headers, mask, false);
+    }
+
+    private static void logHeaders(StringBuilder sb, int num, String prefix,
+                                   Map<String, List<String>> headers, LogMask mask, boolean console) {
         if (headers == null || headers.isEmpty()) {
             return;
         }
@@ -71,7 +76,7 @@ public class HttpLogger {
                 sb.append(Console.DIM).append(num).append(prefix).append(Console.RESET);
                 sb.append(Console.CYAN).append(k).append(Console.RESET);
                 sb.append(": ");
-                sb.append(mask == null ? value : mask.maskHeader(k, value));
+                sb.append(mask == null ? value : console ? mask.maskConsoleHeader(k, value) : mask.maskHeader(k, value));
                 sb.append('\n');
             }
         });
@@ -140,6 +145,7 @@ public class HttpLogger {
             full.append(Console.DIM).append(requestCount).append(" > ").append(Console.RESET);
             full.append(Console.CYAN).append(Console.BOLD).append(request.getMethod()).append(Console.RESET);
             full.append(' ').append(request.getUrlAndPath()).append('\n');
+            int headersStart = full.length();
             logHeaders(full, requestCount, " > ", request.getHeaders(), m);
             int headersEnd = full.length();
             ResourceType rt = ResourceType.fromContentType(request.getContentType());
@@ -156,10 +162,8 @@ public class HttpLogger {
             if (capture) {
                 LogContext.get().log(LogLevel.INFO, full.toString());
             }
-            if (trace) {
-                logger.trace(forLog(full.toString()));
-            } else if (debug) {
-                logger.debug(forLog(full.substring(0, headersEnd)));
+            if (trace || debug) {
+                logConsole(full, headersStart, headersEnd, request.getHeaders(), " > ", m, trace);
             }
         }
         if (!trace && !debug && logger.isInfoEnabled()) {
@@ -186,6 +190,7 @@ public class HttpLogger {
             full.append(colorStatus(response.getStatus())).append(' ');
             full.append(Console.CYAN).append(request.getMethod()).append(Console.RESET);
             full.append(' ').append(request.getUrlAndPath()).append('\n');
+            int headersStart = full.length();
             logHeaders(full, requestCount, " < ", response.getHeaders(), m);
             int headersEnd = full.length();
             ResourceType rt = response.getResourceType();
@@ -195,10 +200,8 @@ public class HttpLogger {
             if (capture) {
                 LogContext.get().log(LogLevel.INFO, full.toString());
             }
-            if (trace) {
-                logger.trace(forLog(full.toString()));
-            } else if (debug) {
-                logger.debug(forLog(full.substring(0, headersEnd)));
+            if (trace || debug) {
+                logConsole(full, headersStart, headersEnd, response.getHeaders(), " < ", m, trace);
             }
         }
         if (!trace && !debug && logger.isInfoEnabled()) {
@@ -209,6 +212,28 @@ public class HttpLogger {
             line.append(' ').append(request.getUrlAndPath());
             line.append(Console.DIM).append(" (").append(response.getResponseTime()).append(" ms)").append(Console.RESET);
             logger.info(forLog(line.toString()));
+        }
+    }
+
+    // The report text, with its header lines rebuilt under the console mask when that differs;
+    // TRACE takes the body too, DEBUG stops at the headers.
+    private void logConsole(StringBuilder full, int headersStart, int headersEnd,
+                            Map<String, List<String>> headers, String prefix, LogMask m, boolean trace) {
+        String text;
+        if (m != null && m.hasReportOnlyHeaders()) {
+            StringBuilder sb = new StringBuilder(full.substring(0, headersStart));
+            logHeaders(sb, requestCount, prefix, headers, m, true);
+            if (trace) {
+                sb.append(full, headersEnd, full.length());
+            }
+            text = sb.toString();
+        } else {
+            text = trace ? full.toString() : full.substring(0, headersEnd);
+        }
+        if (trace) {
+            logger.trace(forLog(text));
+        } else {
+            logger.debug(forLog(text));
         }
     }
 

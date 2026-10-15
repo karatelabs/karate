@@ -214,13 +214,13 @@ karate run -f ~html,karate:jsonl features/
 
 ### Log Masking
 
-Log masking is configured per-scenario or globally via `configure logging = { mask: ... }` in feature files or `karate-config.js`. There is no CLI flag — masks are declarative and live with the test code that knows what's sensitive.
+Log masking is configured per-scenario or globally via `configure logging = { mask: ... }` in feature files or `karate-config.js`. There is no CLI flag — masks are declarative and live with the test code that knows what's sensitive. By default `Authorization`, `Cookie`, `Set-Cookie` and `Proxy-Authorization` values are masked in reports (not on the console); a `headers` list adds to them, `defaults: false` drops them, `mask: false` turns masking off.
 
 ```javascript
 // karate-config.js — applies to all scenarios in this run
 configure logging = {
   mask: {
-    headers:    ['Authorization', 'Cookie', 'X-Api-Key'],
+    headers:    ['X-Api-Key'],   // added to the report-only defaults
     jsonPaths:  ['$.password', '$..token'],
     patterns:   [{ regex: '\\bBearer [A-Za-z0-9._-]+\\b', replacement: 'Bearer ***' }],
     replacement: '***',

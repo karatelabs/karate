@@ -38,6 +38,7 @@ import io.karatelabs.gherkin.Tag;
 import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.js.JavaCallable;
 import io.karatelabs.output.LogContext;
+import io.karatelabs.output.LogMask;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -1145,7 +1146,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 LogContext.get().embed(e.getData(), e.getMimeType(), e.getName());
             }
         }
-        if (config.getCompiledMask() != null && logger.isDebugEnabled()) {
+        if (config.getCompiledMask() != null && config.getCompiledMask() != LogMask.DEFAULT && logger.isDebugEnabled()) {
             // One-line confirmation per scenario so users can verify the mask compiled
             // and is actually active. Visible only when karate.runtime is at DEBUG, so
             // it stays out of the way for normal runs.

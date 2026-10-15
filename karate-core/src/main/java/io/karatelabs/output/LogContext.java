@@ -85,8 +85,8 @@ public class LogContext {
     private List<StepResult> pendingSteps;
     // Per-thread HTTP logging config, set via `configure logging = { mask, pretty }`.
     // HttpLogger reads these on each request so changes take effect immediately
-    // without needing to rebuild the HTTP client. Defaults: pretty=true, no mask.
-    private LogMask mask;
+    // without needing to rebuild the HTTP client. Defaults: pretty=true, LogMask.DEFAULT.
+    private LogMask mask = LogMask.DEFAULT;
     private boolean pretty = true;
     // Whether anything is collected into the report buffer at all. Off means the buffer
     // stays empty and every consumer of it (HTML report, JSONL, log replay) gets nothing —

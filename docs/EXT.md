@@ -357,7 +357,8 @@ LogContext.get().embed(new StepResult.Embed("image-comparison", parts, meta));
 
 An embed built from HTTP traffic (an `HTTP_EXIT` request/response) carries the real values:
 apply the user's `configure logging.mask` before serializing — `LogContext.get().getMask()`
-(null when none), then `maskHeader` / `maskBody` (DESIGN.md § Mask scope). Core writes a text
+(null only under `mask: false`), then `maskHeader` / `maskBody` — `maskHeader` includes the report-only
+default credential headers (DESIGN.md § Mask scope). Core writes a text
 embed file through `Runner.Builder.outputMask` when one is set (DESIGN.md § Output mask); an
 asset the ext writes itself (a `url` part) is the ext's to mask.
 

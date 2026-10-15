@@ -116,7 +116,8 @@ public class KarateConfig implements SimpleObject {
     //   report  - threshold for what gets captured into the report buffer (default DEBUG)
     //   console - threshold for SLF4J/console output (default INFO)
     //   pretty  - pretty-print HTTP request/response JSON bodies (default true)
-    //   mask    - declarative HTTP redaction { headers, jsonPaths, patterns, replacement, enableForUri }
+    //   mask    - declarative HTTP redaction { defaults, headers, jsonPaths, patterns, replacement, enableForUri };
+    //             unset = LogMask.DEFAULT, false = off
     private Map<String, Object> logging = new HashMap<>(Map.of(
             "report", "debug",
             "console", "info",
@@ -126,7 +127,7 @@ public class KarateConfig implements SimpleObject {
     // per-thread cache that ScenarioRuntime.call() repopulates from this field at scenario
     // entry. Keeps mask/pretty alive across the LogContext.set() reset done at call() entry,
     // which previously dropped any mask set during karate-config.js.
-    private LogMask compiledMask;
+    private LogMask compiledMask = LogMask.DEFAULT;
 
     // CallSingleCache: { minutes, dir }
     private Map<String, Object> callSingleCache = new HashMap<>();
@@ -641,8 +642,12 @@ public class KarateConfig implements SimpleObject {
         }
         if (map.containsKey("mask")) {
             Object maskValue = map.get("mask");
-            if (maskValue == null) {
+            if (maskValue == null || Boolean.TRUE.equals(maskValue)) {
                 this.logging.remove("mask");
+                this.compiledMask = LogMask.DEFAULT;
+                LogContext.get().setMask(LogMask.DEFAULT);
+            } else if (Boolean.FALSE.equals(maskValue)) {
+                this.logging.put("mask", false);
                 this.compiledMask = null;
                 LogContext.get().setMask(null);
             } else if (maskValue instanceof Map<?, ?> maskMap) {
@@ -653,7 +658,7 @@ public class KarateConfig implements SimpleObject {
                 this.compiledMask = compiled;
                 LogContext.get().setMask(compiled);
             } else {
-                throw new RuntimeException("configure 'logging.mask' expects a map, got: " + maskValue.getClass().getName());
+                throw new RuntimeException("configure 'logging.mask' expects a map or false, got: " + maskValue.getClass().getName());
             }
         }
     }

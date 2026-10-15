@@ -252,7 +252,7 @@ configure logging = {
   console: 'info',          // threshold for SLF4J/console output (default INFO)
   pretty:  true,            // pretty-print HTTP JSON bodies (default true)
   mask: {                   // HTTP-only redaction (replaces v1 HttpLogModifier)
-    headers:    ['Authorization', 'Cookie'],
+    headers:    ['X-Api-Key'],  // added to the defaults below
     jsonPaths:  ['$.password', '$..token'],
     patterns:   [{ regex: '\\bBearer [A-Za-z0-9._-]+\\b', replacement: 'Bearer ***' }],
     replacement: '***',
@@ -262,6 +262,15 @@ configure logging = {
 ```
 
 See [DESIGN.md § Logging](./DESIGN.md#logging) for the full shape and semantics.
+
+### Credential headers are masked in reports by default
+
+The values of `Authorization`, `Cookie`, `Set-Cookie` and `Proxy-Authorization` are replaced with `***` in the HTML report, the JSONL stream, Cucumber JSON and JUnit XML, with no configuration. The console is unchanged — DEBUG/TRACE still print them as sent. A `mask: { headers: [...] }` you already have adds to these four. To see the raw values in reports again:
+
+```javascript
+configure logging = { mask: false }                                   // no masking at all
+configure logging = { mask: { defaults: false, headers: ['X-Api-Key'] } } // only your own rules
+```
 
 ### Where do HTTP bodies show up?
 
