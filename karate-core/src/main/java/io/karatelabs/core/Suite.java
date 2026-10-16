@@ -972,12 +972,39 @@ public class Suite {
     }
 
     private boolean isFeatureIgnored(Feature feature) {
-        for (Tag tag : feature.getTags()) {
-            if (Tag.IGNORE.equals(tag.getName())) {
-                return true;
+        if (!hasSelectionBypass(feature)) {
+            for (Tag tag : feature.getTags()) {
+                if (Tag.IGNORE.equals(tag.getName())) {
+                    return true;
+                }
             }
         }
         return allSectionsExcluded(feature);
+    }
+
+    /**
+     * True when a selector that bypasses {@code @ignore}/{@code @env} tag filtering is
+     * active for this feature: {@link #skipTagFiltering}, a {@link #scenarioName} filter,
+     * or a {@link #lineFilters} entry for this feature's own URI. Mirrors the bypass
+     * semantics {@link FeatureRuntime#shouldSelect} applies per-scenario, so a
+     * feature-level {@code @ignore} doesn't drop the feature before a line- or
+     * name-selected scenario inside it ever gets the chance to bypass it.
+     */
+    private boolean hasSelectionBypass(Feature feature) {
+        if (skipTagFiltering) {
+            return true;
+        }
+        if (scenarioName != null) {
+            return true;
+        }
+        if (!lineFilters.isEmpty()) {
+            String featureUri = feature.getResource().getUri().toString();
+            Set<Integer> lines = lineFilters.get(featureUri);
+            if (lines != null && !lines.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -993,8 +1020,8 @@ public class Suite {
      * scenario level still produce empty FeatureResults under the status quo and the
      * bug report explicitly asked to preserve that.
      * <p>
-     * Never pre-excludes when a bypass filter is active — line filters, scenario name
-     * filters, and {@code skipTagFiltering} all have their own selection semantics in
+     * Never pre-excludes when {@link #hasSelectionBypass} is true — line filters, scenario
+     * name filters, and {@code skipTagFiltering} all have their own selection semantics in
      * {@link FeatureRuntime} that bypass tag selection.
      * <p>
      * For persistent (non-outline) scenarios, the evaluation result is cached on the
@@ -1005,18 +1032,8 @@ public class Suite {
         if (tagSelector == null) {
             return false;
         }
-        if (skipTagFiltering) {
+        if (hasSelectionBypass(feature)) {
             return false;
-        }
-        if (scenarioName != null) {
-            return false;
-        }
-        if (!lineFilters.isEmpty()) {
-            String featureUri = feature.getResource().getUri().toString();
-            Set<Integer> lines = lineFilters.get(featureUri);
-            if (lines != null && !lines.isEmpty()) {
-                return false;
-            }
         }
         List<FeatureSection> sections = feature.getSections();
         if (sections == null || sections.isEmpty()) {

@@ -395,6 +395,34 @@ class RunnerTest {
     }
 
     @Test
+    void testRunnerWithLineNumberFilterIgnoresFeatureLevelTag() throws Exception {
+        // Create a feature with @ignore tag on the Feature line itself
+        Path feature = tempDir.resolve("ignore-feature.feature");
+        Files.writeString(feature, """
+            @ignore
+            Feature: Ignored feature
+
+            Scenario: first
+            * print 'first'
+
+            Scenario: second
+            * def a = 1
+            * match a == 1
+            """);
+
+        // Run the second scenario by line number - should bypass the feature-level @ignore
+        SuiteResult result = Runner.path(feature.toString() + ":7")
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(1, result.getFeatureCount());
+        assertEquals(1, result.getScenarioPassedCount());
+    }
+
+    @Test
     void testRunnerWithLineNumberFilterScenarioOutline() throws Exception {
         // Create a feature with Scenario Outline
         Path feature = tempDir.resolve("outline.feature");
