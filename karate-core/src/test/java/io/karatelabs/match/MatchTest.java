@@ -675,6 +675,24 @@ class MatchTest {
     }
 
     @Test
+    void testNotPresentAgainstAValidator() {
+        match("#notpresent", EQUALS, "#string", FAILS);
+        message("""
+                match failed: EQUALS
+                  $ | actual path does not exist (STRING:STRING)
+                  '#notpresent'
+                  '#string'
+                """);
+        match("foo", EQUALS, "#foo", FAILS);
+        message("""
+                match failed: EQUALS
+                  $ | not equal (STRING:STRING)
+                  'foo'
+                  '#foo'
+                """);
+    }
+
+    @Test
     void testXml() {
         match("<root>foo</root>", EQUALS, "<root>foo</root>");
         match("<root>foo</root>", CONTAINS, "<root>foo</root>");

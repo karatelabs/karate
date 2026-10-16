@@ -423,7 +423,8 @@ public class Operation {
                         } else if (!optional && actual.isNotPresent()) {
                             // if the element is not present the expected result can only be
                             // the notpresent keyword, ignored or an optional comparison
-                            return expected.isNotPresent() || "#ignore".contentEquals(expected.getAsString());
+                            return expected.isNotPresent() || "#ignore".contentEquals(expected.getAsString())
+                                    || fail("actual path does not exist");
                         } else {
                             Result mr = validator.apply(actual);
                             if (!mr.pass) {
@@ -432,12 +433,9 @@ public class Operation {
                         }
                     } else if (!validatorName.startsWith(REGEX)) { // expected is a string that happens to start with "#"
                         String actualValue = actual.getValue();
-                        switch (type) {
-                            case CONTAINS:
-                                return actualValue.contains(expStr);
-                            default:
-                                return actualValue.equals(expStr);
-                        }
+                        return type == Match.Type.CONTAINS
+                                ? actualValue.contains(expStr) || fail("actual does not contain expected")
+                                : actualValue.equals(expStr) || fail("not equal");
                     }
 
                 }
