@@ -611,10 +611,25 @@ public class StepExecutor {
             // caller/config scope it inherited to read. See calleeResult.
             runtime.setVariable(resultVar, calleeResult(calleeRuntime));
         } else {
-            // Shared scope - propagate all variables back to caller
+            // Shared scope - propagate all variables back to caller. A variable the callee
+            // merely inherited to read (same name AND same object reference as the scope we
+            // seeded it with) is not a contribution of the callee: propagating it through
+            // setVariable would record it in this runtime's assignedVariables, and if THIS
+            // runtime is itself the callee of an enclosing isolated call whose delta is
+            // computed by name (StepUtils.calleeDelta), that inherited Example-row column
+            // would then be reported as belonging to it - leaking it into the caller, where
+            // an Outline row freezes to row 1. Such inherited bindings are re-propagated by
+            // direct binding so the caller still sees them, without claiming them.
+            Map<String, Object> inherited = calleeRuntime.getInheritedVariables();
             Map<String, Object> resultVars = calleeRuntime.getAllVariables();
             for (Map.Entry<String, Object> entry : resultVars.entrySet()) {
-                runtime.setVariable(entry.getKey(), entry.getValue());
+                String key = entry.getKey();
+                Object value = entry.getValue();
+                if (inherited.containsKey(key) && inherited.get(key) == value) {
+                    runtime.putUnclaimedVariable(key, value);
+                } else {
+                    runtime.setVariable(key, value);
+                }
             }
             // V1 compatibility: Also propagate config changes back to caller.
             // The caller's HTTP client also needs to be re-projected so a callee-set
