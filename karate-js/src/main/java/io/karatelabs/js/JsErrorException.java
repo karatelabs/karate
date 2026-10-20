@@ -97,6 +97,25 @@ class JsErrorException extends RuntimeException {
     }
 
     /**
+     * The ReferenceError for reading or writing a {@code let} / {@code const} / {@code class}
+     * binding in its temporal dead zone — the one factory for it, so every storage path
+     * (slot frame, store, closure capture) throws the same shape. A distinct subclass only so
+     * {@code typeof}, which turns an <i>unresolvable</i> reference into {@code "undefined"},
+     * can tell this apart and let it propagate (§13.5.3: GetValue on a resolved binding
+     * still throws).
+     */
+    static JsErrorException uninitialized(String name) {
+        return new Uninitialized(build(JsErrorPrototype.REFERENCE_ERROR,
+                "cannot access '" + name + "' before initialization", null));
+    }
+
+    static final class Uninitialized extends JsErrorException {
+        Uninitialized(JsError payload) {
+            super(payload);
+        }
+    }
+
+    /**
      * Wrap a non-{@link JsErrorException} Java throwable as a generic JS
      * {@code Error} so JS {@code catch} clauses see a spec-shape value
      * ({@code e instanceof Error}). The cause is preserved on the Java side

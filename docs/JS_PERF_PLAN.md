@@ -288,8 +288,9 @@ Ordered by expected value ÷ risk:
    two-map, multi-hop resolution, not the checks). Cache only immutable
    `JsBuiltinMethod` results — never `AccessorSlot` / `ConstructorRef`
    resolutions, which are Engine-dependent. Storage: **not** `Node.meta`
-   (it is a tagged union owned by SlotTable — `SlotTable`/`DEFERRED`/`BAIL`/
-   rearm `int[]`); use a dedicated side structure or a composite meta object
+   (it is a tagged union — `SlotTable`/`DEFERRED`/`BAIL` on function and
+   program nodes, `LexicalScope` on BLOCK/FOR_STMT/SWITCH_STMT); use a
+   dedicated side structure or a composite meta object
    designed with SlotTable, and measure `Node` footprint if any field is
    added (see item 3's constraint).
 

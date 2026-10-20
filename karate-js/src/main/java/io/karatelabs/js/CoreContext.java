@@ -335,7 +335,7 @@ class CoreContext implements Context {
                 Object v = frame[idx];
                 if (v != SlotTable.UNDECLARED) {
                     if (v == SlotTable.TDZ) {
-                        throw JsErrorException.referenceError("cannot access '" + key + "' before initialization");
+                        throw SlotTable.tdzError(key);
                     }
                     return v;
                 }
@@ -412,7 +412,7 @@ class CoreContext implements Context {
      *  {@link #get} and {@link Interpreter#evalRefExpr}'s single-walk path. */
     Object readSlot(BindingSlot s, String key) {
         if (s.scope != null && !s.initialized) {
-            throw JsErrorException.referenceError("cannot access '" + key + "' before initialization");
+            throw SlotTable.tdzError(key);
         }
         Object v = s.value;
         return v instanceof JsLazy lz ? lz.get() : v;
@@ -460,7 +460,7 @@ class CoreContext implements Context {
                 Object v = frame[idx];
                 if (v != SlotTable.UNDECLARED) {
                     if (v == SlotTable.TDZ) {
-                        throw JsErrorException.referenceError("cannot access '" + key + "' before initialization");
+                        throw SlotTable.tdzError(key);
                     }
                     return v;
                 }
@@ -503,6 +503,19 @@ class CoreContext implements Context {
         if (scope != null) { // let or const
             BindingSlot existing = bindings == null ? null : bindings.getSlot(key);
             if (existing != null && existing.scope != null && existing.level == currentLevel) {
+                if (!existing.initialized) {
+                    // The cell LexicalScope created in its TDZ when this scope was
+                    // entered: the declaration initializes it IN PLACE, so a closure
+                    // that captured it before the declaration ran (a hoisted function,
+                    // a probe in a for head) observes the value from now on.
+                    existing.value = value;
+                    existing.scope = scope;
+                    existing.initialized = initialized;
+                    if (depth == 0) {
+                        existing.evalId = root.evalId;
+                    }
+                    return;
+                }
                 ContextScope currentScope = getCurrentScope();
                 if (currentScope == ContextScope.LOOP_INIT || currentScope == ContextScope.LOOP_BODY) {
                     // Loop iteration: re-declaration is valid (per-iteration scope).
@@ -542,6 +555,21 @@ class CoreContext implements Context {
         }
     }
 
+    /** A let / const / class binding created in its temporal dead zone at
+     *  scope entry ({@link LexicalScope}): pushed at the current level so the
+     *  scope's exit pops it, uninitialized so reads and writes throw until
+     *  {@link #declare} initializes this same cell. No BindEvent — nothing is
+     *  bound yet as far as an observer is concerned. */
+    void declareUninitialized(String key, BindScope scope) {
+        if (bindings == null) {
+            bindings = new BindingsStore();
+        }
+        bindings.pushBinding(key, Terms.UNDEFINED, scope, currentLevel, false);
+        if (depth == 0) {
+            bindings.getSlot(key).evalId = root.evalId;
+        }
+    }
+
     void update(String key, Object value) {
         update(key, value, null);
     }
@@ -566,7 +594,12 @@ class CoreContext implements Context {
             assignImplicitGlobal(key, value, node);
             return;
         }
-        if (s.scope == BindScope.CONST && s.initialized) {
+        if (s.scope != null && !s.initialized) {
+            // §9.1.1.1.5 SetMutableBinding: assigning a binding in its TDZ is a
+            // ReferenceError — only its declaration may initialize it
+            throw SlotTable.tdzError(key);
+        }
+        if (s.scope == BindScope.CONST) {
             throw JsErrorException.typeError("assignment to constant: " + key);
         }
         // NamedEvaluation (§13.15.2): when RHS is an anonymous function expression and
@@ -577,7 +610,6 @@ class CoreContext implements Context {
             fn.name = key;
         }
         Object oldValue = s.value;
-        s.initialized = true;
         // Unified write — works whether the Slot lives in this context's
         // bindings, in capturedBindings, in an outer context, or in root.
         // Sibling closures sharing the same Slot reference see the new
@@ -588,15 +620,15 @@ class CoreContext implements Context {
         }
     }
 
-    /** Slot analogue of the post-resolve half of {@link #update} — same const
-     *  check, same name inference, same BindEvent. A TDZ slot behaves like the
-     *  store's uninitialized binding: the write initializes (const included),
-     *  and the event reports undefined as the old value, which is what the
-     *  store held. Callers must have checked the slot is not UNDECLARED. */
+    /** Slot analogue of the post-resolve half of {@link #update} — same TDZ
+     *  and const checks, same name inference, same BindEvent. A TDZ slot
+     *  behaves like the store's uninitialized binding: the write throws (only
+     *  the declaration, which writes the frame directly, initializes it).
+     *  Callers must have checked the slot is not UNDECLARED. */
     void updateSlot(int idx, Object value, Node node) {
         Object oldValue = frame[idx];
         if (oldValue == SlotTable.TDZ) {
-            oldValue = Terms.UNDEFINED;
+            throw SlotTable.tdzError(frameTable.names[idx]);
         } else if (frameTable.kinds[idx] == SlotTable.KIND_CONST) {
             throw JsErrorException.typeError("assignment to constant: " + frameTable.names[idx]);
         }

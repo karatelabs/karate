@@ -42,7 +42,9 @@ final class BindingSlot {
 
     /** null = var (or implicit), LET / CONST otherwise. */
     BindScope scope;
-    /** TDZ — false until first assignment for let / const. */
+    /** TDZ — false for a let / const / class binding from its scope's entry
+     *  ({@link LexicalScope}) until its declaration runs; reads and writes of
+     *  an uninitialized lexical binding throw. */
     boolean initialized = true;
     /** Scope level where this binding was created. */
     int level;

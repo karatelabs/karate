@@ -1295,6 +1295,81 @@ This is the structural reason `JSON()` / `Math()` / `Reflect()` throw
 `TypeError` — they fail the `instanceof JsCallable` check at the call site,
 not via per-class `call` overrides.
 
+### Lexical bindings & the temporal dead zone
+
+**A scope's `let` / `const` / `class` bindings exist from scope entry,
+uninitialized.** This is BlockDeclarationInstantiation (§14.2.3) and its
+function-body (§10.2.11), Script (§16.1.7), switch CaseBlock and `for`-head
+(§14.7.4.2, §14.7.5.6) analogues. Before it, a binding was created only when
+its declaration statement ran, so a read before the declaration resolved an
+*outer* binding of the same name and a write landed on that binding or made an
+implicit global. Now every read or write before the declaration throws
+`ReferenceError: cannot access 'x' before initialization`, and `typeof x`
+throws too (§13.5.3 — only an *unresolvable* reference reads `"undefined"`).
+
+The seam is **`LexicalScope`**: the names a scope node declares (via
+`JsParser.lexicalDeclarations`, the same predicates as the redeclaration early
+error), computed once and cached on `Node.meta` of the BLOCK / FOR_STMT /
+SWITCH_STMT (`NONE` when it declares nothing, so the common entry is one
+volatile read and a compare). `Interpreter.instantiateLexicalScope` runs right
+after `enterScope` and **before** `hoistFunctionDeclarations`, so a hoisted
+function captures the uninitialized cell. Storage split:
+
+- a name the running frame's `SlotTable` holds as a let/const slot is armed to
+  `SlotTable.TDZ` (found through `SlotTable.lexicalSlots`, cached per
+  (node, table)) — this replaced the old re-arm-to-`UNDECLARED` lists;
+- every other name gets an uninitialized `BindingSlot` pushed at the scope's
+  level (`CoreContext.declareUninitialized`), popped by `exitScope`.
+
+**The declaration initializes the pre-instantiated cell in place**
+(`CoreContext.declare`: a same-level, uninitialized, lexical slot is filled,
+never shadowed), so closures that captured it — a hoisted function, a probe
+created in a `for` head — observe the value from then on. Only the declaration
+initializes: `CoreContext.update` / `updateSlot` throw on an uninitialized
+binding (§9.1.1.1.5), and `const` reassignment stays a `TypeError`. The one
+TDZ error factory is `JsErrorException.uninitialized` (a distinct subclass, so
+`evalTypeofExpr` can let it through while still mapping an unresolvable name
+to `"undefined"`).
+
+**Frame `UNDECLARED` vs `TDZ`.** `UNDECLARED` now means "not yet bound in this
+frame": a `var` before its statement runs, and a body-level let/const while the
+parameter defaults evaluate — they must resolve outward (§10.2.11 evaluates
+defaults in an environment that does not contain the body's lexical names), so
+the body's slots are armed on body-BLOCK entry, not at frame creation.
+
+**Script top level and REPL re-declaration.** `evalProgram` instantiates the
+script's lexical names before hoisting (`LexicalScope.instantiateGlobal`). A
+name some *earlier* eval on the same `Engine` already declared lexically at top
+level is left as it is: re-declaring it is the deliberate REPL deviation
+(spec: SyntaxError), and the new declaration re-initializes that cell in place
+— so between the two evals no TDZ window reopens and the first eval's closures
+keep working. A host binding (`Engine.put`) or a `var` of the same name *is*
+shadowed by the script's `let` from script entry, as the spec's global
+declarative record shadows the object record.
+
+**Classes.** A named class gets its own scope with an immutable inner binding
+(uninitialized while the heritage evaluates — `class C extends C {}` throws —
+initialized before the static elements run, captured by every method). A class
+*declaration* is a let-like binding of the enclosing scope (block-scoped, TDZ
+before the declaration, initialized when the definition completes); a class
+*expression*'s name never leaks into the enclosing scope. Both used to be
+`context.put` — a function-scoped `var`.
+
+**For heads.** The head's bound names are instantiated in the LOOP_INIT scope,
+so the C-style initializer and the for-in/of expression see them in their TDZ
+(`for (let x of [x])` throws); each iteration then declares fresh bindings one
+level deeper. The C-style per-iteration copy list is the head's BoundNames
+(`JsParser.boundNames`) — a destructuring key (`let { x: y }`) binds nothing.
+
+Pinned by `SpecPinTest.tdz_*`, `switch_clauseLexicalBindingsAreInTdzFromCaseBlockEntry`
+and `forHead_destructuringBindsItsBoundNamesOnly`, each with slot frames on and
+off. **Known remaining deviations:** parameter TDZ (`function f(a = b, b)`),
+a closure in a parameter default seeing body-level lets (store path), the catch
+parameter bound as a function-level `var` rather than in the catch scope
+(test262 `block-scope/shadowing/*catch-parameter*`), function / generator /
+async declarations in blocks hoisted as `var`s rather than block-lexical, and
+the global-object half of GlobalDeclarationInstantiation (`script-decl-lex-*`).
+
 ### Class semantics (`class` / `extends` / `super`)
 
 **`class` is desugared at eval time, not rewritten in the AST.**

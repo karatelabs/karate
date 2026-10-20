@@ -92,6 +92,9 @@ public class Node {
     // up on the top-level benchmark rows. A stale -1 read only means the
     // slower name-keyed path is taken. `meta` holds a mutable object, so per
     // the class-doc rule it is volatile and must be read once into a local.
+    // Its owner depends on the node type: a function-definition node or
+    // PROGRAM caches its SlotTable there; a BLOCK / FOR_STMT / SWITCH_STMT its
+    // lexically declared names (io.karatelabs.js.LexicalScope).
     public short slot = -1;
     public volatile Object meta;
 

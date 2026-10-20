@@ -139,13 +139,17 @@ class ProgramFrameTest {
 
     @Test
     void blockLetRearmsPerIteration() {
-        // pre-declaration reads must see UNDECLARED again on every iteration,
-        // not the previous iteration's value left in the slot
-        assertEquals("undefined,undefined,undefined,", evalBoth(
-                "var acc = ''; for (var i = 0; i < 3; i++) { acc += (typeof x) + ','; let x = 'L'; } acc;"));
-        // and a pre-declaration read of a same-named OUTER binding resolves it
-        assertEquals("ggg", evalBoth(
-                "var x = 'g'; var acc = ''; for (var i = 0; i < 3; i++) { acc += x; let x = 'L'; } acc;"));
+        // every iteration re-enters the block, so the let is back in its TDZ —
+        // a pre-declaration read throws again rather than seeing the previous
+        // iteration's value left in the slot (typeof included: §13.5.3)
+        assertEquals("TLTLTL", evalBoth(
+                "var acc = ''; for (var i = 0; i < 3; i++) { try { acc += typeof x; } catch (e) { acc += 'T'; }"
+                        + " let x = 'L'; acc += x; } acc;"));
+        // and the TDZ binding shadows a same-named OUTER binding from block entry
+        // (§14.2.3) — the read must not fall through to it
+        assertEquals("TTT", evalBoth(
+                "var x = 'g'; var acc = ''; for (var i = 0; i < 3; i++) { try { acc += x; } catch (e) { acc += 'T'; }"
+                        + " let x = 'L'; } acc;"));
     }
 
     @Test
@@ -239,7 +243,10 @@ class ProgramFrameTest {
 
     @Test
     void nestedBlockShadowInsideLoop() {
-        assertEquals("g0g1", evalBoth("var x = 'g'; var out = ''; for (var i = 0; i < 2; i++) { { out += x; let x = i; out += x; } } out;"));
+        // the inner block's let is in its TDZ from block entry: the first read throws
+        // instead of reaching the outer x (§14.2.3)
+        assertEquals("T0T1", evalBoth("var x = 'g'; var out = ''; for (var i = 0; i < 2; i++) {"
+                + " { try { out += x; } catch (e) { out += 'T'; } let x = i; out += x; } } out;"));
     }
 
     @Test

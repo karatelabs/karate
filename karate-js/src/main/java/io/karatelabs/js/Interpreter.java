@@ -479,7 +479,7 @@ class Interpreter {
     private static Object evalBlock(Node node, CoreContext context) {
         context.enterScope(ContextScope.BLOCK, node);
         context.event(EventType.CONTEXT_ENTER, node);
-        rearmScopedSlots(node, context);
+        instantiateLexicalScope(node, context);
         // Hoist function declarations before any statement runs so earlier
         // statements can still reference them. Re-running the FN_EXPR in normal
         // flow would replace the hoisted binding with a fresh JsFunctionNode and
@@ -936,16 +936,15 @@ class Interpreter {
     // before any statement runs. Re-evaluation when the declaration is reached in
     // normal flow re-binds to a fresh JsFunctionNode with the same captures —
     // functionally equivalent, just a small extra allocation per declaration.
-    /** Re-arm a scope's confined let/const slots to UNDECLARED on entry
-     *  (SlotTable stamps the list on the declaring BLOCK / FOR_STMT node) —
-     *  the frame analogue of popLevel: loop iterations and pre-declaration
-     *  reads then resolve exactly as the store did. */
-    private static void rearmScopedSlots(Node node, CoreContext context) {
+    /** Instantiate a scope's let / const / class bindings in their temporal
+     *  dead zone on entry (BLOCK, FOR_STMT head, SWITCH_STMT CaseBlock) — see
+     *  {@link LexicalScope}. Re-entry (a loop iteration) re-arms them. The
+     *  common no-declarations case is one volatile read and a compare. */
+    private static void instantiateLexicalScope(Node node, CoreContext context) {
         Object m = node.meta;
-        if (m instanceof int[] slots && context.frame != null) {
-            for (int s : slots) {
-                context.frame[s] = SlotTable.UNDECLARED;
-            }
+        LexicalScope ls = m instanceof LexicalScope l ? l : LexicalScope.of(node);
+        if (ls != LexicalScope.NONE) {
+            ls.instantiate(context);
         }
     }
 
@@ -1058,15 +1057,44 @@ class Interpreter {
     // bodies are always strict (spec §15.7). Phase 2: `extends` links both the
     // instance prototype chain and the constructor [[Prototype]] (for statics +
     // super(...)); `super(...)` / `super.m()` resolve via the method's
-    // [[HomeObject]] and the active-function seam. Fields remain Phase 3. A
-    // named class declaration binds its name in the current scope; the re-eval
-    // skip and function-hoisting passes ignore CLASS_EXPR, so it runs in source
-    // order (no hoisting — TDZ is not modelled).
+    // [[HomeObject]] and the active-function seam. Fields remain Phase 3.
+    //
+    // Name bindings, per ClassDefinitionEvaluation (§15.7.14) and
+    // BindingClassDeclarationEvaluation: a named class gets its own scope holding
+    // an immutable inner binding of the name — uninitialized while the heritage
+    // evaluates (`class C extends C {}` is a ReferenceError), initialized before
+    // the static elements run, and captured by every method. A class DECLARATION
+    // additionally initializes its let-like binding in the enclosing scope once the
+    // definition completes; LexicalScope created that binding in its TDZ when the
+    // scope was entered, so a use before the declaration throws. A class
+    // expression's name never leaks into the enclosing scope.
     private static Object evalClassExpr(Node node, CoreContext context) {
         String className = null;
         if (node.size() > 1 && node.get(1).token != null && node.get(1).token.type == IDENT) {
             className = node.get(1).getText();
         }
+        if (className == null) {
+            return evalClassDefinition(node, context, null, null);
+        }
+        context.enterScope(ContextScope.BLOCK, node);
+        Object result;
+        try {
+            context.declareUninitialized(className, BindScope.CONST);
+            BindingSlot inner = context.bindings.getSlot(className);
+            result = evalClassDefinition(node, context, className, inner);
+        } finally {
+            context.exitScope();
+        }
+        Node parent = node.getParent();
+        if (parent != null && parent.type == NodeType.STATEMENT && result instanceof JsFunctionNode
+                && !context.isError()) {
+            context.declare(className, result, BindScope.LET, true);
+        }
+        return result;
+    }
+
+    private static Object evalClassDefinition(Node node, CoreContext context, String className,
+                                              BindingSlot innerBinding) {
         // heritage: `extends <expr>` — the EXPR follows the EXTENDS token.
         boolean hasExtends = false;
         Object parentValue = null;
@@ -1157,11 +1185,12 @@ class Interpreter {
                 }
             }
             ctor.homeObject = proto; // [[HomeObject]] for super.m() inside the constructor
-            // Bound before the members run: the spec's class-scope ClassName binding is
-            // in place while static field initializers and static blocks execute, so
-            // `static { C.x = 1 }` and `static b = C.a` can name the class.
-            if (className != null) {
-                context.put(className, ctor);
+            // Initialized before the members run: the spec's class-scope ClassName
+            // binding is in place while static field initializers and static blocks
+            // execute, so `static { C.x = 1 }` and `static b = C.a` can name the class.
+            if (innerBinding != null) {
+                innerBinding.value = ctor;
+                innerBinding.initialized = true;
             }
             // Phase 1 (spec ClassDefinitionEvaluation): resolve every member key — so
             // computed keys still evaluate in source order — and install the methods and
@@ -1703,7 +1732,7 @@ class Interpreter {
         // Enter loop init scope
         context.enterScope(ContextScope.LOOP_INIT, node);
         context.event(EventType.CONTEXT_ENTER, node);
-        rearmScopedSlots(node, context);
+        instantiateLexicalScope(node, context);
         Node forBody = node.getLast();
         Object forResult = null;
         boolean enteredBodyScope = false;
@@ -1737,17 +1766,12 @@ class Interpreter {
                         // and capturing `digits`/`length` would shadow them in the body and
                         // (via the per-iteration copy-back) attempt to reassign the outer
                         // `const digits`.
+                        // A destructuring pattern contributes its BoundNames only — never
+                        // a property key (`for (let { x: y } = …` binds y, not x) nor a
+                        // name inside a default value.
                         loopVarNames = new ArrayList<>();
                         for (Node declarator : node.get(2).findImmediateChildren(NodeType.VAR_DECL)) {
-                            Node binding = declarator.getFirst();
-                            if (binding.isToken() && binding.token.type == IDENT) {
-                                loopVarNames.add(binding.getText());
-                            } else {
-                                // destructuring binding pattern (`for (let [a, b] = …`)
-                                for (Node ident : binding.findChildren(IDENT)) {
-                                    loopVarNames.add(ident.getText());
-                                }
-                            }
+                            JsParser.boundNames(declarator, loopVarNames);
                         }
                         loopVarScope = node.get(2).getFirstToken().type == LET ? BindScope.LET : BindScope.CONST;
                     }
@@ -2497,6 +2521,14 @@ class Interpreter {
                 context.frame = table.newFrame();
             }
         }
+        // GlobalDeclarationInstantiation: the script's top-level let / const / class
+        // bindings exist (in their TDZ) before any statement runs — before the hoisting
+        // below, so a hoisted function captures them. A name an earlier eval on this
+        // Engine already declared is left alone (REPL re-declaration, see LexicalScope).
+        LexicalScope lexical = LexicalScope.compute(node);
+        if (lexical != LexicalScope.NONE) {
+            lexical.instantiateGlobal(context);
+        }
         // Hoist top-level function declarations so they're visible before their lexical
         // position. Per ES5/ES6, `function foo() {}` at script-level is registered before
         // any other statement runs — code earlier in the source can still reference foo.
@@ -2794,7 +2826,7 @@ class Interpreter {
         // across clauses and invisible outside the switch.
         context.enterScope(ContextScope.BLOCK, node);
         context.event(EventType.CONTEXT_ENTER, node);
-        rearmScopedSlots(node, context);
+        instantiateLexicalScope(node, context);
         Object result = null;
         try {
             for (Node clause : clauses) {
@@ -3226,6 +3258,10 @@ class Interpreter {
         try {
             Object value = eval(node.get(1), context);
             return Terms.typeOf(value);
+        } catch (JsErrorException.Uninitialized e) {
+            // §13.5.3: only an UNRESOLVABLE reference reads as "undefined"; a binding
+            // that exists but is still in its temporal dead zone throws
+            throw e;
         } catch (Exception e) {
             return Terms.UNDEFINED.toString();
         }

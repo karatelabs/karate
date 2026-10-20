@@ -625,7 +625,7 @@ early-error validation) is advanced-pattern territory.
 | `test/language/expressions/assignment` | Corrected 2026-08-16: the "destructuring parse tail" attribution was wrong — `({[a]:b, ...rest} = vals)` parses fine. Residual: destructuring IteratorClose (`array-elem-trlg-iter-*-rtrn/thrw`, `array-rest-iter-rtrn-close`), a `dstr` early-error tail, fn-name inference on the LHS. |
 | `test/language/{statements,expressions}/function` + `arrow-function` | fn-name inference for `[x = (function(){})]`-style defaults; IteratorClose-on-throw; rest-element edges. |
 | `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS now fires under in-body `"use strict"` (the `onlyStrict`-flagged variants stay SKIP until the runner runs a strict pass). Corrected 2026-08-16: the `A5.*_T2/T3` family is **not** an Annex-B non-identifier-LHS issue — all 44 FAILs here (and ~90 suite-wide, incl. prefix/postfix inc/dec and `identifier-resolution`) are the **`with` statement**: `with` isn't a token, lexes as an identifier, `with (x)` parses as a call, and the following block derails. Real-world value low (illegal in strict mode); the path-skip only covers `statements/with/`. |
-| `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion and empty-`for`-header semantics handle the headline cases. 2026-08-16 closed: optional-catch-binding+`finally`, `default`-in-any-position, shared CaseBlock environment. Residual in `for/`: loop completion-value `undefined`-vs-`null` (`head-init-*-check-empty-inc-empty-completion.js`) and `let` as a plain identifier in a for head (`head-lhs-let.js`, parser); in `switch/`: `scope-lex-open-*` TDZ corners + feature-gated variants. |
+| `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion and empty-`for`-header semantics handle the headline cases. 2026-08-16 closed: optional-catch-binding+`finally`, `default`-in-any-position, shared CaseBlock environment. Residual in `for/`: loop completion-value `undefined`-vs-`null` (`head-init-*-check-empty-inc-empty-completion.js`) and `let` as a plain identifier in a for head (`head-lhs-let.js`, parser); in `switch/`: `scope-lex-open-case` (comma expression in a `case` selector — parser) + block-lexical generator / async declarations. |
 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (Symbol-gated). |
 | `test/built-ins/RegExp/**` | Group-name early-error validation, `Symbol.{match,replace,search,split,matchAll}` protocol (Symbol-gated, conformance-only — everyday `str.replace(re,fn)` doesn't use it), lookbehind / unicode-property-escapes / `/v` flag (feature-gated). Null-arg Java leaks + one catastrophic-backtracking timeout in `exec`/`test` (P2). |
 | `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` ToInteger corners; parser-blocked; Symbol-gated tail. See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
@@ -776,14 +776,25 @@ Observably non-spec; pick up when the owning slice surfaces them.
 
 - **Runtime block/eval environments for lexical bindings.** *(Switch half
   shipped 2026-08-16: `evalSwitchStmt` gives the whole CaseBlock one shared
-  declarative environment per §14.12.11 — pinned by
-  `SpecPinTest.switch_caseBlockIsOneSharedLexicalEnvironment`;
-  `scope-lex-close-{case,dflt}` now PASS. Residual `scope-lex-open-*` rows
-  are TDZ-visibility corners, not environment placement.)* Remaining:
-  indirect `(0,eval)('const x…')` must evaluate in a
+  declarative environment per §14.12.11. TDZ shipped 2026-10-20: every
+  Block / function body / Script / CaseBlock / `for` head instantiates its
+  let / const / class bindings uninitialized on entry (`LexicalScope`), in
+  both slot-frame and store modes; class declarations are block-lexical and a
+  class expression's name no longer leaks — see
+  [JS_ENGINE.md § Lexical bindings & the temporal dead zone](../docs/JS_ENGINE.md#lexical-bindings--the-temporal-dead-zone).
+  Pinned by `SpecPinTest.tdz_*`; 50 FAIL→PASS, 0 regressions on the full
+  suite, plus 8 more in the path-skipped `**/class/**` slice measured with
+  the skip lifted — `scope-name-lex-*`, `name-binding/const` — 0 regressions
+  there either.)* Remaining: indirect `(0,eval)('const x…')` must evaluate in a
   NewDeclarativeEnvironment off the global env
-  (`eval-code/indirect/lex-env-distinct-{const,let}.js`). Runtime scoping
-  gap, independent of the parse-phase early-error work.
+  (`eval-code/indirect/lex-env-distinct-{const,let}.js`); the catch
+  parameter is still bound as a function-level `var` instead of in the catch
+  scope (`block-scope/shadowing/*catch-parameter*`, 5 FAILs — scope
+  placement, not TDZ; `CoreContext.put` in `evalTryStmt`); function /
+  generator / async declarations in blocks and switch clauses hoist as
+  `var`s rather than block-lexical (`switch/scope-lex-{generator,async-function}`,
+  `global-code/{block,switch-*}-decl-strict`); parameter TDZ
+  (`dflt-params-ref-{self,later}`).
 - **`JsArray.handleLengthAssign` strict TypeError on non-writable length.**
   Strict-mode plumbing has landed (`CoreContext.strict`), but the `length`
   write still routes through `handleLengthAssign(value, ctx)` with no strict

@@ -820,11 +820,194 @@ class SpecPinTest extends EvalBase {
     @Test
     void switch_clauseLexicalBindingsAreInTdzFromCaseBlockEntry() {
         // §14.12.11: the CaseBlock environment exists (bindings uninitialized)
-        // while case expressions evaluate. Store-path fallbacks (shadowed or
-        // captured names) keep the block-level limitation; the slotted path pins.
+        // while case expressions evaluate — on the slotted and the store path
+        // (a shadowed or closure-captured name) alike.
         assertEquals("ReferenceError", eval(
                 "var msg; try { switch (0) { case 0: u; msg = 'no-tdz'; break; } }"
                         + " catch (e) { msg = e.name; } switch (0) { case 1: let u = 1; } msg"));
+        assertEquals("ReferenceError", evalBothSlotModes(
+                "function f() { let u = 'outer'; var msg; switch (0) { case 0: try { msg = u; } catch (e) { msg = e.name; }"
+                        + " break; case 1: let u = 1; } return msg; } f() && f()"));
+        // test262 switch/scope-lex-open-dflt: the discriminant is outside the
+        // CaseBlock, a clause statement inside it
+        assertEquals("outside,inside", evalBothSlotModes(
+                "let x = 'outside'; var probeExpr, probeStmt;"
+                        + " switch (probeExpr = function() { return x; }) {"
+                        + " default: probeStmt = function() { return x; }; let x = 'inside'; }"
+                        + " probeExpr() + ',' + probeStmt()"));
+        // a class declared in a clause is lexical to the CaseBlock (test262 switch/scope-lex-class)
+        assertEquals("undefined", evalBothSlotModes("switch (0) { default: class Sx {} } typeof Sx"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Temporal dead zone (§14.2.3 BlockDeclarationInstantiation, §10.2.11
+    // FunctionDeclarationInstantiation, §16.1.7 GlobalDeclarationInstantiation,
+    // §14.7.5.6 ForIn/OfHeadEvaluation): a scope's let / const / class bindings
+    // exist from scope ENTRY, uninitialized. Any read or write before the
+    // declaration runs throws ReferenceError — it never falls through to an outer
+    // binding of the same name, never creates an implicit global, and a closure
+    // created before the declaration (a hoisted function) sees the same TDZ.
+    // Every pin runs with slot frames on and off (SlotFrameTest's invariant), and
+    // functions are called twice so the deferred frame attaches on the second call.
+    // -------------------------------------------------------------------------
+
+    /** Evaluate with slot frames on and off; assert identical results; return it. */
+    private Object evalBothSlotModes(String src) {
+        boolean prev = SlotTable.ENABLED;
+        try {
+            SlotTable.ENABLED = true;
+            Object on = eval(src);
+            SlotTable.ENABLED = false;
+            Object off = eval(src);
+            assertEquals(off, on, "slot frames on vs off differ for:\n" + src);
+            return on;
+        } finally {
+            SlotTable.ENABLED = prev;
+        }
+    }
+
+    @Test
+    void tdz_readBeforeBlockLetDoesNotReachOuterBinding() {
+        // the read is a ReferenceError, not the outer `s`
+        assertEquals("tdz,tdz", evalBothSlotModes(
+                "function t() { var s = 1; { var seen; try { seen = s; } catch (e) { seen = 'tdz'; } let s = 2;"
+                        + " return seen; } } t() + ',' + t()"));
+        // same with the name only ever declared in the block (slot-eligible shape)
+        assertEquals("tdz,tdz", evalBothSlotModes(
+                "function t() { for (var i = 0; i < 1; i++) { var seen; try { seen = q; } catch (e) { seen = 'tdz'; }"
+                        + " let q = 2; } return seen; } t() + ',' + t()"));
+        // const and a function-body-level let
+        assertEquals("ReferenceError,ReferenceError", evalBothSlotModes(
+                "var c = 'outer'; function t() { try { return c; } catch (e) { return e.name; } const c = 1; }"
+                        + " t() + ',' + t()"));
+    }
+
+    @Test
+    void tdz_writeBeforeDeclarationThrows() {
+        // plain, compound and destructuring assignment — never the outer binding,
+        // never an implicit global (test262 assignment/dstr/*-put-let)
+        assertEquals("ReferenceError,1", evalBothSlotModes(
+                "var x = 1; var r; { try { x = 2; } catch (e) { r = e.name; } let x; } r + ',' + x"));
+        assertEquals("ReferenceError,undefined", evalBothSlotModes(
+                "var r; { try { fresh = 2; } catch (e) { r = e.name; } let fresh; } r + ',' + typeof fresh"));
+        assertEquals("ReferenceError", evalBothSlotModes(
+                "function t() { try { n += 1; } catch (e) { return e.name; } let n = 0; } t() && t()"));
+        assertEquals("ReferenceError", evalBothSlotModes(
+                "var r; try { [d] = [1]; } catch (e) { r = e.name; } let d; r"));
+        assertEquals("ReferenceError", evalBothSlotModes(
+                "var r; try { ({ k: d2 } = { k: 1 }); } catch (e) { r = e.name; } let d2; r"));
+    }
+
+    @Test
+    void tdz_closureCreatedBeforeDeclarationSeesTheTdz() {
+        // test262 statements/let/{block-local,function-local,global}-closure-set-before-initialization
+        assertEquals("ReferenceError", evalBothSlotModes(
+                "var r; try { { function f() { x = 1; } f(); let x; } } catch (e) { r = e.name; } r"));
+        assertEquals("ReferenceError,ReferenceError", evalBothSlotModes(
+                "function t() { function f() { x = 1; } try { f(); } catch (e) { return e.name; } let x; }"
+                        + " t() + ',' + t()"));
+        assertEquals("ReferenceError", evalBothSlotModes(
+                "function f() { x = 1; } var r; try { f(); } catch (e) { r = e.name; } let x; r"));
+        // ... and the same captured cell once the declaration initializes it
+        assertEquals("5,5", evalBothSlotModes(
+                "function t() { { function f() { return x; } let x = 5; return f(); } } t() + ',' + t()"));
+        // a fresh cell per block entry: each iteration's hoisted closure keeps its own value
+        assertEquals("0,1,2", evalBothSlotModes(
+                "var fs = []; for (var i = 0; i < 3; i++) { function g() { return v; } let v = i; fs.push(g); }"
+                        + " fs.map(function (f) { return f(); }).join()"));
+    }
+
+    @Test
+    void tdz_typeofThrowsForATdzBinding() {
+        // §13.5.3: only an unresolvable reference reads "undefined"
+        assertEquals("ReferenceError", evalBothSlotModes(
+                "var r; { try { r = typeof q; } catch (e) { r = e.name; } let q; } r"));
+        assertEquals("ReferenceError", evalBothSlotModes(
+                "function t() { try { return typeof q; } catch (e) { return e.name; } let q; } t() && t()"));
+        assertEquals("undefined", evalBothSlotModes("typeof neverDeclaredAnywhere"));
+    }
+
+    @Test
+    void tdz_classDeclarationIsLexical() {
+        assertEquals("ReferenceError", evalBothSlotModes(
+                "var r; try { new C(); } catch (e) { r = e.name; } class C {} r"));
+        // block-scoped, not hoisted to the function / script
+        assertEquals("function,undefined", evalBothSlotModes(
+                "var r; { class D {} r = typeof D; } r + ',' + typeof D"));
+        // the heritage evaluates with the class's own name uninitialized
+        assertEquals("ReferenceError", evalBothSlotModes(
+                "var r; try { class E extends E {} } catch (e) { r = e.name; } r"));
+        // methods and static initializers see the inner binding
+        assertEquals(true, evalBothSlotModes(
+                "class F { static self = F; static make() { return new F(); } } F.make() instanceof F && F.self === F"));
+        // a class EXPRESSION's name is bound only inside the class
+        assertEquals("Inner,undefined", evalBothSlotModes(
+                "var X = class Inner { static who() { return Inner.name; } }; X.who() + ',' + typeof Inner"));
+        // the declaration's binding is mutable (let-like), the inner one is not
+        assertEquals("2,TypeError", evalBothSlotModes(
+                "class G { static m() { try { G = 1; } catch (e) { return e.name; } } } var r = G.m(); G = 2; G + ',' + r"));
+    }
+
+    @Test
+    void tdz_forHeadBindingsAreInTdzWhileTheHeadEvaluates() {
+        // test262 for-of / for-in head-{let,const}-bound-names-fordecl-tdz
+        assertEquals("ReferenceError", evalBothSlotModes(
+                "var r; let x = 1; try { for (let x of [x]) {} } catch (e) { r = e.name; } r"));
+        assertEquals("ReferenceError", evalBothSlotModes(
+                "var r; const y = {a: 1}; try { for (const y in y) {} } catch (e) { r = e.name; } r"));
+        // C-style init (§14.7.4.2: the loop environment exists before the initializer)
+        assertEquals("ReferenceError,ReferenceError", evalBothSlotModes(
+                "function t() { let z = 1; try { for (let z = z; z < 2; z++) {} } catch (e) { return e.name; } }"
+                        + " t() + ',' + t()"));
+        // test262 for-of/scope-head-lex-open: a closure created in the head sees the TDZ binding
+        assertEquals("outside,ReferenceError", evalBothSlotModes(
+                "let w = 'outside'; var probeBefore = function () { return w; }; var probeExpr;"
+                        + " for (let w of (probeExpr = function () { typeof w; }, [])) ;"
+                        + " var r; try { probeExpr(); } catch (e) { r = e.name; } probeBefore() + ',' + r"));
+    }
+
+    @Test
+    void forHead_destructuringBindsItsBoundNamesOnly() {
+        // `let { x: y }` binds y — the property key x is not a binding
+        // (test262 statements/for/dstr/*-obj-ptrn-prop-*)
+        assertEquals("23,ReferenceError", evalBothSlotModes(
+                "var out; for (let { x: y } = { x: 23 }; !out; ) { var r; try { x; } catch (e) { r = e.name; }"
+                        + " out = y + ',' + r; } out"));
+    }
+
+    @Test
+    void tdz_parameterDefaultsResolveOutsideTheBody() {
+        // a body-level let is NOT yet in scope while the parameter list evaluates
+        // (a separate environment, §10.2.11 step 28) — the default reaches the outer x
+        assertEquals("1,1", evalBothSlotModes(
+                "var x = 1; function f(a = x) { let x = 2; return a; } f() + ',' + f()"));
+    }
+
+    @Test
+    void tdz_scriptTopLevelAndReplRedeclaration() {
+        boolean prev = SlotTable.ENABLED;
+        try {
+            for (boolean slots : new boolean[]{true, false}) {
+                SlotTable.ENABLED = slots;
+                Engine engine = new Engine();
+                // a script-level let is in its TDZ for the whole script before it
+                assertEquals("ReferenceError", engine.eval(
+                        "var r; try { top; } catch (e) { r = e.name; } let top = 1; r"));
+                // a later eval may re-declare it (karate's REPL semantics): no TDZ window
+                // reopens for the earlier binding, closures from the first eval keep working
+                // and see the re-declared value
+                engine.eval("function readTop() { return top; }");
+                assertEquals(1, engine.eval("readTop()"));
+                assertEquals("1,2", engine.eval("var before = readTop(); let top = 2; before + ',' + readTop()"));
+                assertEquals(2, engine.eval("top"));
+                // a host binding is shadowed by a script let from script entry
+                engine.put("hosted", 7);
+                assertEquals("ReferenceError,8", engine.eval(
+                        "var r; try { r = hosted; } catch (e) { r = e.name; } let hosted = 8; r + ',' + hosted"));
+            }
+        } finally {
+            SlotTable.ENABLED = prev;
+        }
     }
 
     @Test

@@ -1217,6 +1217,57 @@ public class JsParser extends BaseParser {
         return null;
     }
 
+    /**
+     * LexicallyDeclaredNames of the {@code let} / {@code const} / {@code class}
+     * declarations among a scope's direct {@code STATEMENT} children — the names the
+     * runtime instantiates uninitialized (in their temporal dead zone) on entry to a
+     * Block, CaseBlock clause, function body or Script (§14.2.3
+     * BlockDeclarationInstantiation and its function / global analogues). Appends each
+     * name to {@code names} and, in parallel, whether it is a {@code const} to
+     * {@code consts}. FunctionDeclarations are left out: the interpreter binds them by
+     * hoisting. Same declaration predicates as the redeclaration early error
+     * ({@link #checkScopeRedeclaration}), so the two can never disagree on what a
+     * scope declares.
+     */
+    public static void lexicalDeclarations(Node scope, List<String> names, List<Boolean> consts) {
+        for (int i = 0, n = scope.size(); i < n; i++) {
+            Node stmt = scope.get(i);
+            if (stmt.isToken() || stmt.type != NodeType.STATEMENT) {
+                continue;
+            }
+            Node d = firstNonToken(stmt);
+            if (d == null) {
+                continue;
+            }
+            if (d.type == NodeType.VAR_STMT && isLexicalVarStmt(d)) {
+                int before = names.size();
+                for (int j = 0, m = d.size(); j < m; j++) {
+                    Node ch = d.get(j);
+                    if (!ch.isToken() && ch.type == NodeType.VAR_DECL) {
+                        collectBindingBoundNames(ch, names);
+                    }
+                }
+                boolean isConst = d.getFirstToken().type == CONST;
+                for (int j = before; j < names.size(); j++) {
+                    consts.add(isConst);
+                }
+            } else if (d.type == NodeType.CLASS_EXPR) {
+                String name = declarationName(d);
+                if (name != null) {
+                    names.add(name);
+                    consts.add(false); // a class declaration's binding is mutable, like let
+                }
+            }
+        }
+    }
+
+    /** BoundNames of one {@code VAR_DECL} (or {@code FN_DECL_ARG}) — the binding target
+     *  before any initializer: a simple identifier, or every identifier a destructuring
+     *  pattern binds (property keys and default values bind nothing). */
+    public static void boundNames(Node declarator, List<String> out) {
+        collectBindingBoundNames(declarator, out);
+    }
+
     /** All case/default clauses of a {@code switch} share ONE lexical scope (the
      *  CaseBlock), so the redeclaration check spans every clause's StatementList. */
     private void checkSwitchCaseBlockRedeclaration(Node switchStmt, boolean strict) {

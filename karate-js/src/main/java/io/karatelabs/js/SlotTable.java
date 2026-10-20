@@ -58,11 +58,14 @@ import java.util.Set;
  *       in a nested block or a C-style for-init. They get slots and node
  *       annotations <i>inside their declaring subtree only</i>, and are
  *       deliberately absent from {@link #indexOf}: outside the subtree the
- *       name resolves exactly as today (the store never held it). Their
- *       declaring block carries a re-arm list ({@link Node#meta}, an
- *       {@code int[]}) resetting the slots to {@link #UNDECLARED} on entry,
- *       so loop iterations and pre-declaration reads behave as today.</li>
+ *       name resolves exactly as today (the store never held it).</li>
  * </ul>
+ * Either class of let/const slot is put into its temporal dead zone
+ * ({@link #TDZ}) when its declaring scope is entered — by
+ * {@link LexicalScope#instantiate}, which finds the slot through
+ * {@link #lexicalSlots} — so loop iterations re-arm and every read or write
+ * before the declaration throws, exactly as the store's uninitialized binding
+ * does.
  * A name is eligible only when it is <b>never referenced from a nested
  * function</b> (else closures must keep the {@link BindingsStore} cell
  * machinery, which is what they snapshot) and never rebound — {@code let} /
@@ -71,13 +74,14 @@ import java.util.Set;
  * invisible to {@link CoreContext#resolve} by construction. Globals and
  * top-level scripts are untouched.
  *
- * <p>The frame preserves the engine's <i>dynamic</i> declaration semantics
- * exactly: a slot starts as {@link #UNDECLARED}, and reads/writes of an
- * undeclared slot fall back to the legacy name-keyed chain (which today
- * resolves the name in an outer scope or the globals, since the store lacks
- * the name until its statement runs). An uninitialized {@code let x;} holds
- * {@link #TDZ}: reads throw the same ReferenceError {@code readSlot} throws,
- * writes initialize.
+ * <p>The frame mirrors the store exactly: a slot starts as {@link #UNDECLARED},
+ * and reads/writes of an undeclared slot fall back to the name-keyed chain —
+ * the state of a {@code var} before its statement runs, and of a body-level
+ * let/const while parameter defaults evaluate (they must resolve outward). A
+ * let/const slot holds {@link #TDZ} from its scope's entry until its
+ * declaration runs: reads and writes throw the same ReferenceError
+ * {@code readSlot} / {@code update} throw for the store's uninitialized binding;
+ * only the declaration itself initializes it.
  */
 final class SlotTable {
 
@@ -86,9 +90,9 @@ final class SlotTable {
      *  compare both modes in one JVM. */
     static volatile boolean ENABLED = !"false".equals(System.getProperty("karate.js.slotFrames"));
 
-    /** Sentinel for a slot whose declaration statement has not executed yet
-     *  (or whose scope was exited / not re-entered). Reads and writes fall
-     *  back to the legacy name-keyed chain. */
+    /** Sentinel for a slot not yet bound in this frame: a var before its
+     *  statement runs, a let/const before its scope is entered. Reads and
+     *  writes fall back to the name-keyed chain. */
     static final Object UNDECLARED = new Object() {
         @Override
         public String toString() {
@@ -96,9 +100,9 @@ final class SlotTable {
         }
     };
 
-    /** Sentinel for a declared-but-uninitialized let/const ({@code let x;}).
-     *  Reads throw; writes initialize. Reported as UNDEFINED in BindEvents,
-     *  mirroring the store's value for an uninitialized binding. */
+    /** Sentinel for a let/const in its temporal dead zone — its scope has been
+     *  entered, its declaration has not run. Reads and writes throw
+     *  ({@link #tdzError}); only the declaration writes over it. */
     static final Object TDZ = new Object() {
         @Override
         public String toString() {
@@ -153,10 +157,34 @@ final class SlotTable {
         return frame;
     }
 
+    /** The frame slot of each of a scope's lexically declared {@code names}, or -1
+     *  for a name this table does not frame (it lives in the store). A let/const
+     *  slot is unambiguous by name: eligibility requires the name's only
+     *  declaration in the whole function, and a scope node is only ever entered
+     *  under the frame of the function (or program) that contains it. Called once
+     *  per (scope node, table) — {@link LexicalScope} caches the answer. Returns
+     *  null when no name is framed. */
+    int[] lexicalSlots(String[] scopeNames) {
+        int[] slots = null;
+        for (int i = 0; i < scopeNames.length; i++) {
+            for (int s = 0; s < names.length; s++) {
+                if ((kinds[s] == KIND_LET || kinds[s] == KIND_CONST) && names[s].equals(scopeNames[i])) {
+                    if (slots == null) {
+                        slots = new int[scopeNames.length];
+                        java.util.Arrays.fill(slots, -1);
+                    }
+                    slots[i] = s;
+                    break;
+                }
+            }
+        }
+        return slots;
+    }
+
     /** Cold-path TDZ error, shared by the hot fast paths so their bytecode
      *  stays small enough to inline reliably. Same message as readSlot's. */
     static JsErrorException tdzError(String name) {
-        return JsErrorException.referenceError("cannot access '" + name + "' before initialization");
+        return JsErrorException.uninitialized(name);
     }
 
     /** Creation-time entry point — cached on the function-definition node.
@@ -197,7 +225,7 @@ final class SlotTable {
      *  a nested block or C-style for-init is invisible to that contract — it
      *  never survives its block, and a nested-function reference forces it to
      *  STORE exactly as inside a function — so it gets a frame slot and the
-     *  same re-arm machinery. {@code byName} stays empty, so every name-keyed
+     *  same scope-entry TDZ machinery. {@code byName} stays empty, so every name-keyed
      *  path (host get/put, hoisting, indirect eval — always global-scoped
      *  here) routes to the store untouched.
      *  <p>
@@ -359,15 +387,13 @@ final class SlotTable {
             allSlots.put(name, idx);
             idx++;
         }
-        // scope-confined lets: slots + subtree annotations, no byName entry;
-        // group re-arm lists per declaring scope node
-        Map<Node, List<Integer>> rearm = new LinkedHashMap<>();
+        // scope-confined lets: slots + subtree annotations, no byName entry
+        // (their declaring scope finds them by name on entry — lexicalSlots)
         for (String name : scopedNames) {
             LetDecl let = w.letConsts.get(name);
             names[idx] = name;
             kinds[idx] = let.kind;
             allSlots.put(name, idx);
-            rearm.computeIfAbsent(let.scopeNode, k -> new ArrayList<>()).add(idx);
             idx++;
         }
         int[] paramSlots = new int[paramCount];
@@ -410,14 +436,6 @@ final class SlotTable {
             if (slot != null) {
                 e.getValue().bindingNode.slot = slot.shortValue();
             }
-        }
-        // publish re-arm lists last (volatile write per node)
-        for (Map.Entry<Node, List<Integer>> e : rearm.entrySet()) {
-            int[] slots = new int[e.getValue().size()];
-            for (int i = 0; i < slots.length; i++) {
-                slots[i] = e.getValue().get(i);
-            }
-            e.getKey().meta = slots;
         }
         return table;
     }
@@ -525,9 +543,9 @@ final class SlotTable {
                 }
                 case SWITCH_STMT -> {
                     // §14.12.11: clause-level let/const scope to the whole
-                    // CaseBlock — the SWITCH_STMT carries their re-arm list
-                    // (evalSwitchStmt enters one BLOCK scope and re-arms, so
-                    // the bindings get TDZ from CaseBlock entry). The
+                    // CaseBlock — the SWITCH_STMT is their declaring scope
+                    // (evalSwitchStmt enters one BLOCK scope and instantiates
+                    // it, so the bindings get TDZ from CaseBlock entry). The
                     // discriminant evaluates in the outer environment; the
                     // annotate pass skips it (see the scopedNames loop).
                     for (int i = 0, n = node.size(); i < n; i++) {

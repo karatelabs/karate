@@ -218,11 +218,13 @@ class SlotFrameTest {
 
     @Test
     void blockLetRearmsPerIteration() {
-        // reading the block let before its declaration line must resolve
-        // outward (the engine declares dynamically), every iteration — the
-        // slot must not leak the previous iteration's value
-        assertEquals("ggg", evalBoth(
-                "var x = 'g'; function f() { var acc = ''; for (var i = 0; i < 3; i++) { acc += x; let x = 'L'; } return acc; } f()"));
+        // reading the block let before its declaration line throws — the TDZ
+        // binding exists from block entry and shadows the outer x (§14.2.3) —
+        // and does so again every iteration: the slot must not leak the
+        // previous iteration's value
+        assertEquals("TLTLTL", evalBoth(
+                "var x = 'g'; function f() { var acc = ''; for (var i = 0; i < 3; i++) {"
+                        + " try { acc += x; } catch (e) { acc += 'T'; } let x = 'L'; acc += x; } return acc; } f()"));
         // and the loop-collapse must not change what the loop computes
         assertEquals(10, evalBoth("function f(n) { let t = 0; for (let i = 0; i < n; i++) { t += i; } return t; } f(5)"));
         assertEquals(3, evalBoth("function f() { for (let i = 0; i < 99; i++) { if (i >= 3) return i; } } f()"));
