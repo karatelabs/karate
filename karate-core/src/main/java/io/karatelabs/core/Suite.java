@@ -971,8 +971,15 @@ public class Suite {
         }
     }
 
+    /**
+     * A feature-level {@code @ignore} yields to the same bypasses {@link FeatureRuntime#shouldSelect}
+     * applies per scenario. The {@link #scenarioName} filter is suite-wide, so it only rescues a
+     * feature that has a scenario of that name — otherwise every {@code @ignore} helper would show
+     * up as an empty result.
+     */
     private boolean isFeatureIgnored(Feature feature) {
-        if (!hasSelectionBypass(feature)) {
+        if (!skipTagFiltering && !hasLineFilter(feature)
+                && (scenarioName == null || !hasScenarioNamed(feature, scenarioName))) {
             for (Tag tag : feature.getTags()) {
                 if (Tag.IGNORE.equals(tag.getName())) {
                     return true;
@@ -982,26 +989,32 @@ public class Suite {
         return allSectionsExcluded(feature);
     }
 
-    /**
-     * True when a selector that bypasses {@code @ignore}/{@code @env} tag filtering is
-     * active for this feature: {@link #skipTagFiltering}, a {@link #scenarioName} filter,
-     * or a {@link #lineFilters} entry for this feature's own URI. Mirrors the bypass
-     * semantics {@link FeatureRuntime#shouldSelect} applies per-scenario, so a
-     * feature-level {@code @ignore} doesn't drop the feature before a line- or
-     * name-selected scenario inside it ever gets the chance to bypass it.
-     */
-    private boolean hasSelectionBypass(Feature feature) {
-        if (skipTagFiltering) {
-            return true;
+    private boolean hasLineFilter(Feature feature) {
+        if (lineFilters.isEmpty()) {
+            return false;
         }
-        if (scenarioName != null) {
-            return true;
+        Set<Integer> lines = lineFilters.get(feature.getResource().getUri().toString());
+        return lines != null && !lines.isEmpty();
+    }
+
+    private static boolean hasScenarioNamed(Feature feature, String name) {
+        List<FeatureSection> sections = feature.getSections();
+        if (sections == null) {
+            return false;
         }
-        if (!lineFilters.isEmpty()) {
-            String featureUri = feature.getResource().getUri().toString();
-            Set<Integer> lines = lineFilters.get(featureUri);
-            if (lines != null && !lines.isEmpty()) {
-                return true;
+        for (FeatureSection section : sections) {
+            if (section.isOutline()) {
+                String outlineName = section.getScenarioOutline().getName();
+                // rows substitute example values into the name, so a placeholder may match at run time
+                if (outlineName != null && (outlineName.contains("<") || outlineName.contains("${")
+                        || outlineName.trim().equals(name))) {
+                    return true;
+                }
+            } else {
+                String sectionName = section.getScenario().getName();
+                if (sectionName != null && sectionName.trim().equals(name)) {
+                    return true;
+                }
             }
         }
         return false;
@@ -1020,8 +1033,8 @@ public class Suite {
      * scenario level still produce empty FeatureResults under the status quo and the
      * bug report explicitly asked to preserve that.
      * <p>
-     * Never pre-excludes when {@link #hasSelectionBypass} is true — line filters, scenario
-     * name filters, and {@code skipTagFiltering} all have their own selection semantics in
+     * Never pre-excludes when a bypass filter is active — line filters, scenario name
+     * filters, and {@code skipTagFiltering} all have their own selection semantics in
      * {@link FeatureRuntime} that bypass tag selection.
      * <p>
      * For persistent (non-outline) scenarios, the evaluation result is cached on the
@@ -1032,7 +1045,7 @@ public class Suite {
         if (tagSelector == null) {
             return false;
         }
-        if (hasSelectionBypass(feature)) {
+        if (skipTagFiltering || scenarioName != null || hasLineFilter(feature)) {
             return false;
         }
         List<FeatureSection> sections = feature.getSections();

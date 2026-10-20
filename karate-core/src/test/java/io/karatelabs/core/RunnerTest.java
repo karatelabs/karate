@@ -673,6 +673,39 @@ class RunnerTest {
     }
 
     @Test
+    void testRunnerWithScenarioNameFilterFeatureLevelIgnore() throws Exception {
+        Files.writeString(tempDir.resolve("a.feature"), """
+            Feature: A
+            Scenario: Shared
+            * def x = 1
+            """);
+        Files.writeString(tempDir.resolve("b.feature"), """
+            @ignore
+            Feature: B
+            Scenario: Shared
+            * def x = 2
+            """);
+        // a feature-level @ignore helper with no matching scenario stays out of the results
+        Files.writeString(tempDir.resolve("helper.feature"), """
+            @ignore
+            Feature: Helper
+            Scenario: Helper
+            * def y = 1
+            """);
+
+        SuiteResult result = Runner.path(tempDir.toString())
+                .scenarioName("Shared")
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(2, result.getFeatureCount());
+        assertEquals(2, result.getScenarioPassedCount());
+    }
+
+    @Test
     void testRunnerWithScenarioNameFilterNoMatch() throws Exception {
         Path feature = tempDir.resolve("name-nomatch.feature");
         Files.writeString(feature, """
