@@ -2580,8 +2580,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // via the normal inheritDriverFromCaller path. Without this, scenario N+1 in a
         // multi-scenario called feature can't see scenario N's driver — it falls
         // through to PooledDriverProvider.acquire() and deadlocks if the pool is full.
+        // A driver quit here is not propagated, so it falls through to release.
         if (featureRuntime != null && featureRuntime.isSharedScope()
-                && featureRuntime.getCallerScenario() != null) {
+                && featureRuntime.getCallerScenario() != null && !driver.isTerminated()) {
             featureRuntime.getCallerScenario().setDriverFromCallee(this);
             driver = null;
             return;
@@ -2647,6 +2648,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      */
     public void setDriverFromCallee(ScenarioRuntime callee) {
         if (callee.driver != null && !callee.driver.isTerminated()) {
+            if (driver != null && driver != callee.driver && driver.isTerminated()) {
+                closeDriver();
+            }
             this.driver = callee.driver;
             this.driverFromProvider = callee.driverFromProvider;
             this.driverInherited = false; // This scenario now owns the driver

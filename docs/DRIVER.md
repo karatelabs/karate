@@ -680,7 +680,11 @@ when read with no `configure driver` in scope — the message points at `configu
 `getDriver()` releases a terminated driver back to the pool before re-init. That means
 `driver.quit()` followed by another `karate.driver` (or `* driver ...`) read inside the
 same scenario starts a fresh browser session against the *current* `configure driver` map
-— without leaking a pool slot. This is what makes the grid pattern of running a list of
+— without leaking a pool slot. The same holds across a shared-scope call chain: a callee
+that quits its driver releases it instead of propagating it to the caller, and
+`PooledDriverProvider` tracks slots by driver (not by the acquiring scenario), freeing the
+slot of any assigned driver found quit before it waits for capacity. A release of an
+already-freed driver is a no-op, so each slot is freed exactly once. This is what makes the grid pattern of running a list of
 tests under multiple browsers in succession from a single scenario possible:
 
 ```gherkin

@@ -69,7 +69,9 @@ public class PooledDriverProvider implements DriverProvider {
 
     private volatile int poolSize = -1;  // -1 means auto-detect from Suite
     private volatile ArrayBlockingQueue<Driver> availableDrivers;
-    private final ConcurrentHashMap<ScenarioRuntime, Driver> assignedDrivers = new ConcurrentHashMap<>();
+    // keyed by driver: a scenario that acquired a driver may not be the one that releases it, since
+    // shared-scope calls hand drivers between caller and callee
+    private final ConcurrentHashMap<Driver, ScenarioRuntime> assignedDrivers = new ConcurrentHashMap<>();
     private final AtomicInteger createdCount = new AtomicInteger(0);
     private final Object initLock = new Object();
     private volatile boolean shutdown = false;
@@ -106,10 +108,11 @@ public class PooledDriverProvider implements DriverProvider {
         ensurePoolInitialized(runtime);
 
         // Check if this scenario already has a driver assigned (shouldn't happen normally)
-        Driver existing = assignedDrivers.get(runtime);
-        if (existing != null && !existing.isTerminated()) {
-            logger.debug("Returning existing driver for scenario: {}", runtime.getScenario().getName());
-            return existing;
+        for (Map.Entry<Driver, ScenarioRuntime> entry : assignedDrivers.entrySet()) {
+            if (entry.getValue() == runtime && !entry.getKey().isTerminated()) {
+                logger.debug("Returning existing driver for scenario: {}", runtime.getScenario().getName());
+                return entry.getKey();
+            }
         }
 
         // Try to get a driver from the pool
@@ -121,6 +124,7 @@ public class PooledDriverProvider implements DriverProvider {
                 // Double-check pool (another thread may have returned one)
                 driver = takeHealthyFromPool(runtime.getScenario().getName());
                 if (driver == null) {
+                    reapTerminated();
                     // Check if we can create more
                     if (createdCount.get() < poolSize) {
                         driver = createDriver(config);
@@ -135,8 +139,22 @@ public class PooledDriverProvider implements DriverProvider {
             }
         }
 
-        assignedDrivers.put(runtime, driver);
+        assignedDrivers.put(driver, runtime);
         return driver;
+    }
+
+    /**
+     * Free the slot of every assigned driver that was quit by user code. A quit driver can stay
+     * referenced by a scenario that never releases it (e.g. a caller that dropped it for a callee's
+     * new driver), so waiting on a release alone can exhaust the pool.
+     */
+    private void reapTerminated() {
+        for (Driver driver : assignedDrivers.keySet()) {
+            if (driver.isTerminated() && assignedDrivers.remove(driver) != null) {
+                logger.debug("Freeing pool slot of quit driver");
+                createdCount.decrementAndGet();
+            }
+        }
     }
 
     /**
@@ -194,11 +212,22 @@ public class PooledDriverProvider implements DriverProvider {
         String scenarioName = runtime.getScenario().getName();
         logger.warn("Pool exhausted for scenario '{}', waiting for available driver... [{}]",
                 scenarioName, getStats());
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
         try {
-            Driver driver = availableDrivers.poll(30, TimeUnit.SECONDS);
-            if (driver == null) {
-                throw new RuntimeException("Timeout waiting for available driver for scenario '"
-                        + scenarioName + "' [" + getStats() + "]");
+            Driver driver;
+            // a slot freed by a quit driver is never offered to the queue, so re-check capacity
+            while ((driver = availableDrivers.poll(100, TimeUnit.MILLISECONDS)) == null) {
+                reapTerminated();
+                if (createdCount.get() < poolSize) {
+                    driver = createDriver(config);
+                    createdCount.incrementAndGet();
+                    logger.info("Created driver after wait for scenario: {}", scenarioName);
+                    return driver;
+                }
+                if (System.nanoTime() > deadline) {
+                    throw new RuntimeException("Timeout waiting for available driver for scenario '"
+                            + scenarioName + "' [" + getStats() + "]");
+                }
             }
             // If the driver is terminated OR fails reset/liveness, replace it.
             // Same rationale as takeHealthyFromPool — a poisoned driver must not be
@@ -226,7 +255,10 @@ public class PooledDriverProvider implements DriverProvider {
 
     @Override
     public void release(ScenarioRuntime runtime, Driver driver) {
-        assignedDrivers.remove(runtime);
+        if (assignedDrivers.remove(driver) == null) {
+            // already released, or its slot was reaped after a quit
+            return;
+        }
 
         if (shutdown) {
             // During shutdown, just close the driver
@@ -331,7 +363,7 @@ public class PooledDriverProvider implements DriverProvider {
         logger.debug("Shutting down PooledDriverProvider, closing {} drivers", count);
 
         // Close all assigned drivers
-        for (Driver driver : assignedDrivers.values()) {
+        for (Driver driver : assignedDrivers.keySet()) {
             closeDriverQuietly(driver);
         }
         assignedDrivers.clear();
