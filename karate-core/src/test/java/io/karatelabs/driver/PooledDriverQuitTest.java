@@ -153,4 +153,43 @@ class PooledDriverQuitTest {
         assertEquals("PooledDriverProvider[size=1, created=1, available=0, assigned=0]", pool.getStats());
     }
 
+    @Test
+    void testParallelScenariosShareOneSlot() throws Exception {
+        Path main = tempDir.resolve("parallel.feature");
+        Files.writeString(main, """
+            Feature: more parallel scenarios than pool slots
+
+            Scenario Outline: scenario <n>
+            * configure driver = { type: 'chrome' }
+            * driver 'about:blank'
+            * java.lang.Thread.sleep(20)
+            * if (<n> % 3 == 0) driver.quit()
+
+            Examples:
+            | n |
+            | 1 |
+            | 2 |
+            | 3 |
+            | 4 |
+            | 5 |
+            | 6 |
+            | 7 |
+            | 8 |
+            | 9 |
+            | 10 |
+            | 11 |
+            | 12 |
+            """);
+        FakePool pool = new FakePool(1);
+        SuiteResult result = TestUtils.testBuilder()
+                .path(main.toString())
+                .workingDir(tempDir)
+                .driverProvider(pool)
+                .parallel(8);
+        assertEquals(12, result.getScenarioPassedCount());
+        // one per quit, except a quit by the last scenario to finish
+        assertTrue(pool.created.get() == 4 || pool.created.get() == 5, "created " + pool.created.get());
+        assertTrue(pool.getStats().matches(".*created=[01], available=0, assigned=0.*"), pool.getStats());
+    }
+
 }
