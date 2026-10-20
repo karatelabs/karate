@@ -432,11 +432,15 @@ public class Engine {
     /**
      * Converts a JS value to its Java equivalent.
      * - JsValue types (including JsUndefined) are unwrapped via getJavaValue()
-     * - JsFunction is wrapped to auto-convert return values
+     * - JsFunction is wrapped to auto-convert return values; an existing wrapper is returned as is,
+     *   so a host round-trip (getBindings() then put()) cannot nest one wrapper per pass
      */
     static Object toJava(Object value) {
         if (value instanceof JsValue jv) {
             return jv.getJavaValue();
+        }
+        if (value instanceof JsFunctionWrapper) {
+            return value;
         }
         if (value instanceof JsFunction fn) {
             return new JsFunctionWrapper(fn);

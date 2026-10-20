@@ -335,4 +335,17 @@ class BindingsTest {
         assertFalse(store.isHidden("user"));
     }
 
+    @Test
+    void testFunctionRoundTripThroughBindingsDoesNotNestWrappers() {
+        Engine engine = new Engine();
+        engine.eval("function inc(x) { return x + 1 }");
+        Object first = engine.getBindings().get("inc");
+        engine.put("inc", first);
+        assertSame(first, engine.getBindings().get("inc"));
+        for (int i = 0; i < 100_000; i++) {
+            engine.put("inc", engine.getBindings().get("inc"));
+        }
+        assertEquals(2, engine.eval("inc(1)"));
+    }
+
 }

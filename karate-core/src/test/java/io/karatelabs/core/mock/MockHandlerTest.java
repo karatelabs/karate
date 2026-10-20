@@ -581,4 +581,28 @@ class MockHandlerTest {
         assertEquals("text/plain; charset=UTF-8", response.getContentType());
     }
 
+    @Test
+    void aBackgroundFunctionKeepsItsIdentityAcrossRequests() {
+        Feature feature = parseFeature("""
+            Feature: background function
+
+            Background:
+              * def isFoo = function() { return pathMatches('/foo') }
+
+            Scenario: pathMatches('/health')
+              * def response = 'ok'
+
+            Scenario: isFoo()
+              * def response = 'foo'
+            """);
+
+        MockHandler handler = new MockHandler(feature);
+        Object before = handler.getVariable("isFoo");
+        for (int i = 0; i < 200; i++) {
+            assertEquals("ok", handler.apply(createRequest("GET", "/health")).getBodyString());
+        }
+        assertSame(before, handler.getVariable("isFoo"));
+        assertEquals("foo", handler.apply(createRequest("GET", "/foo")).getBodyString());
+    }
+
 }
