@@ -377,13 +377,14 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         return configVars;
     }
 
-    /** Snapshot of the caller-scope variables seeded into this (isolated-scope) called scenario by
-     *  {@link #inheritVariables()} — key to the seeded value (a shallow copy). A called feature runs
+    /** Snapshot of the caller-scope variables seeded into this called scenario by
+     *  {@link #inheritVariables()} — key to the seeded value (a shallow copy in isolated scope, the
+     *  caller's own reference in shared scope). A called feature runs
      *  with the caller's visible variables in scope so it can read them, but those inherited entries
      *  must not echo back in the {@code call}/{@code callonce} result. The result is the callee's delta
      *  (see {@link StepUtils#calleeDelta}); an untouched inherited binding still holds this exact value
      *  (identity), while a callee {@code def}/assign replaces it, so the delta keeps only what the
-     *  called feature actually contributed. Empty for shared-scope and top-level scenarios. */
+     *  called feature actually contributed. Empty for top-level scenarios. */
     private final Map<String, Object> inheritedVariables = new java.util.LinkedHashMap<>();
 
     public Map<String, Object> getInheritedVariables() {
@@ -997,11 +998,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                     // Isolated scope - shallow copy maps and lists so mutations don't affect parent
                     value = shallowCopy(value);
                 }
-                // Remember what we seeded so the call result can exclude inherited scope. In
-                // shared scope the bound value keeps the caller's reference (no copy), so the
-                // same identity check excludes it there too - a nested shared-scope call would
-                // otherwise hand the enclosing isolated call a full binding set that includes
-                // the caller's Example-row columns, which its delta would then report as its own.
+                // Remember what we seeded so the call result can exclude inherited scope
                 inheritedVariables.put(entry.getKey(), value);
                 karate.engine.put(entry.getKey(), value);
             }
@@ -1024,7 +1021,6 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 if (!sharedScope) {
                     value = shallowCopy(value);
                 }
-                // See the callerScenario branch: record inherited names in shared scope too.
                 inheritedVariables.put(entry.getKey(), value);
                 karate.engine.put(entry.getKey(), value);
             }
@@ -1649,13 +1645,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         karate.engine.put(name, value);
     }
 
-    /**
-     * Bind a variable in this scenario's scope WITHOUT recording it as the scenario's own
-     * contribution. Used when propagating a value the scenario itself merely inherited
-     * (e.g. a shared-scope call handing the caller back a variable it only read): the name
-     * must stay out of {@code assignedVariables} so an enclosing isolated call's delta
-     * (StepUtils.calleeDelta) does not mistake it for the callee's own and leak it upward.
-     */
+    /** Bind without recording the name in {@link #assignedVariables} - for re-binding scope a
+     *  shared-scope callee merely inherited. */
     public void putUnclaimedVariable(String name, Object value) {
         karate.engine.put(name, value);
     }
