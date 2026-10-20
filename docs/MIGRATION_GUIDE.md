@@ -545,6 +545,8 @@ function fn() {
 | `safaridriver` | W3C | Safari (macOS only) |
 | `msedgedriver` | W3C | Microsoft Edge |
 
+Any other `type` fails the scenario with `unsupported driver type` (v1 fell back to `chrome` with a log line). Native app automation from v1 — `android`, `ios` (Appium) and `winappdriver` — is not available in v2: the W3C backend drives web content only (it navigates on start and locates elements through injected JavaScript), so those suites need to stay on v1 for now.
+
 ### Gherkin Syntax (unchanged)
 
 All v1 driver keywords work the same way:

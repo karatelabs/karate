@@ -74,7 +74,7 @@ public class AfterScenarioDriverHookTest {
      * the engine's point of view, while the backend primitives (navigate,
      * switchFrame, screenshot, ...) are stubbed out.
      */
-    private static Driver fakeDriver() {
+    static Driver fakeDriver() {
         return (Driver) Proxy.newProxyInstance(Driver.class.getClassLoader(),
                 new Class<?>[]{Driver.class}, AfterScenarioDriverHookTest::stubInvoke);
     }

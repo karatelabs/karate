@@ -2371,6 +2371,12 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // Determine driver type and parse scope
         String driverType = (String) configMap.getOrDefault("type", "chrome");
         boolean isW3c = io.karatelabs.driver.w3c.W3cBrowserType.isW3cType(driverType);
+        // a custom provider (including a PooledDriverProvider subclass) owns its type vocabulary
+        boolean builtInDispatch = provider == null
+                || provider.getClass() == io.karatelabs.driver.PooledDriverProvider.class;
+        if (builtInDispatch && !isW3c && !"chrome".equals(driverType)) {
+            throw new RuntimeException(unsupportedDriverTypeMessage(driverType));
+        }
 
         if (isW3c) {
             io.karatelabs.driver.w3c.W3cDriverOptions w3cOptions = io.karatelabs.driver.w3c.W3cDriverOptions.fromMap(configMap);
@@ -2410,6 +2416,18 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         DriverApi.bindJsHelpers(karate.engine, driver);
 
         return driver;
+    }
+
+    static String unsupportedDriverTypeMessage(String type) {
+        StringBuilder sb = new StringBuilder("unsupported driver type: '").append(type).append("'");
+        if ("android".equals(type) || "ios".equals(type) || "winappdriver".equals(type)) {
+            sb.append(" - native app automation (Appium / WinAppDriver) is not supported in Karate v2");
+        }
+        sb.append(", supported types: chrome");
+        for (io.karatelabs.driver.w3c.W3cBrowserType bt : io.karatelabs.driver.w3c.W3cBrowserType.values()) {
+            sb.append(", ").append(bt.getKarateType());
+        }
+        return sb.toString();
     }
 
     /**
