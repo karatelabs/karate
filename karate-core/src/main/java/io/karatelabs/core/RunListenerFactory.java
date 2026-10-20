@@ -28,7 +28,9 @@ package io.karatelabs.core;
  * Use this when listeners need thread-local state (e.g., debuggers with per-thread stack frames).
  *
  * <p>The {@link #create()} method is called once per execution thread, before any features
- * run on that thread. Each thread gets its own listener instance.</p>
+ * run on that thread. Each thread gets its own listener instance. In a parallel run that
+ * includes each scenario's thread: its listener sees the SCENARIO and STEP events of the
+ * scenario running there, while FEATURE events go to the listener of the feature's thread.</p>
  *
  * <p>Usage example:</p>
  * <pre>

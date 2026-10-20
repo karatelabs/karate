@@ -142,17 +142,8 @@ final class LexicalScope {
      *  before function declarations are hoisted, so hoisted closures capture
      *  the uninitialized cells. Never call on {@link #NONE} (callers test). */
     void instantiate(CoreContext context) {
-        int[] slots = null;
         Object[] frame = context.frame;
-        if (frame != null) {
-            SlotTable table = context.frameTable;
-            FrameSlots fs = frameSlots;
-            if (fs == null || fs.table != table) {
-                fs = new FrameSlots(table, table.lexicalSlots(names));
-                frameSlots = fs;
-            }
-            slots = fs.slots;
-        }
+        int[] slots = frame == null ? null : frameSlots(context.frameTable);
         for (int i = 0; i < names.length; i++) {
             int s = slots == null ? -1 : slots[i];
             if (s >= 0) {
@@ -161,6 +152,17 @@ final class LexicalScope {
                 context.declareUninitialized(names[i], scopes[i]);
             }
         }
+    }
+
+    /** The frame slot of each of {@link #names} under {@code table}, -1 for a name
+     *  kept in the store. Also read by {@link CoreContext#getLocalVariables}. */
+    int[] frameSlots(SlotTable table) {
+        FrameSlots fs = frameSlots;
+        if (fs == null || fs.table != table) {
+            fs = new FrameSlots(table, table.lexicalSlots(names));
+            frameSlots = fs;
+        }
+        return fs.slots;
     }
 
     /** Script top level: the store only (top-level names are never framed),

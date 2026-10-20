@@ -151,6 +151,14 @@ final class SlotTable {
         return i == null ? -1 : i;
     }
 
+    /** True for a function-scoped slot (param, var, function declaration, function-level
+     *  let/const); false for a let/const confined to a nested block, which is in scope only
+     *  while its declaring node is on the context's scope stack. */
+    boolean isFunctionScoped(int slot) {
+        Integer i = byName.get(names[slot]);
+        return i != null && i == slot;
+    }
+
     Object[] newFrame() {
         Object[] frame = new Object[names.length];
         java.util.Arrays.fill(frame, UNDECLARED);

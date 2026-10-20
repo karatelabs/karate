@@ -291,9 +291,19 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                 logger.debug("Acquired semaphore permit: {} (available: {})", scenarioName, semaphore.availablePermits());
                 // Acquire a lane for timeline reporting (consistent lane names instead of random thread IDs)
                 suite.acquireLane();
+                // A new thread: per-thread listeners (RunListenerFactory) are ThreadLocal, so without
+                // its own set the SCENARIO and STEP events fired here reach none of them.
+                // IDE integration contract (debugger): a RunListenerFactory listener must see
+                // SCENARIO_ENTER / EXIT on the thread that runs the scenario.
+                // Inside the try: a factory that throws must not leak the permit and the lane.
+                boolean ownListeners = false;
                 try {
+                    ownListeners = suite.initThreadListenersIfAbsent();
                     return executeScenarioParallel(scenario);
                 } finally {
+                    if (ownListeners) {
+                        suite.cleanupThreadListeners();
+                    }
                     suite.releaseLane();
                     semaphore.release();
                     logger.debug("Released semaphore permit: {} (available: {})", scenarioName, semaphore.availablePermits());

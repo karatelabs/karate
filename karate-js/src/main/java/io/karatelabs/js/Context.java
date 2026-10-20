@@ -25,6 +25,9 @@ package io.karatelabs.js;
 
 import io.karatelabs.parser.Node;
 
+import java.util.Collections;
+import java.util.Map;
+
 public interface Context {
 
     Engine getEngine();
@@ -52,5 +55,28 @@ public interface Context {
     Object getErrorThrown();
 
     ExitType getExitType();
+
+    // IDE integration contract (debugger): keep the names and signatures of the two methods below.
+
+    /**
+     * The local variables in scope at this point (function parameters, var / let / const,
+     * function declarations, closure variables), innermost first, converted as
+     * {@link Engine#get} converts. Globals are not included. A name whose binding is not yet
+     * initialized (let / const before its declaration) is left out, along with any outer
+     * binding it shadows. Call on the thread that is executing in this context.
+     */
+    default Map<String, Object> getLocalVariables() {
+        return Collections.emptyMap();
+    }
+
+    /**
+     * Evaluates an expression as if at this point: the local variables of
+     * {@link #getLocalVariables()}, unconverted, shadow the globals. Assigning to a local
+     * changes only the evaluation's own copy of the name, not the binding in this context.
+     * Call on the thread that is executing in this context.
+     */
+    default Object evalWithLocals(String expression) {
+        return getEngine().eval(expression);
+    }
 
 }

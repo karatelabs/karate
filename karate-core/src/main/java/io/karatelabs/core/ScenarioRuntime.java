@@ -1589,8 +1589,54 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // fallback: estimate as 2 lines after the step keyword (step line + """)
             lineOffset = step.getLine(); // 1-indexed, but +1 for """ line makes it 0-indexed equivalent
         }
-        io.karatelabs.common.Resource embedded = io.karatelabs.common.Resource.embedded(expression, featureResource, lineOffset);
+        String text = alignToSourceLines(expression, featureResource, step.getDocStringLine());
+        io.karatelabs.common.Resource embedded = io.karatelabs.common.Resource.embedded(text, featureResource, lineOffset);
         return karate.engine.eval(embedded);
+    }
+
+    /**
+     * The parser drops empty lines from a docstring, so every JS line after one would be reported
+     * a line too high. Put them back, as empty lines, where the feature file has them. Each
+     * non-empty line of the source matches one line of {@code text}, which must therefore have as
+     * many lines as the docstring (it may carry a prefix or suffix, like the JSON-like wrapping
+     * parens); otherwise {@code text} is returned as is.
+     */
+    static String alignToSourceLines(String text, io.karatelabs.common.Resource featureResource, int firstLine) {
+        if (firstLine < 0 || text.indexOf('\n') < 0) {
+            return text;
+        }
+        String source;
+        try {
+            source = featureResource.getText();
+        } catch (Exception e) {
+            return text;
+        }
+        if (source == null) {
+            return text;
+        }
+        String[] sourceLines = source.replace("\r", "").split("\n", -1);
+        String[] lines = text.split("\n", -1);
+        if (firstLine >= sourceLines.length) {
+            return text;
+        }
+        StringBuilder sb = new StringBuilder(text.length() + 16);
+        int next = 0;
+        boolean blankAdded = false;
+        for (int i = firstLine; i < sourceLines.length && next < lines.length; i++) {
+            if (sourceLines[i].isEmpty()) {
+                sb.append('\n');
+                blankAdded = true;
+            } else {
+                sb.append(lines[next++]);
+                if (next < lines.length) {
+                    sb.append('\n');
+                }
+            }
+        }
+        if (next < lines.length) {
+            return text; // the source ran out first: not the text this docstring was parsed into
+        }
+        return blankAdded ? sb.toString() : text;
     }
 
     public void setVariable(String name, Object value) {

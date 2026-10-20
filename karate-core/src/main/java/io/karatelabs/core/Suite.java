@@ -1106,6 +1106,20 @@ public class Suite {
         threadListeners.remove();
     }
 
+    /**
+     * Per-thread listeners for a thread that may already have them: a parallel scenario runs on
+     * its own scenario-executor thread, which needs its own, but must not replace (or later remove)
+     * those of a thread that already has some, e.g. an executor that runs the task inline.
+     * Returns true when this call created them, so the caller cleans up only what it set.
+     */
+    boolean initThreadListenersIfAbsent() {
+        if (listenerFactories.isEmpty() || threadListeners.get() != null) {
+            return false;
+        }
+        initThreadListeners();
+        return true;
+    }
+
     public boolean fireEvent(RunEvent event) {
         // Externalize embed bytes to embeds/ BEFORE any listener serializes the result, so neither the
         // JSONL event stream nor the HTML data JSON inlines base64 — large screenshots stay on-disk files

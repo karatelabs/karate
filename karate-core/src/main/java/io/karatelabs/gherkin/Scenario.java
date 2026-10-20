@@ -123,6 +123,7 @@ public class Scenario {
             temp.setKeyword(step.getKeyword());
             temp.setText(step.getText());
             temp.setDocString(step.getDocString());
+            temp.setDocStringLine(step.getDocStringLine());
             temp.setTable(step.getTable());
             temp.setComments(step.getComments());
             temp.setSpan(step.getSpan());

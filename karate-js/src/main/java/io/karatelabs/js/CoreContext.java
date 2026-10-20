@@ -233,6 +233,112 @@ class CoreContext implements Context {
     }
 
     @Override
+    public Map<String, Object> getLocalVariables() {
+        Map<String, Object> locals = collectLocals();
+        Map<String, Object> result = new LinkedHashMap<>(locals.size());
+        locals.forEach((k, v) -> {
+            if (v != SHADOWED_UNAVAILABLE) {
+                result.put(k, Engine.toJava(v));
+            }
+        });
+        return result;
+    }
+
+    @Override
+    public Object evalWithLocals(String expression) {
+        Map<String, Object> locals = collectLocals();
+        locals.values().removeIf(v -> v == SHADOWED_UNAVAILABLE);
+        return getEngine().evalWith(expression, locals);
+    }
+
+    /** Marks a name that is in scope but has no readable value (TDZ, a failing lazy): it still
+     *  hides an outer binding of the same name. */
+    private static final Object SHADOWED_UNAVAILABLE = new Object();
+
+    /**
+     * Raw values of the names visible here, innermost first, following get() / resolve(): this
+     * context's slot frame, then the binding stores up the lexical chain, stopping at the global
+     * store. A slot frame is visible only to code on its own context (a nested scope reaches what
+     * it uses through the store), so only this context's frame is read; of its block-confined
+     * let/const slots, only those of the scopes on the scope stack (their {@link LexicalScope},
+     * cached on the declaring node).
+     */
+    private Map<String, Object> collectLocals() {
+        Map<String, Object> map = new LinkedHashMap<>();
+        if (frame != null && frameTable != null) {
+            if (scopeStack != null) {
+                for (int i = scopeStack.size() - 1; i >= 0; i--) {
+                    if (scopeStack.get(i).node != null && scopeStack.get(i).node.meta instanceof LexicalScope ls
+                            && ls != LexicalScope.NONE) {
+                        int[] slots = ls.frameSlots(frameTable); // null: all in the store
+                        if (slots != null) {
+                            for (int s : slots) {
+                                collectSlot(s, map);
+                            }
+                        }
+                    }
+                }
+            }
+            for (int s = 0; s < frameTable.size(); s++) {
+                if (frameTable.isFunctionScoped(s)) {
+                    collectSlot(s, map);
+                }
+            }
+        }
+        BindingsStore globals = root.bindings;
+        for (CoreContext c = this; c != null; c = c.outer != null ? c.outer : c.parent) {
+            if (c.bindings == globals) {
+                // script level: a let / const of a top-level block lives in the global store,
+                // pushed at its block's level; level 0 is the globals themselves
+                collectStore(globals, map, 1);
+                break;
+            }
+            collectStore(c.bindings, map, 0);
+            collectStore(c.capturedBindings, map, 0);
+        }
+        return map;
+    }
+
+    private void collectSlot(int s, Map<String, Object> map) {
+        if (s < 0 || s >= frame.length) {
+            return;
+        }
+        Object v = frame[s];
+        if (v == SlotTable.UNDECLARED) {
+            return; // not declared yet, or its scope was left: the store chain decides
+        }
+        map.putIfAbsent(frameTable.names[s], v == SlotTable.TDZ ? SHADOWED_UNAVAILABLE : v);
+    }
+
+    private static void collectStore(BindingsStore store, Map<String, Object> map, int minLevel) {
+        if (store == null) {
+            return;
+        }
+        for (String key : store.keys()) {
+            if (map.containsKey(key)) {
+                continue;
+            }
+            BindingSlot s = store.getSlot(key);
+            if (s == null || s.hidden || s.tombstoned || s.level < minLevel) {
+                continue;
+            }
+            if (s.scope != null && !s.initialized) {
+                map.put(key, SHADOWED_UNAVAILABLE);
+                continue;
+            }
+            Object v = s.value;
+            if (v instanceof JsLazy lazy) {
+                try {
+                    v = lazy.get();
+                } catch (Exception e) {
+                    v = SHADOWED_UNAVAILABLE;
+                }
+            }
+            map.put(key, v);
+        }
+    }
+
+    @Override
     public String toString() {
         return getPath();
     }

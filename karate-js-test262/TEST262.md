@@ -770,6 +770,31 @@ Benchmark-gated or coordinated with other work.
   `flat` / `flatMap`) bypasses spec sequence; depends on `Symbol.species`.
   Defer until Symbol.
 
+### Engine — host embedding
+
+Not test262 items: how a host drives the engine.
+
+- **An eval nested on a paused eval leaks its async work into the paused
+  one.** A host that pauses inside an `Engine.eval` (a `RunInterceptor` that
+  waits) and evaluates on that thread, as it must (that thread owns the eval
+  scope), uses `Context.evalWithLocals` or `Engine.eval`. Per
+  [JS_ENGINE.md § Eval scopes](../docs/JS_ENGINE.md#eval-scopes), a nested
+  eval opens no `AsyncScope` and shares the outer one. Its jobs, timers and
+  unhandled rejections therefore drain and report only when the *paused* eval
+  finishes, and they are charged to it.
+  - Failing case: paused in a `* eval """ … """` step, evaluate
+    `(async () => { throw new Error('boom') })()`. The step later fails with
+    `unhandled promise rejection: Error: boom`.
+  - Fix: an explicit nested-scope entry point for host-initiated evaluation
+    (used by `evalWithLocals`, and usable by karate-core's `eval` /
+    `evalAsStep`). It opens a child `AsyncScope` whose pump runs on the owning
+    thread, drains to quiescence before returning, and reports and marks its
+    own rejections. Ordinary nested evals (a job or host callback calling
+    `Engine.eval`) keep sharing.
+  - Pin: a `JsAsyncTest` case where an evaluation nested inside a running eval
+    leaves a rejected promise and a pending timer. The rejection must surface
+    from the nested call, and the outer eval must finish clean.
+
 ### Engine — spec alignment
 
 Observably non-spec; pick up when the owning slice surfaces them.
