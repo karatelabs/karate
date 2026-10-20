@@ -36,7 +36,9 @@ import io.gatling.core.stats.StatsEngine
 import io.gatling.core.structure.ScenarioContext
 import io.gatling.core.util.NameGen
 
+import java.util.concurrent.ThreadFactory
 import scala.jdk.CollectionConverters.*
+import scala.util.control.NonFatal
 
 /**
  * Gatling ProtocolKey for registering KarateProtocol with Gatling's protocol registry.
@@ -118,6 +120,15 @@ class KarateScalaActionBuilder(
   }
 }
 
+object KarateScalaAction {
+  // One virtual thread per feature run. Gatling drives every virtual user from a Netty event
+  // loop (CPU x 2 threads by default), so a feature run there caps concurrency at the thread
+  // count whatever the injection profile says. A virtual thread parks for free wherever Karate
+  // blocks -- karate.pause, a pooled-connection wait, a slow response -- and there is nothing
+  // to size or shut down.
+  private val threads: ThreadFactory = Thread.ofVirtual().name("karate-vu-", 0).factory()
+}
+
 /**
  * Minimal Scala Action that delegates to Java KarateExecutor.
  */
@@ -184,23 +195,46 @@ class KarateScalaAction(
       case _ => null
     }
 
-    // Execute using Java executor
-    val result = executor.execute(gatlingVars, karateVars, logBuffer, statsReporter, session.scenario, session.groups)
+    KarateScalaAction.threads.newThread(() => run(session, gatlingVars, karateVars, logBuffer)).start()
+  }
 
-    // Update session - use mutable map view to avoid hashCode computation on JS objects
-    // (JS objects may have circular references that would cause StackOverflowError)
-    val updatedKarate: scala.collection.mutable.Map[String, Any] = result.karateVars.asScala
-    val withKarate = if (result.success) {
-      session.set(KarateProtocol.KARATE_KEY, updatedKarate)
-    } else {
-      session.markAsFailed.set(KarateProtocol.KARATE_KEY, updatedKarate)
-    }
-    val updatedSession = if (result.logBuffer == null) {
-      withKarate
-    } else {
-      withKarate.set(KarateProtocol.LOG_KEY, result.logBuffer)
+  // Off the event loop. Nothing Gatling-facing here needs it: the Session is immutable, the
+  // StatsEngine hands every call to an actor mailbox, and the continuation is posted back below.
+  private def run(
+      session: Session,
+      gatlingVars: java.util.Map[String, Object],
+      karateVars: java.util.Map[String, Object],
+      logBuffer: LogReplayer.Buffer
+  ): Unit = {
+    val updatedSession = try {
+      val result = executor.execute(gatlingVars, karateVars, logBuffer, statsReporter, session.scenario, session.groups)
+
+      // Update session - use mutable map view to avoid hashCode computation on JS objects
+      // (JS objects may have circular references that would cause StackOverflowError)
+      val updatedKarate: scala.collection.mutable.Map[String, Any] = result.karateVars.asScala
+      val withKarate = if (result.success) {
+        session.set(KarateProtocol.KARATE_KEY, updatedKarate)
+      } else {
+        session.markAsFailed.set(KarateProtocol.KARATE_KEY, updatedKarate)
+      }
+      if (result.logBuffer == null) {
+        withKarate
+      } else {
+        withKarate.set(KarateProtocol.LOG_KEY, result.logBuffer)
+      }
+    } catch {
+      // what ChainableAction does for a crash in execute(), which no longer runs under it
+      case NonFatal(e) =>
+        logger.underlying.error(s"'$name' crashed on session ${session.userId}, forwarding to the next one", e)
+        session.markAsFailed
     }
 
-    next ! updatedSession
+    // Action.! would hop to the loop by itself; posting here keeps ExitableAction's exit check on
+    // the loop too, as it is when Gatling's own actions continue a chain. A loop that is already
+    // shut down (simulation over) drops the user the way Action.! does.
+    val loop = session.eventLoop
+    if (!loop.isShutdown) {
+      loop.execute(() => next ! updatedSession)
+    }
   }
 }

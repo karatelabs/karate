@@ -10,7 +10,7 @@ This document describes the plan to port karate-gatling from v1 to karate.
 | Scala version | 3.x only (no Scala DSL layer needed) |
 | Integration approach | v2 PerfHook + RunListener event system |
 | DSL strategy | Java-only DSL (Scala users use Java DSL directly) |
-| Async runtime | Match Gatling's execution model with PerfHook.submit() |
+| Async runtime | One virtual thread per feature run; continuation posted back to the user's event loop (§3.3) |
 | Session variables | `__karate`/`__gatling` prefix only — **breaking vs v1** (no unprefixed top-level access) |
 | Module location | Separate `karate-gatling` module |
 | Scope | V1 parity first, then profiling validation |
@@ -202,159 +202,79 @@ public class KarateProtocol implements Protocol {
 }
 ```
 
-### 3.3 KarateFeatureAction.java
+### 3.3 KarateScalaAction — execution model
 
-Key changes from v1:
-- Use v2's PerfHook interface (maintains `submit()` abstraction from v1)
-- Match Gatling's execution model (not direct virtual threads)
-- Integrate with v2's `Suite`, `FeatureRuntime`, `ScenarioRuntime`
-- **Abort immediately on first failure**, report partial results
-- **Abort mid-request on Gatling timeout** via `HttpClient.abort()`
+The action is the one place Karate meets Gatling's threading, and the invariant it keeps is:
+**a Karate feature never runs on a Gatling event-loop thread.**
 
-```java
-package io.karatelabs.gatling;
+Gatling drives every virtual user from a Netty event-loop group (`io.gatling.app.Gatling` →
+`Transports.newEventLoopGroup(…, nThreads = 0, "gatling")`, i.e. Netty's default of
+`availableProcessors() × 2`, overridable with `-Dio.netty.eventLoopThreads`). Each `Session`
+is pinned to one loop (`Session.eventLoop`), and `Action.!` runs `execute` on that loop. A
+feature run *inside* `execute` therefore blocks the loop for its whole duration — every HTTP
+round trip, every `karate.pause()` — and concurrency plateaus at the thread count no matter
+what the injection profile asks for. (That was the v2 port's original behaviour; the symptom
+is "concurrent users" flat-lining at CPU × 2, with `-XX:ActiveProcessorCount=N` as the only
+lever.)
 
-public class KarateFeatureAction implements Action {
+So `execute` only reads the session (the `__gatling` snapshot, the `__karate` map, the
+replay buffer) and then starts **one virtual thread per feature run**
+(`Thread.ofVirtual()`, named `karate-vu-N`). Everything from `KarateExecutor.execute()`
+onward — the Suite, the HTTP calls, the `PerfHook` callbacks — happens on that thread.
+There is nothing to size and nothing to shut down: a virtual thread holds no carrier while
+parked, so a user that is waiting (on a response, on a pooled connection, in a pause) costs
+nothing, and the number of in-flight users is bounded only by the injection profile.
 
-    private final String featurePath;
-    private final String[] tags;
-    private final KarateProtocol protocol;
-    private final StatsEngine statsEngine;
-    private final Action next;
-    private final boolean silent;
+When the feature is done the thread builds the new `Session` (the `__karate` map, the
+`__karateLog` buffer, `markAsFailed` on failure — the same updates as before) and posts the
+continuation back to the user's own loop: `session.eventLoop.execute(() => next ! session)`.
+`Action.!` would hop by itself (it checks `inEventLoop`), but posting explicitly keeps
+`ExitableAction`'s exit check on the loop as well, which is where it runs when Gatling's own
+actions continue a chain. A loop that is already shut down — the simulation ended under
+`maxDuration` while a feature was in flight — drops the user, as `Action.!` does.
 
-    @Override
-    public void execute(Session session) {
-        // Use PerfHook.submit() to match Gatling's execution model
-        protocol.getPerfHook().submit(() -> executeFeature(session));
-    }
+**What is safe off the loop.** Everything the thread touches:
 
-    private void executeFeature(Session session) {
-        // 1. Prepare session maps
-        Map<String, Object> gatlingVars = new HashMap<>(session.attributes());
-        Map<String, Object> karateVars = getOrCreate(session, KARATE_KEY);
-        karateVars.put(GATLING_KEY, gatlingVars);
+- `Session` is an immutable case class; `set`/`markAsFailed` return copies.
+- `StatsEngine.logResponse` (the only Gatling call made from inside Karate, via
+  `GatlingStatsReporter`) is `DataWritersStatsEngine.dispatch` → `ActorRef.!` → an MPSC
+  mailbox `offer`. It is designed to be called from any event-loop thread concurrently, so
+  from a virtual thread it is no different.
+- `next ! session` — see above.
 
-        // 2. Create Suite with PerfHook for metrics
-        Suite suite = Suite.builder()
-            .path(featurePath)
-            .tags(tags)
-            .perfHook(createPerfHook(session))
-            .httpClientFactory(protocol.getHttpClientFactory())
-            .build();
+**Crash handling.** `ChainableAction.!` wraps `execute` in a recover that logs and forwards
+`session.markAsFailed` — but it can only see what happens *on the calling thread*. The virtual
+thread therefore does the same thing itself for anything thrown outside the feature
+(`ResourceNotFoundException` for a bad path, say): log at error, continue the chain with the
+session marked failed. A virtual user is never lost.
 
-        // 3. Execute - aborts immediately on first failure
-        SuiteResult result = suite.run();
+**Failure handling** is unchanged: the first Karate assertion failure stops the scenario, the
+events already reported stay reported, the failed request (or a synthetic event named after
+the feature, when there was no request) is logged KO, and the session is `markAsFailed` so
+`exitHereIfFailed` works as it does for Gatling's own protocols.
 
-        // 4. Update session and continue
-        Session updated = updateSession(session, result);
-        next.execute(updated);
-    }
+**Risk to know about: virtual-thread pinning.** On JDK 21–23 a virtual thread that blocks
+inside a `synchronized` block pins its carrier (JEP 491 removes this in JDK 24). Karate's
+HTTP path is Apache HttpClient 5 (locks, not monitors), and karate-core's own monitors are
+in the WebSocket client and a template-flow signal, neither on the Gatling request path.
+karate-js does `Object.wait()` under a monitor in its scope gate and async runtime; the JDK
+compensates for `Object.wait()` by growing the carrier pool (to
+`jdk.virtualThreadScheduler.maxPoolSize`, default 256), so that bounds, rather than blocks,
+a JDK 21 run that leans on those paths. User Java code called from a feature can pin too.
+`-Djdk.tracePinnedThreads=full` shows any pinning.
 
-    private PerfHook createPerfHook(Session session) {
-        return new PerfHook() {
-            private HttpClient currentClient;
+### 3.4 Pause
 
-            @Override
-            public String getPerfEventName(HttpRequest req, ScenarioRuntime sr) {
-                String customName = protocol.getNameResolver().apply(req, sr);
-                if (customName != null) return customName;
-                return protocol.defaultNameResolver(req, sr);
-            }
+There is no special pause mechanism, and none is needed: `karate.pause(ms)` is
+`Thread.sleep`, and `PerfHook.pause` (used for the protocol's per-URI `pauseFor` delays) is
+too. On a virtual thread a sleep parks the thread and releases its carrier, which is exactly
+what Gatling's own `pause()` achieves by scheduling on the event loop — the user occupies
+no thread while it waits. `PerfHook.submit` is a synchronous `run()`; the hop off the event
+loop happens once, in the action, not per task.
 
-            @Override
-            public void reportPerfEvent(PerfEvent event) {
-                if (silent) return; // Skip for warm-up
-
-                Status status = event.isFailed() ? KO : OK;
-                statsEngine.logResponse(
-                    session.scenario(),
-                    session.groups(),
-                    event.getName(),
-                    event.getStartTime(),
-                    event.getEndTime(),
-                    status,
-                    Option.apply(String.valueOf(event.getStatusCode())),
-                    event.getMessage() != null ? Option.apply(event.getMessage()) : Option.empty()
-                );
-
-                // Apply pause after request
-                int pauseMs = protocol.pauseFor(event.getName(), event.getMethod());
-                if (pauseMs > 0) {
-                    pause(pauseMs);
-                }
-            }
-
-            @Override
-            public void submit(Runnable runnable) {
-                // Matches Gatling's execution model
-                runnable.run();
-            }
-
-            @Override
-            public void pause(Number millis) {
-                // Use Gatling's non-blocking pause mechanism
-                try {
-                    Await.result(Future.never(), Duration.apply(millis.longValue(), TimeUnit.MILLISECONDS));
-                } catch (TimeoutException e) {
-                    // Expected - this is how Gatling's pause works
-                }
-            }
-
-            @Override
-            public void setHttpClient(HttpClient client) {
-                this.currentClient = client;
-            }
-
-            @Override
-            public void abortCurrentRequest() {
-                // Called on Gatling timeout - abort mid-request
-                if (currentClient != null) {
-                    currentClient.abort();
-                }
-            }
-        };
-    }
-}
-```
-
-**Failure Handling:**
-- On first Karate assertion failure, execution stops immediately
-- Partial results (successful requests before failure) are reported to Gatling
-- Failed request is reported with KO status and error message
-
-**Timeout Handling:**
-- If Gatling scenario timeout is reached, `abortCurrentRequest()` is called
-- In-flight HTTP request is aborted via `HttpClient.abort()`
-- Prevents thread starvation from slow responses
-
-### 3.4 Pause Implementation (Gatling Model)
-
-Uses Gatling's non-blocking pause mechanism via `karate.pause()`:
-
-```java
-// In PerfHook implementation
-@Override
-public void pause(Number millis) {
-    // Gatling's non-blocking pause - waits without consuming threads
-    try {
-        Await.result(Future.never(), Duration.apply(millis.longValue(), TimeUnit.MILLISECONDS));
-    } catch (TimeoutException e) {
-        // Expected - timeout is the pause completion signal
-    }
-}
-```
-
-**Usage in Karate Features:**
 ```gherkin
-# Non-blocking pause - integrates with Gatling
 * karate.pause(5000)
 ```
-
-**Note:** `karate.pause()` is preferred over `Thread.sleep()` as it:
-- Integrates with Gatling's scheduler
-- Does not block carrier threads
-- Works correctly in both Gatling and non-Gatling modes
 
 ---
 
