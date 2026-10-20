@@ -246,7 +246,9 @@ actions continue a chain. A loop that is already shut down — the simulation en
 `session.markAsFailed` — but it can only see what happens *on the calling thread*. The virtual
 thread therefore does the same thing itself for anything thrown outside the feature
 (`ResourceNotFoundException` for a bad path, say): log at error, continue the chain with the
-session marked failed. A virtual user is never lost.
+session marked failed. A fatal error (`VirtualMachineError`, `LinkageError`, ...) gets what
+`ChainableAction.!` gives it: logged as `Gatling crashed: ...` and `sys.exit(1)`. A virtual
+user is never silently lost.
 
 **Failure handling** is unchanged: the first Karate assertion failure stops the scenario, the
 events already reported stay reported, the failed request (or a synthetic event named after
@@ -255,8 +257,9 @@ the feature, when there was no request) is logged KO, and the session is `markAs
 
 **Risk to know about: virtual-thread pinning.** On JDK 21–23 a virtual thread that blocks
 inside a `synchronized` block pins its carrier (JEP 491 removes this in JDK 24). Karate's
-HTTP path is Apache HttpClient 5 (locks, not monitors), and karate-core's own monitors are
-in the WebSocket client and a template-flow signal, neither on the Gatling request path.
+HTTP path is Apache HttpClient 5 (locks, not monitors). karate-core's own monitors are in the
+WebSocket client, a template-flow signal, and `karate.setupOnce()` (`ScenarioRuntime.executeSetupOnce`),
+which runs the `@setup` scenario — HTTP included — under one, so its first run pins.
 karate-js does `Object.wait()` under a monitor in its scope gate and async runtime; the JDK
 compensates for `Object.wait()` by growing the carrier pool (to
 `jdk.virtualThreadScheduler.maxPoolSize`, default 256), so that bounds, rather than blocks,

@@ -1366,23 +1366,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // Report (and drain) the last held perf event before teardown so Gatling receives
             // all HTTP metrics. The deferred model attaches a scenario failure to the last HTTP
             // request; logLastPerfEvent reports whether it actually did.
-            String perfFailureMessage = null;
-            if (result.isFailed()) {
-                // file:line + step text + the reason's first line — the KO message names both
-                // *where* and *why*, matching the failure log. Deliberately not the full match
-                // diff: Gatling groups its errors table by this string.
-                String display = result.getPerfFailureMessage();
-                perfFailureMessage = display != null ? display : "scenario failed";
-            }
-            boolean perfFailureReported = logLastPerfEvent(perfFailureMessage);
-            // If the scenario failed but no held perf event carried the failure — it failed
-            // before its first request, or via a non-HTTP step — synthesize one so the failure
-            // still surfaces as a Gatling KO instead of vanishing. Top-level only: a called
-            // feature's failure propagates to its caller, which reports it (avoids double KOs).
-            if (perfFailureMessage != null && !perfFailureReported
-                    && isPerfMode() && featureRuntime != null && featureRuntime.isTopLevel()) {
-                reportSyntheticFailurePerfEvent(perfFailureMessage);
-            }
+            reportPerfFailure(perfFailureMessage());
 
             // Invoke afterScenario hook - runs on both pass and fail paths so teardown always executes.
             // Must run BEFORE closeChannels/closeDriver: the hook still owns the scenario's
@@ -1402,7 +1386,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                     result.setEndTime(System.currentTimeMillis());
                 }
                 // the drain above already ran, so a perf event the hook captured would stay held
-                logLastPerfEvent(null);
+                reportPerfFailure(hookError != null ? perfFailureMessage() : null);
             }
 
             // Close channels (kafka, grpc, etc.)
@@ -2786,6 +2770,39 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         }
         prevPerfEvent = null;
         return failed;
+    }
+
+    /**
+     * The KO message for this scenario's failure, or null if it has not failed: file:line + step
+     * text + the reason's first line, so it names both <em>where</em> and <em>why</em>, matching
+     * the failure log. Deliberately not the full match diff: Gatling groups its errors table by
+     * this string.
+     */
+    private String perfFailureMessage() {
+        if (!result.isFailed()) {
+            return null;
+        }
+        String display = result.getPerfFailureMessage();
+        return display != null ? display : "scenario failed";
+    }
+
+    /**
+     * Drain the held perf event, marking it KO with {@code failureMessage} if non-null. If the
+     * scenario failed but no perf event carried the failure — it failed before its first
+     * request, or via a non-HTTP step — synthesize one so the failure still surfaces as a
+     * Gatling KO instead of vanishing. Top-level only: a called feature's failure propagates to
+     * its caller, which reports it — unless an event in the called feature already carried it
+     * (avoids double KOs).
+     */
+    private void reportPerfFailure(String failureMessage) {
+        if (logLastPerfEvent(failureMessage)) {
+            result.setPerfFailureReported(true);
+        }
+        if (failureMessage != null && !result.isPerfFailureReported()
+                && isPerfMode() && featureRuntime != null && featureRuntime.isTopLevel()) {
+            reportSyntheticFailurePerfEvent(failureMessage);
+            result.setPerfFailureReported(true);
+        }
     }
 
     /**

@@ -25,6 +25,7 @@ package io.karatelabs.gatling
 
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.Clock
+import io.gatling.commons.util.Throwables.*
 import io.gatling.core.CoreComponents
 import io.gatling.core.action.{Action, ExitableAction}
 import io.gatling.core.action.builder.ActionBuilder
@@ -37,6 +38,7 @@ import io.gatling.core.structure.ScenarioContext
 import io.gatling.core.util.NameGen
 
 import java.util.concurrent.ThreadFactory
+import java.util.function.IntConsumer
 import scala.jdk.CollectionConverters.*
 import scala.util.control.NonFatal
 
@@ -127,6 +129,9 @@ object KarateScalaAction {
   // blocks -- karate.pause, a pooled-connection wait, a slow response -- and there is nothing
   // to size or shut down.
   private val threads: ThreadFactory = Thread.ofVirtual().name("karate-vu-", 0).factory()
+
+  // replaced by tests only
+  @volatile private[gatling] var exit: IntConsumer = status => sys.exit(status)
 }
 
 /**
@@ -223,10 +228,15 @@ class KarateScalaAction(
         withKarate.set(KarateProtocol.LOG_KEY, result.logBuffer)
       }
     } catch {
-      // what ChainableAction does for a crash in execute(), which no longer runs under it
+      // what ChainableAction.! does for a crash in execute(), which no longer runs under it: a
+      // fatal error exits the JVM
       case NonFatal(e) =>
         logger.underlying.error(s"'$name' crashed on session ${session.userId}, forwarding to the next one", e)
         session.markAsFailed
+      case e: Throwable =>
+        logger.underlying.error(s"Gatling crashed: ${e.detailedMessage}", e)
+        KarateScalaAction.exit.accept(1)
+        throw e
     }
 
     // Action.! would hop to the loop by itself; posting here keeps ExitableAction's exit check on

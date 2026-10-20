@@ -13,8 +13,11 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.IntConsumer;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,6 +36,16 @@ class KarateScalaActionTest {
                 new Class<?>[]{StatsEngine.class}, (proxy, method, args) -> {
                     if (method.getName().equals("logResponse")) {
                         statuses.add((Status) args[5]);
+                    }
+                    return null;
+                });
+    }
+
+    private static StatsEngine throwingStatsEngine(Error error) {
+        return (StatsEngine) Proxy.newProxyInstance(StatsEngine.class.getClassLoader(),
+                new Class<?>[]{StatsEngine.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("logResponse")) {
+                        throw error;
                     }
                     return null;
                 });
@@ -94,6 +107,30 @@ class KarateScalaActionTest {
             assertEquals(0, next.offLoop().get());
             assertTrue(next.sessions().peek().isFailed(), "a crash must fail the session");
         } finally {
+            loops.shutdownGracefully(0, 0, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /**
+     * A fatal error is not forwarded like a crash: Gatling's ChainableAction logs it and exits
+     * the JVM, and so must the action now that the feature no longer runs under ChainableAction.
+     * Escaping the virtual thread instead would leave the user stranded and the simulation hung.
+     */
+    @Test
+    void fatalErrorExitsLikeChainableAction() throws Exception {
+        MultiThreadIoEventLoopGroup loops = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
+        BlockingQueue<Integer> exits = new LinkedBlockingQueue<>();
+        IntConsumer exit = KarateScalaAction$.MODULE$.exit();
+        KarateScalaAction$.MODULE$.exit_$eq(exits::add);
+        try {
+            RecordingNext next = new RecordingNext(1);
+            KarateScalaAction a = new KarateScalaAction("classpath:features/pre-http-fail.feature", List.of(), null,
+                    throwingStatsEngine(new LinkageError("injected")), new DefaultClock(), next, false);
+            a.$bang(Session$.MODULE$.apply("fatal", 1, loops.next()));
+            assertEquals(1, exits.poll(10, TimeUnit.SECONDS), "a fatal error must exit with status 1");
+            assertTrue(next.sessions().isEmpty(), "a fatal error must not continue the chain");
+        } finally {
+            KarateScalaAction$.MODULE$.exit_$eq(exit);
             loops.shutdownGracefully(0, 0, TimeUnit.MILLISECONDS);
         }
     }

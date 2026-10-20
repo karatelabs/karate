@@ -214,4 +214,38 @@ class KarateExecutorTest {
         List<String[]> events = runCapturing("classpath:features/perf-custom-then-http-fail.feature");
         assertEquals(List.of("my-event OK", "POST /cats KO"), describe(events));
     }
+
+    @Test
+    void customEventInFailingAfterScenarioHookIsReportedAsKo() {
+        List<String[]> events = runCapturing("classpath:features/perf-hook-fail.feature");
+        assertEquals(List.of("cleanup KO"), describe(events));
+        assertTrue(events.get(0)[2].contains("hook failed"), "KO should carry the hook failure: " + events.get(0)[2]);
+    }
+
+    @Test
+    void customEventInPassingAfterScenarioHookIsReportedAsOk() {
+        List<String[]> events = runCapturing("classpath:features/perf-hook-pass.feature");
+        assertEquals(List.of("cleanup OK"), describe(events));
+    }
+
+    @Test
+    void failingAfterScenarioHookWithoutEventIsReportedAsSyntheticKo() {
+        List<String[]> events = runCapturing("classpath:features/perf-hook-fail-no-event.feature");
+        assertEquals(List.of("features/perf-hook-fail-no-event.feature KO"), describe(events));
+        assertTrue(events.get(0)[2].contains("hook failed"), "KO should carry the hook failure: " + events.get(0)[2]);
+    }
+
+    /** The callee's event already carries the failure, so the caller must not add a synthetic KO. */
+    @Test
+    void calledFeatureCustomEventCarriesTheFailureOnce() {
+        List<String[]> events = runCapturing("classpath:features/perf-call-child-event-fail.feature");
+        assertEquals(List.of("child-event KO"), describe(events));
+    }
+
+    @Test
+    void calledFeatureHttpEventCarriesTheFailureOnce() {
+        CatsMockServer.start();
+        List<String[]> events = runCapturing("classpath:features/perf-call-child-http-fail.feature");
+        assertEquals(List.of("POST /cats KO"), describe(events));
+    }
 }

@@ -61,6 +61,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     // 0 = unassigned (no suite)
     private int executionIndex;
 
+    // this scenario's failure was reported KO on one of its perf events
+    private boolean perfFailureReported;
+
     public ScenarioResult(Scenario scenario) {
         this.scenario = scenario;
     }
@@ -442,6 +445,33 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             return reason;
         }
         return reason == null ? display : display + " - " + reason;
+    }
+
+    public void setPerfFailureReported(boolean perfFailureReported) {
+        this.perfFailureReported = perfFailureReported;
+    }
+
+    /**
+     * True when the failure already reached the performance tool as a KO — on a perf event of
+     * this scenario, or of a feature called by the failing step (where a call failure
+     * originates). A synthetic KO for the same failure would count it twice.
+     */
+    public boolean isPerfFailureReported() {
+        if (perfFailureReported) {
+            return true;
+        }
+        StepResult failedStep = firstFailedStep();
+        if (failedStep == null || !failedStep.hasCallResults()) {
+            return false;
+        }
+        for (FeatureResult called : failedStep.getCallResults()) {
+            for (ScenarioResult sr : called.getScenarioResults()) {
+                if (sr.isFailed() && sr.isPerfFailureReported()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public Throwable getError() {
