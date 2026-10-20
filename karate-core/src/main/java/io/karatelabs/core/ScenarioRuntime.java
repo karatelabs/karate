@@ -108,9 +108,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     // Channels (kafka, grpc, etc.) registered during this scenario
     private List<Channel> channels;
 
-    // Performance testing - tracks the previous HTTP request's perf event
-    // Events are held until the next HTTP request or scenario end, so that
-    // assertion failures can be attributed to the preceding HTTP request
+    // Performance testing - tracks the previous perf event (HTTP or custom)
+    // Events are held until the next perf event or scenario end, so that
+    // assertion failures can be attributed to the preceding request
     private PerfEvent prevPerfEvent;
     private boolean driverFromProvider;  // true if driver came from provider (use release, not quit)
     private boolean driverInherited;     // true if driver was inherited from caller (don't close)
@@ -1375,7 +1375,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 perfFailureMessage = display != null ? display : "scenario failed";
             }
             boolean perfFailureReported = logLastPerfEvent(perfFailureMessage);
-            // If the scenario failed but no HTTP perf event carried the failure — it failed
+            // If the scenario failed but no held perf event carried the failure — it failed
             // before its first request, or via a non-HTTP step — synthesize one so the failure
             // still surfaces as a Gatling KO instead of vanishing. Top-level only: a called
             // feature's failure propagates to its caller, which reports it (avoids double KOs).
@@ -1401,6 +1401,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                     // Bump end time since we added a post-scenario step
                     result.setEndTime(System.currentTimeMillis());
                 }
+                // the drain above already ran, so a perf event the hook captured would stay held
+                logLastPerfEvent(null);
             }
 
             // Close channels (kafka, grpc, etc.)
@@ -2732,11 +2734,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     }
 
     /**
-     * Capture a performance event for the HTTP request just completed.
+     * Capture a performance event for the HTTP request (or custom operation) just completed.
      * <p>
      * This implements the "deferred reporting" pattern from v1:
      * - The previous event is reported first (if any)
-     * - The new event is held until the next HTTP request or scenario end
+     * - The new event is held until the next perf event or scenario end
      * - This allows assertion failures to be attributed to the preceding HTTP request
      *
      * @param event the performance event to capture
@@ -2759,7 +2761,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      *
      * @param failureMessage the failure message (null if successful)
      * @return true if a <em>failed</em> event was reported — i.e. the failure was carried by a
-     *         real HTTP perf event. False if there was no held event or it was reported as OK.
+     *         real (HTTP or custom) perf event. False if there was no held event or it was reported as OK.
      *         The caller uses this to decide whether a scenario failure still needs a synthetic
      *         perf event (a failure before the first HTTP request would otherwise vanish).
      */
@@ -2814,7 +2816,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     /**
      * Capture a custom performance event (for non-HTTP operations like DB, gRPC).
      * <p>
-     * Unlike HTTP events, custom events are reported immediately.
+     * Held exactly like an HTTP event (see {@link #capturePerfEvent(PerfEvent)}), so a failure
+     * after it — e.g. in the operation it timed — marks it KO.
      *
      * @param name      the event name
      * @param startTime start time in epoch milliseconds
@@ -2824,11 +2827,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         if (!isPerfMode()) {
             return;
         }
-        PerfEvent event = new PerfEvent(startTime, endTime, name, 200);
-        PerfHook hook = getPerfHook();
-        if (hook != null) {
-            hook.reportPerfEvent(event);
-        }
+        capturePerfEvent(new PerfEvent(startTime, endTime, name, 200));
     }
 
 }

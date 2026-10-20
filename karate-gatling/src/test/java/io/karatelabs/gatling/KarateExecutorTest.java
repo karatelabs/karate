@@ -166,4 +166,52 @@ class KarateExecutorTest {
         assertTrue(ko.endsWith("- match failed: EQUALS"), "KO should carry the reason: " + ko);
         assertFalse(ko.contains("\n"), "KO message must stay a single line: " + ko);
     }
+
+    private static List<String[]> runCapturing(String featurePath) {
+        List<String[]> events = new ArrayList<>();
+        GatlingStatsReporter reporter =
+                (scenario, groups, requestName, startTime, endTime, ok, statusCode, errorMessage) ->
+                        events.add(new String[]{requestName, ok ? "OK" : "KO", errorMessage});
+        new KarateExecutor(featurePath, null, null, false)
+                .execute(new HashMap<>(), new HashMap<>(), reporter, "test", NO_GROUPS);
+        return events;
+    }
+
+    private static List<String> describe(List<String[]> events) {
+        return events.stream().map(e -> e[0] + " " + e[1]).toList();
+    }
+
+    /**
+     * A custom event is held like an HTTP event, so a failure after it (here a failing
+     * {@code karate.call} the event timed, invoked from a JS function) marks it KO. The called
+     * feature must not emit its own feature-named KO.
+     */
+    @Test
+    void customEventWrappingFailingJsCallIsReportedAsKo() {
+        List<String[]> events = runCapturing("classpath:features/perf-custom-js-call-fail.feature");
+        assertEquals(List.of("my-event KO"), describe(events));
+        assertTrue(events.get(0)[2].contains("called feature failed: features/perf-sub-fail.feature - match failed"),
+                "KO should carry the failure detail: " + events.get(0)[2]);
+    }
+
+    @Test
+    void customEventBeforeFailingCallStepIsReportedAsKo() {
+        List<String[]> events = runCapturing("classpath:features/perf-custom-call-step-fail.feature");
+        assertEquals(List.of("my-event KO"), describe(events));
+        assertTrue(events.get(0)[2].contains("called feature failed: features/perf-sub-fail.feature - match failed"),
+                "KO should carry the failure detail: " + events.get(0)[2]);
+    }
+
+    @Test
+    void customEventInPassingScenarioIsReportedAsOk() {
+        List<String[]> events = runCapturing("classpath:features/perf-custom-pass.feature");
+        assertEquals(List.of("my-event OK"), describe(events));
+    }
+
+    @Test
+    void customEventFollowedByFailingHttpAssertionLeavesKoOnTheRequest() {
+        CatsMockServer.start();
+        List<String[]> events = runCapturing("classpath:features/perf-custom-then-http-fail.feature");
+        assertEquals(List.of("my-event OK", "POST /cats KO"), describe(events));
+    }
 }

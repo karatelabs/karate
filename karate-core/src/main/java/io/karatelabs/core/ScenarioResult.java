@@ -406,6 +406,16 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
                 .filter(line -> !line.isEmpty())
                 .findFirst()
                 .orElse(null);
+        // a failure raised through JS evaluation opens with the engine's "js failed:" frame header;
+        // the frame's "Error:" line is the one that says why
+        if ("js failed:".equals(firstLine)) {
+            firstLine = reason.lines()
+                    .map(String::trim)
+                    .filter(line -> line.startsWith("Error: "))
+                    .findFirst()
+                    .map(line -> line.substring("Error: ".length()).trim())
+                    .orElse(firstLine);
+        }
         if (firstLine == null) {
             return null;
         }
