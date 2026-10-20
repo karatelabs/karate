@@ -1550,6 +1550,26 @@ class StepJsTest {
         assertFailed(sr);
     }
 
+    private static String failureInCatch(String catchBody, boolean withFinally) {
+        String fin = withFinally ? " finally { out.v = 'F' }" : "";
+        ScenarioRuntime sr = run("* def out = { v: '' }\n"
+                + "* eval try { throw 'x' } catch (e) { " + catchBody + " }" + fin + "\n");
+        assertFailed(sr);
+        if (withFinally) {
+            assertEquals("F", ((java.util.Map<?, ?>) get(sr, "out")).get("v"));
+        }
+        // the echoed source line differs by the finally clause itself
+        return sr.getResult().getFailureMessage().replaceAll("(?m)^\\s*Code:.*$", "");
+    }
+
+    @Test
+    void testHostExceptionFromCatchFailsTheSameWithFinally() {
+        String fail = "karate.fail('intentional error')";
+        assertEquals(failureInCatch(fail, false), failureInCatch(fail, true));
+        String javaThrow = "Java.type('java.lang.Integer').parseInt('not-a-number')";
+        assertEquals(failureInCatch(javaThrow, false), failureInCatch(javaThrow, true));
+    }
+
     @Test
     void testJsThrowFailsScenario() {
         // Verify that JS throw statements properly fail the scenario

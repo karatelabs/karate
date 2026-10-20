@@ -3180,6 +3180,8 @@ class Interpreter {
             tryValue = null;
         }
         Node finallyBlock = null;
+        // a host exception that escaped the catch block: rethrown as-is once the finally has run
+        RuntimeException pending = null;
         if (node.get(2).token.type == CATCH) {
             // The CatchParameter is optional, so the catch block — and therefore the
             // `finally` keyword after it — sits at one of two offsets.
@@ -3205,7 +3207,16 @@ class Interpreter {
                             context.put(param.getText(), errorThrown);
                         }
                     }
-                    tryValue = eval(node.get(catchBlockAt), context);
+                    try {
+                        tryValue = eval(node.get(catchBlockAt), context);
+                    } catch (RuntimeException e) {
+                        if (finallyBlock == null || e instanceof FlowControlSignal
+                                || e instanceof EngineInterruptedException) {
+                            throw e;
+                        }
+                        pending = e;
+                        tryValue = null;
+                    }
                     if (context.isError()) { // catch threw error
                         tryValue = null;
                     }
@@ -3246,9 +3257,14 @@ class Interpreter {
             // `try { throw 'x' } finally { return 42 }` return 42 — and what makes a throw raised
             // in here the one that propagates. It used to be raised as a Java RuntimeException
             // instead, which no JS `catch` could ever see.
-            if (context.getExitType() == null && savedExit != null) {
-                context.restoreCompletion(savedExit, savedLabel, savedReturn, savedError,
-                        savedAuthored, savedAuthoredLine);
+            if (context.getExitType() == null) {
+                if (pending != null) {
+                    throw pending;
+                }
+                if (savedExit != null) {
+                    context.restoreCompletion(savedExit, savedLabel, savedReturn, savedError,
+                            savedAuthored, savedAuthoredLine);
+                }
             }
         }
         return tryValue;

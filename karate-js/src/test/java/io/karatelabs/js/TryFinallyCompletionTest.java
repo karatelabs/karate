@@ -132,4 +132,20 @@ class TryFinallyCompletionTest extends EvalBase {
                 + " var r; try { f() } catch (e) { r = 'caught:' + e } r"));
     }
 
+    @Test
+    void aFinallyRunsWhenTheCatchRaisesAnEngineError() {
+        assertEquals("F:TypeError", eval("var s = ''; function f() { try { throw 'x' } catch (e) { null.foo } finally { s += 'F' } }"
+                + " try { f() } catch (e) { s += ':' + e.name } s"));
+    }
+
+    @Test
+    void aFinallyRunsWhenTheCatchCallsAThrowingHostFunction() {
+        Engine engine = new Engine();
+        engine.put("hostFail", (JsCallable) (ctx, args) -> {
+            throw new RuntimeException("host failure");
+        });
+        assertEquals("F:host failure", engine.eval("var s = ''; function f() { try { throw 'x' } catch (e) { hostFail() } finally { s += 'F' } }"
+                + " try { f() } catch (e) { s += ':' + e.message } s"));
+    }
+
 }

@@ -45,4 +45,17 @@ class StepAbortTest {
         assertNull(get(sr, "after")); // after should not be set since abort() stops execution
     }
 
+    @Test
+    void testKarateAbortInCatchWithFinally() {
+        ScenarioRuntime sr = run("""
+            * def out = { v: '' }
+            * eval try { throw 'x' } catch (e) { karate.abort() } finally { out.v = 'F' }
+            * def after = true
+            """);
+        assertPassed(sr);
+        assertTrue(sr.isAborted());
+        assertEquals("F", ((java.util.Map<?, ?>) get(sr, "out")).get("v"));
+        assertNull(get(sr, "after"));
+    }
+
 }
