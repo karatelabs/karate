@@ -25,6 +25,7 @@ package io.karatelabs.driver;
 
 import io.karatelabs.core.FeatureResult;
 import io.karatelabs.core.ScenarioResult;
+import io.karatelabs.core.ScenarioRuntime;
 import io.karatelabs.core.SuiteResult;
 import io.karatelabs.core.TestUtils;
 import org.junit.jupiter.api.Test;
@@ -187,9 +188,26 @@ class PooledDriverQuitTest {
                 .driverProvider(pool)
                 .parallel(8);
         assertEquals(12, result.getScenarioPassedCount());
-        // one per quit, except a quit by the last scenario to finish
-        assertTrue(pool.created.get() == 4 || pool.created.get() == 5, "created " + pool.created.get());
-        assertTrue(pool.getStats().matches(".*created=[01], available=0, assigned=0.*"), pool.getStats());
+        // one per quit, except a quit by the last scenario to finish, which leaves no driver open
+        int created = pool.created.get();
+        assertTrue(created == 4 || created == 5, "created " + created);
+        assertEquals("PooledDriverProvider[size=1, created=" + (created - 4) + ", available=0, assigned=0]",
+                pool.getStats());
+    }
+
+    @Test
+    void testReleaseRacingShutdownClosesDriver() {
+        ScenarioRuntime runtime = TestUtils.run("* def a = 1");
+        PooledDriverProvider pool = new FakePool(1) {
+            @Override
+            protected void cleanScenarioState(Driver driver) {
+                shutdown(); // lands after release's shutdown check, before its offer
+            }
+        };
+        Driver driver = pool.acquire(runtime, Map.of());
+        pool.release(runtime, driver);
+        assertTrue(driver.isTerminated());
+        assertTrue(pool.getStats().contains("available=0"), pool.getStats());
     }
 
 }

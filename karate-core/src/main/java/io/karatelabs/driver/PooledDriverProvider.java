@@ -36,6 +36,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Driver provider that maintains a bounded pool of drivers.
@@ -74,6 +75,9 @@ public class PooledDriverProvider implements DriverProvider {
     private final ConcurrentHashMap<Driver, ScenarioRuntime> assignedDrivers = new ConcurrentHashMap<>();
     private final AtomicInteger createdCount = new AtomicInteger(0);
     private final Object initLock = new Object();
+    // CdpLauncher probes for a free port before Chrome binds it, so concurrent launches can draw the
+    // same port and attach to the same tab
+    private final ReentrantLock createLock = new ReentrantLock();
     private volatile boolean shutdown = false;
 
     /**
@@ -203,11 +207,14 @@ public class PooledDriverProvider implements DriverProvider {
             // a slot freed by a quit driver is never offered to the queue, so re-check capacity
             reapTerminated();
             if (reserveSlot()) {
+                createLock.lock();
                 try {
                     driver = createDriver(config);
                 } catch (RuntimeException | Error e) {
                     createdCount.decrementAndGet();
                     throw e;
+                } finally {
+                    createLock.unlock();
                 }
                 logger.info("Created driver {}/{} for scenario: {}", createdCount.get(), poolSize, scenarioName);
                 return driver;
@@ -306,6 +313,9 @@ public class PooledDriverProvider implements DriverProvider {
             logger.warn("Pool full, closing excess driver");
             closeDriverQuietly(driver);
             createdCount.decrementAndGet();
+        } else if (shutdown && availableDrivers.remove(driver)) {
+            // shutdown() drained the queue before this offer
+            closeDriverQuietly(driver);
         } else {
             logger.debug("Returned driver to pool for scenario: {}", runtime.getScenario().getName());
         }
