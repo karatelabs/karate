@@ -242,6 +242,17 @@ class KarateExecutorTest {
         assertEquals(List.of("child-event KO"), describe(events));
     }
 
+    /**
+     * Two levels of call: only the leaf captures an event and fails. Call results are not
+     * retained (the default), so the middle's result tree is released before the root asks
+     * whether the failure was already reported - the root must still not add its own KO.
+     */
+    @Test
+    void nestedCalledFeatureCustomEventCarriesTheFailureOnce() {
+        List<String[]> events = runCapturing("classpath:features/perf-call-chain-root.feature");
+        assertEquals(List.of("leaf-event KO"), describe(events));
+    }
+
     @Test
     void calledFeatureHttpEventCarriesTheFailureOnce() {
         CatsMockServer.start();

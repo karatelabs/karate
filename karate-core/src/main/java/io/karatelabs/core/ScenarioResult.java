@@ -467,6 +467,8 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         for (FeatureResult called : failedStep.getCallResults()) {
             for (ScenarioResult sr : called.getScenarioResults()) {
                 if (sr.isFailed() && sr.isPerfFailureReported()) {
+                    // latched: call results may be released before an outer caller asks
+                    perfFailureReported = true;
                     return true;
                 }
             }
