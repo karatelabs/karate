@@ -28,6 +28,7 @@ import io.karatelabs.gherkin.Feature;
 import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpResponse;
 import io.karatelabs.http.HttpServer;
+import io.karatelabs.js.JavaInvokable;
 import io.karatelabs.js.SimpleObject;
 import io.karatelabs.output.LogContext;
 import io.netty.handler.ssl.SslContext;
@@ -163,10 +164,12 @@ public class MockServer implements SimpleObject {
     }
 
     /**
-     * Get a variable from the mock handler's global context.
+     * Get a variable from the mock handler's global context, as a snapshot: a deep copy taken
+     * between requests, so later requests do not change it and changing it does not affect the mock.
+     * Exposed to JS as {@code mock.getVariable('name')}.
      */
     public Object getVariable(String name) {
-        return handler.getVariable(name);
+        return handler.getVariableSnapshot(name);
     }
 
     /**
@@ -183,6 +186,7 @@ public class MockServer implements SimpleObject {
             case "url" -> getUrl();
             case "ssl" -> isSsl();
             case "stop" -> (Runnable) this::stopAsync;
+            case "getVariable" -> (JavaInvokable) args -> getVariable(args[0] + "");
             default -> null;
         };
     }

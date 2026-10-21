@@ -26,12 +26,14 @@ package io.karatelabs.core;
 import io.karatelabs.common.Json;
 import io.karatelabs.common.Xml;
 import io.karatelabs.js.JavaCallable;
+import io.karatelabs.js.JsValue;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -267,6 +269,30 @@ public class StepUtils {
         // JsCallable functions shouldn't be deep-copied - return them unchanged
         if (value instanceof JavaCallable) {
             return value;
+        }
+        // A raw JS container (a JsArray from `eval var x = [...]`) iterates its elements unconverted,
+        // and a JsDate (or a boxed primitive) is a JsObject, so the Map branch below would copy it to
+        // an empty map — a date silently became {}. A copy is a value leaving the engine, so it takes
+        // the idiomatic Java form, exactly as a binding read does. Only the wrappers the container
+        // branches would mangle — `undefined` is not one, and stays `undefined` in the copy.
+        if (value instanceof JsValue jv && (value instanceof Map || value instanceof List)) {
+            value = jv.getJavaValue();
+            if (value == null) {
+                return null;
+            }
+        }
+        // mutable, and a JsDate round-trips the very Date instance it was given — memoized like any
+        // other mutable value, so two paths onto one date still share one date in the copy
+        if (value instanceof Date date) {
+            Object existing = alreadyCopied(seen, date);
+            if (existing != null) {
+                return existing;
+            }
+            Date copy = new Date(date.getTime());
+            if (seen != null) {
+                seen.put(date, copy);
+            }
+            return copy;
         }
         // XML variables are mutable via `set <var> /xpath/...` — share the reference and a
         // callonce/callSingle cache (or a `copy` clone) is corrupted by the next mutation.

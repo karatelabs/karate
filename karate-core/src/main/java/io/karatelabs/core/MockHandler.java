@@ -704,4 +704,25 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         return globals.get(name);
     }
 
+    /**
+     * A variable as a consistent, detached copy — for a caller OUTSIDE the request thread, such as the
+     * test that started the mock. Taken under the request lock, so it never observes a request half-way
+     * through mutating it (iterating a live map the mock is writing to can throw or see a torn value),
+     * and deep-copied, so the caller can neither change the mock's state nor see it change underneath
+     * a later assertion. The copy covers data — maps, lists, XML, arrays, dates — as
+     * {@link StepUtils#deepCopy} does; functions and other Java objects are shared by reference.
+     *
+     * <p>A thread that holds ANOTHER mock's request lock and waits on this one (mock A proxies to mock B,
+     * and B reads A's variables) would wait for A's request to finish — read from the test, not from a
+     * mock scenario. A read from this mock's own scenario is fine: the lock is reentrant.
+     */
+    public Object getVariableSnapshot(String name) {
+        requestLock.lock();
+        try {
+            return StepUtils.deepCopy(globals.get(name));
+        } finally {
+            requestLock.unlock();
+        }
+    }
+
 }

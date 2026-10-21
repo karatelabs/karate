@@ -1,6 +1,8 @@
 package io.karatelabs.core;
 
 import io.karatelabs.common.Xml;
+import io.karatelabs.js.Engine;
+import io.karatelabs.js.Terms;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -361,5 +363,28 @@ class StepUtilsTest {
         assertArrayEquals(original[0], copy[0]);
         assertNotSame(original[1], copy[1]);
         assertArrayEquals(original[1], copy[1]);
+    }
+    @Test
+    @SuppressWarnings("unchecked")
+    void deepCopyKeepsTwoPathsOntoOneDateAsOneDate() {
+        Date date = new Date(0);
+        Map<String, Object> original = new LinkedHashMap<>();
+        original.put("a", date);
+        original.put("b", date);
+        Map<String, Object> copy = (Map<String, Object>) StepUtils.deepCopy(original);
+        assertNotSame(date, copy.get("a"));
+        assertSame(copy.get("a"), copy.get("b"));
+        ((Date) copy.get("a")).setTime(1000);
+        assertEquals(0, date.getTime());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void deepCopyOfARawJsArrayUnwrapsADateButKeepsUndefined() {
+        Engine engine = new Engine();
+        engine.eval("var raw = [new Date(0), undefined]");
+        List<Object> copy = (List<Object>) StepUtils.deepCopy(engine.get("raw"));
+        assertEquals(new Date(0), copy.get(0));
+        assertSame(Terms.UNDEFINED, copy.get(1));
     }
 }
