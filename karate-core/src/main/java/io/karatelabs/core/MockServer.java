@@ -166,7 +166,7 @@ public class MockServer implements SimpleObject {
     /**
      * Get a variable from the mock handler's global context, as a snapshot: a deep copy taken
      * between requests, so later requests do not change it and changing it does not affect the mock.
-     * Exposed to JS as {@code mock.getVariable('name')}.
+     * Exposed to JS as {@code mock.get('name')}, with an optional default like {@code karate.get}.
      */
     public Object getVariable(String name) {
         return handler.getVariableSnapshot(name);
@@ -186,7 +186,14 @@ public class MockServer implements SimpleObject {
             case "url" -> getUrl();
             case "ssl" -> isSsl();
             case "stop" -> (Runnable) this::stopAsync;
-            case "getVariable" -> (JavaInvokable) args -> getVariable(args[0] + "");
+            // like karate.get(name, defaultValue): the default answers a variable that is absent or null
+            case "get" -> (JavaInvokable) args -> {
+                if (args.length == 0) {
+                    throw new RuntimeException("get() needs at least one argument: the mock variable name");
+                }
+                Object value = getVariable(args[0] + "");
+                return value == null && args.length > 1 ? args[1] : value;
+            };
             default -> null;
         };
     }

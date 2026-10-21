@@ -49,7 +49,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * The test that started a mock reads the mock's variables with {@code mock.getVariable('name')} — a
+ * The test that started a mock reads the mock's variables with {@code mock.get('name')} — a
  * snapshot, so the mock's later requests do not change it and the test cannot change the mock.
  */
 class MockServerVariableTest {
@@ -80,19 +80,21 @@ class MockServerVariableTest {
         Files.writeString(root.resolve("test.feature"), """
                 Feature: reads mock state
 
-                Scenario: getVariable
+                Scenario: mock.get
                   * def mock = karate.start({ mock: 'mock.feature', port: 0 })
                   * url mock.url
                   * path 'items'
                   * request { name: 'foo' }
                   * method post
                   * status 200
-                  * match mock.getVariable('items') == { '1': { name: 'foo' } }
-                  * match mock.getVariable('counter') == 1
-                  * match mock.getVariable('nope') == null
+                  * match mock.get('items') == { '1': { name: 'foo' } }
+                  * match mock.get('counter') == 1
+                  * match mock.get('nope') == null
+                  * match mock.get('nope', []) == []
+                  * match mock.get('counter', 99) == 1
 
                   # a snapshot: changing it leaves the mock alone
-                  * def snapshot = mock.getVariable('items')
+                  * def snapshot = mock.get('items')
                   * snapshot['2'] = { name: 'injected' }
                   * url mock.url
                   * path 'items'
@@ -105,7 +107,7 @@ class MockServerVariableTest {
                   * request { name: 'bar' }
                   * method post
                   * match snapshot == { '1': { name: 'foo' }, '2': { name: 'injected' } }
-                  * match mock.getVariable('items') == { '1': { name: 'foo' }, '2': { name: 'bar' } }
+                  * match mock.get('items') == { '1': { name: 'foo' }, '2': { name: 'bar' } }
                 """);
         SuiteResult result = Runner.path(root.resolve("test.feature").toString())
                 .workingDir(root).configDir(root.toString())
