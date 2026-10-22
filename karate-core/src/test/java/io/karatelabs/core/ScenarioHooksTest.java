@@ -489,6 +489,45 @@ public class ScenarioHooksTest {
                 "afterFeature karate.call should fire once and resolve the scenario variable, even with multiple threads");
     }
 
+    // Java glue an afterFeature hook calls (e.g. a custom report builder) reads the feature results this way
+    public static void recordCurrentFeatureResult() {
+        ScenarioRuntime sr = ScenarioRuntime.currentOrNull();
+        recorded.add(sr == null ? null : sr.getFeatureRuntime().getResult().getScenarioCount());
+    }
+
+    @Test
+    void testAfterFeatureJavaGlueSeesCurrentScenarioRuntime() throws Exception {
+        Path feature = tempDir.resolve("after-feature-current.feature");
+        Files.writeString(feature, """
+            Feature: afterFeature Java glue sees the current scenario runtime
+
+            Background:
+              * configure afterFeature = function(){ Java.type('io.karatelabs.core.ScenarioHooksTest').recordCurrentFeatureResult() }
+
+            Scenario Outline: <name>
+              * def x = <value>
+
+            Examples:
+              | name | value |
+              | one  | 1     |
+              | two  | 2     |
+            """);
+
+        for (int threads : new int[]{1, 2}) {
+            recorded.clear();
+            SuiteResult result = Runner.path(feature.toString())
+                    .workingDir(tempDir)
+                    .configDir(tempDir.toString())
+                    .outputConsoleSummary(false)
+                    .outputHtmlReport(false)
+                    .backupOutputDir(false)
+                    .skipTagFiltering(true)
+                    .parallel(threads);
+            assertTrue(result.isPassed(), getFailureMessage(result));
+            assertEquals(List.of(2), recorded, "threads: " + threads);
+        }
+    }
+
     // ===== callonce in Background must not freeze the hook to the first scenario =====
 
     @Test

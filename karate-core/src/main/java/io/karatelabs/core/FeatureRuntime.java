@@ -467,12 +467,14 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         KarateConfig config = sr.getConfig();
         Object afterFeature = config.getAfterFeature();
         if (afterFeature instanceof JavaCallable callable) {
-            try {
-                callable.call(null);
-            } catch (Exception e) {
-                logger.warn("afterFeature hook failed: {}", e.getMessage());
-                appendHookFailure(sr.getResult(), "afterFeature", e);
-            }
+            sr.runAsCurrent(() -> {
+                try {
+                    callable.call(null);
+                } catch (Exception e) {
+                    logger.warn("afterFeature hook failed: {}", e.getMessage());
+                    appendHookFailure(sr.getResult(), "afterFeature", e);
+                }
+            });
         }
     }
 

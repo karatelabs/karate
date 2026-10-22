@@ -77,6 +77,22 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         return CURRENT.get();
     }
 
+    /** Runs a hook that fires after this scenario's call() returned (afterFeature) with this scenario current
+     *  again, so Java glue reaching for {@link #currentOrNull()} sees the same runtime the hook's JS runs in. */
+    void runAsCurrent(Runnable task) {
+        ScenarioRuntime outerRuntime = CURRENT.get();
+        CURRENT.set(this);
+        try {
+            task.run();
+        } finally {
+            if (outerRuntime != null) {
+                CURRENT.set(outerRuntime);
+            } else {
+                CURRENT.remove();
+            }
+        }
+    }
+
     private final FeatureRuntime featureRuntime;
     private final Scenario scenario;
     private final KarateJs karate;
