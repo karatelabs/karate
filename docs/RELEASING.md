@@ -21,28 +21,6 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
 >   `karate.sh` manifest ext entry, and add a CI fatjar-build job
 >   (`mvn package -pl karate-image -am -Pfatjar -DskipTests`).
 
-> **TODO (2.1.4 only, delete this note after): publish advisory GHSA-4ccw-fvx9-7qpj.**
-> It sits in draft, already marked Low and patched in `2.1.4`; the fix is tracked in #3067.
-> - Release notes: under **⚠️ Breaking Changes**, say that `karate.exec()` / `karate.fork()` are
->   off by default in a mock and that `configure javaBridgeEnabled = true` turns them back on #3067.
->   Also under **Breaking Changes**: in a mock, a `match` / `karate.match()` marker that names a
->   variable (`#[] schema`, `##(schema)`, `#? _ == expected`) now resolves only when written in the
->   mock feature itself; a marker held in a `read()` schema or built at runtime fails with a message
->   naming the opt-in, `configure requestExpressionsEnabled = true` #3067.
->   Also under **Breaking Changes**: in a mock, an embedded `#(...)` inside a value built by JS
->   (`({ a: '#(' + name + ')' })`, a `karate.call()` result, a file read through an ext provider) is
->   left verbatim unless that exact token is written in the mock feature or a file it `read()`s;
->   `configure requestExpressionsEnabled = true` restores evaluation #3067.
->   Also under **Breaking Changes**: a feature called from a mock (`call`, `callonce`, `karate.call()`)
->   now runs with the mock's defaults — `Java.type()`, `karate.exec()` / `karate.fork()` are off and
->   request data it receives stays inert; a helper that needs them has the mock opt in with
->   `configure javaBridgeEnabled = true` / `configure requestExpressionsEnabled = true` #3067.
->   Under **Important Fixes**, say that `karate.request` in a mock is now treated as request data #3067.
-> - After step 3 (artifacts on Maven Central): open
->   https://github.com/karatelabs/karate/security/advisories/GHSA-4ccw-fvx9-7qpj and click
->   **Publish advisory**. Optionally change the reporter's "Fix status: not fixed" to "fixed in 2.1.4" first.
-> - In step 5: comment the advisory link on #3067 before closing it with the usual `v2.1.4 released`.
-
 ## 1. Prepare the Release
 
 - [ ] Verify `main` is green on CI
