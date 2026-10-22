@@ -92,6 +92,13 @@ public class GherkinParser extends BaseParser {
         background();
         while (peek() != EOF) {
             if (!scenarioOrOutline()) {
+                // fail rather than skip it, as Cucumber does (e.g. a step after an Examples table);
+                // with error recovery the ERROR node below keeps the rest of the feature
+                if (peek() == G_PREFIX) {
+                    error("step outside a Background, Scenario or Scenario Outline");
+                } else {
+                    error(G_SCENARIO, G_SCENARIO_OUTLINE);
+                }
                 // Unknown token - create ERROR and skip to next section
                 enter(NodeType.ERROR);
                 recoverTo(G_TAG, G_SCENARIO, G_SCENARIO_OUTLINE, G_PREFIX, EOF);

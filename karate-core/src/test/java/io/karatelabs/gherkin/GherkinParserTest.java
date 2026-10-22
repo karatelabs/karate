@@ -3,6 +3,7 @@ package io.karatelabs.gherkin;
 import io.karatelabs.common.Resource;
 import io.karatelabs.parser.Node;
 import io.karatelabs.parser.NodeType;
+import io.karatelabs.parser.ParserException;
 import io.karatelabs.parser.SyntaxError;
 import io.karatelabs.parser.Token;
 import io.karatelabs.parser.TokenType;
@@ -1102,6 +1103,98 @@ class GherkinParserTest {
         assertEquals("s #1", scenario.getName());
         assertEquals("one\ntwo", scenario.getDescription());
         assertEquals("# interleaved", span(feature.getCommentSpans().getFirst()));
+    }
+
+    @Test
+    void testDescriptionLineStartingWithKeywordPrefix() {
+        // a step keyword is a whole word: Whenever / Andrew / Butter / Thence are description
+        feature("""
+                Feature: f
+                  Whenever this runs
+                  Andrew wrote it
+                Background:
+                  * def a = 1
+                Scenario: s
+                  Butter is optional
+                  Thence the steps
+                  * print a
+                """);
+        assertEquals("Whenever this runs\nAndrew wrote it", feature.getDescription());
+        assertEquals(1, feature.getBackground().getSteps().size());
+        assertEquals("Butter is optional\nThence the steps", scenario.getDescription());
+        assertEquals(1, scenario.getSteps().size());
+    }
+
+    @Test
+    void testFeatureDescriptionHasNoSteps() {
+        // as in Cucumber: a Feature has no steps, so a line starting with a step keyword, a table
+        // row or """ is description text until Background / Scenario / a tag (the Background was
+        // dropped when such a line ended the description)
+        feature("""
+                Feature: f
+                  When paused, the debugger shows variables
+                  * not a step
+                  | not | a table |
+                Background:
+                  * def a = 1
+                Scenario: s
+                  * print a
+                """);
+        assertEquals("When paused, the debugger shows variables\n* not a step\n| not | a table |",
+                feature.getDescription());
+        assertEquals(1, feature.getBackground().getSteps().size());
+        assertEquals(1, scenario.getSteps().size());
+    }
+
+    @Test
+    void testStepKeywordEndsScenarioAndBackgroundDescription() {
+        feature("""
+                Feature: f
+                Background: b
+                  about b
+                  When paused
+                Scenario: s
+                  about s
+                  Then done
+                """);
+        assertEquals(1, feature.getBackground().getSteps().size());
+        assertEquals("When", feature.getBackground().getSteps().getFirst().getPrefix());
+        assertEquals("about s", scenario.getDescription());
+        assertEquals("Then", scenario.getSteps().getFirst().getPrefix());
+    }
+
+    @Test
+    void testStepAfterExamplesIsAnError() {
+        // Cucumber: "expected: #EOF, #TableRow, #TagLine, #ExamplesLine, #ScenarioLine ..."; the step was skipped
+        ParserException e = assertThrows(ParserException.class, () -> feature("""
+                Feature: f
+                Scenario Outline: s
+                  * print x
+                  Examples:
+                    | x |
+                    | 1 |
+                  * print 2
+                """));
+        assertTrue(e.getMessage().contains("step outside a Background, Scenario or Scenario Outline"), e.getMessage());
+        assertTrue(e.getMessage().contains("7:"), e.getMessage());
+    }
+
+    @Test
+    void testStepAfterExamplesRecovers() {
+        parseWithAst("""
+                Feature: f
+                Scenario Outline: s
+                  * print x
+                  Examples:
+                    | x |
+                    | 1 |
+                  * print 2
+                Scenario: next
+                  * print 1
+                """, true);
+        assertTrue(parser.hasErrors());
+        assertEquals(2, feature.getSections().size());
+        assertEquals("next", feature.getSections().get(1).getScenario().getName());
     }
 
 }

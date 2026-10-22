@@ -38,6 +38,7 @@ public class GherkinLexer extends BaseLexer {
 
     private GherkinState gState = GherkinState.GHERKIN;
     private boolean descLineStart;
+    private boolean featureDesc; // GS_DESC is the Feature's description (no steps can follow)
     private int matchParenDepth = 0; // tracks () nesting in GS_STEP_MATCH state
 
     private enum GherkinState {
@@ -205,6 +206,7 @@ public class GherkinLexer extends BaseLexer {
         // Check for section headers
         if (text.equals("Feature") && match(':')) {
             gState = GherkinState.GS_DESC;
+            featureDesc = true;
             return G_FEATURE;
         }
         if (text.equals("Scenario")) {
@@ -213,19 +215,23 @@ public class GherkinLexer extends BaseLexer {
                 advance(); // space
                 for (int i = 0; i < 8; i++) advance(); // "Outline:"
                 gState = GherkinState.GS_DESC;
+                featureDesc = false;
                 return G_SCENARIO_OUTLINE;
             }
             if (match(':')) {
                 gState = GherkinState.GS_DESC;
+                featureDesc = false;
                 return G_SCENARIO;
             }
         }
         if (text.equals("Background") && match(':')) {
             gState = GherkinState.GS_DESC;
+            featureDesc = false;
             return G_BACKGROUND;
         }
         if (text.equals("Examples") && match(':')) {
             gState = GherkinState.GS_DESC;
+            featureDesc = false;
             return G_EXAMPLES;
         }
 
@@ -285,11 +291,25 @@ public class GherkinLexer extends BaseLexer {
 
         // Check for Gherkin keywords at lookahead position
         String rest = source.substring(lookahead);
-        return rest.startsWith("Given") || rest.startsWith("When") || rest.startsWith("Then")
-                || rest.startsWith("And") || rest.startsWith("But") || rest.startsWith("*")
-                || rest.startsWith("Scenario:") || rest.startsWith("Scenario Outline:")
-                || rest.startsWith("Background:") || rest.startsWith("Examples:")
-                || rest.startsWith("@") || rest.startsWith("|") || rest.startsWith("\"\"\"");
+        if (rest.startsWith("Scenario:") || rest.startsWith("Scenario Outline:")
+                || rest.startsWith("Background:") || rest.startsWith("Examples:") || rest.startsWith("@")) {
+            return true;
+        }
+        // As in Cucumber, a Feature has no steps, so its description runs until a section or tag
+        // line: a line starting with a step keyword, a table row or """ is description text there.
+        // Under Background / Scenario / Examples such a line starts the steps (or the table).
+        // A step keyword is a whole word, as scanGherkinKeyword matches it: "Whenever" is description.
+        if (featureDesc) {
+            return false;
+        }
+        return isStepKeyword(rest, "Given") || isStepKeyword(rest, "When") || isStepKeyword(rest, "Then")
+                || isStepKeyword(rest, "And") || isStepKeyword(rest, "But") || rest.startsWith("*")
+                || rest.startsWith("|") || rest.startsWith("\"\"\"");
+    }
+
+    private boolean isStepKeyword(String rest, String keyword) {
+        return rest.startsWith(keyword)
+                && (rest.length() == keyword.length() || !isIdentifierPart(rest.charAt(keyword.length())));
     }
 
     // ========== GS_COMMENT State ==========
