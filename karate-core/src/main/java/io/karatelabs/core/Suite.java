@@ -1311,13 +1311,20 @@ public class Suite {
         return aborted.get();
     }
 
-    /** A server {@code karate.start()} opened under this Suite: stopped when the run ends, except one started inside
-     *  {@code callSingle} under a host-injected cache, which lives as long as that cache. */
+    /** A server {@code karate.start()} opened under this Suite: stopped when the run ends (or earlier, by the scenario
+     *  that started it — see {@link #releaseServer}), except one started inside {@code callSingle} under a
+     *  host-injected cache, which lives as long as that cache. */
     public void ownServer(MockServer server) {
         if (sharedCallSingleCache && callSingleLock.isHeldByCurrentThread()) {
             return;
         }
         servers.add(server);
+    }
+
+    /** A scenario stopping a server it started takes it back: true when this Suite still held it (a host that
+     *  detached it stops it instead). */
+    boolean releaseServer(MockServer server) {
+        return servers.remove(server);
     }
 
     /** The host seam: the servers this Suite started and would stop at the end of its run; from now on the caller

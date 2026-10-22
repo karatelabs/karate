@@ -108,6 +108,17 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     // Channels (kafka, grpc, etc.) registered during this scenario
     private List<Channel> channels;
 
+    // Mock servers karate.start() opened for this scenario
+    private List<MockServer> servers;
+
+    // The scenario whose karate.setup() / setupOnce() runs this @setup scenario: its variables go back there, and so
+    // does what it started
+    private final ScenarioRuntime setupCaller;
+
+    ScenarioRuntime getSetupCaller() {
+        return setupCaller;
+    }
+
     // Performance testing - tracks the previous perf event (HTTP or custom)
     // Events are held until the next perf event or scenario end, so that
     // assertion failures can be attributed to the preceding request
@@ -154,8 +165,14 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     private boolean httpClientReleased;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
+        this(featureRuntime, scenario, null);
+    }
+
+    // setupCaller is in place before config runs, so a mock config starts here already belongs to that scenario
+    private ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, ScenarioRuntime setupCaller) {
         this.featureRuntime = featureRuntime;
         this.scenario = scenario;
+        this.setupCaller = setupCaller;
         // Propagate from the caller chain so a @report=false scenario hides any
         // features it calls (matches v1's `reportDisabled` inheritance).
         ScenarioRuntime callerScenario = featureRuntime != null ? featureRuntime.getCallerScenario() : null;
@@ -204,6 +221,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     public ScenarioRuntime(KarateJs karate, Scenario scenario) {
         this.featureRuntime = null;
         this.scenario = scenario;
+        this.setupCaller = null;
         this.reportDisabled = isReportDisabledTag(scenario);
         this.karate = karate;
         // Handed in, so not ours to close — the same rule closeDriver() applies to an inherited
@@ -540,7 +558,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             throw new RuntimeException(message);
         }
         // Run the setup scenario without background
-        ScenarioRuntime sr = new ScenarioRuntime(featureRuntime, setupScenario);
+        ScenarioRuntime sr = new ScenarioRuntime(featureRuntime, setupScenario, this);
         sr.setSkipBackground(true);
         sr.call();
         // The setup runtime re-evaluates config, and a failure there is now captured rather than
@@ -1186,7 +1204,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             result.setAborted(true);
             result.setEndTime(System.currentTimeMillis());
             restoreLogContext(loggingSnapshot, outerLogContext, nestedCall, outerRuntime);
-            // Returns before the try/finally below, so the client has to go back here.
+            // Returns before the try/finally below, so the client (and a mock config started) has to go back here.
+            stopServers();
             releaseHttpClient();
             return result;
         }
@@ -1219,6 +1238,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // Also before the try/finally. A broken karate-config.js sends EVERY scenario in the
             // suite down this path, so missing it leaks one client per scenario in exactly the
             // situation a user re-runs over and over.
+            stopServers();
             releaseHttpClient();
             return result;
         }
@@ -1394,6 +1414,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
             // Close driver if it was initialized
             closeDriver();
+
+            // Stop the mock servers this scenario started, after afterScenario so a teardown can still reach them
+            stopServers();
 
             // Release the HTTP client. Every ScenarioRuntime builds its own — including one per
             // karate.call(), so a scenario with 60 calls creates 61 — and until now not one of
@@ -2514,6 +2537,35 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         } catch (Exception e) {
             logger.warn("error releasing http client: {}", e.getMessage());
         }
+    }
+
+    /** A mock server {@code karate.start()} opened for this top-level scenario (its Background, steps, config, or a
+     *  feature it called): stopped when the scenario ends, see {@code KarateJs.ServerOwner}. */
+    void ownServer(MockServer server) {
+        if (servers == null) {
+            servers = new ArrayList<>();
+        }
+        servers.add(server);
+    }
+
+    /** Teardown like {@link #releaseHttpClient()}, and reached from the same places: never fails the scenario,
+     *  idempotent. */
+    void stopServers() {
+        if (servers == null) {
+            return;
+        }
+        Suite suite = featureRuntime != null ? featureRuntime.getSuite() : null;
+        for (MockServer server : servers) {
+            if (suite != null && !suite.releaseServer(server)) {
+                continue;
+            }
+            try {
+                server.stopAndWait();
+            } catch (RuntimeException e) {
+                logger.warn("mock server on port {} did not stop: {}", server.getPort(), e.getMessage());
+            }
+        }
+        servers = null;
     }
 
     private void closeChannels() {

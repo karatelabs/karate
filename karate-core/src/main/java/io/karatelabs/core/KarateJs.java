@@ -1008,8 +1008,8 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 throw new RuntimeException("start() argument must be a string path or config map");
             }
 
-            Suite owner = startingFor();
-            Suite outer = STARTING_FOR.get();
+            ServerOwner owner = startingFor(liveRuntime());
+            ServerOwner outer = STARTING_FOR.get();
             STARTING_FOR.set(owner);
             MockServer server;
             try {
@@ -1022,21 +1022,54 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 }
             }
             if (owner != null) {
-                owner.ownServer(server);
+                owner.own(server);
             }
             return server;
         };
     }
 
-    // The Suite the karate.start() in flight on this thread is for: a mock's Background runs inside that start,
-    // on a runtime with no Suite, and what it starts belongs to the same one
-    private static final ThreadLocal<Suite> STARTING_FOR = new ThreadLocal<>();
+    // Who stops a server karate.start() opens: the top-level scenario that started it, when that scenario ends
+    // (a Background start on a fixed port then binds again for the next scenario); or only the Suite, at the end of
+    // its run, for a start inside callSingle or callonce/setupOnce, whose result later scenarios reuse. The Suite
+    // holds a scenario's server too, so one whose scenario never runs to its end still stops with the run.
+    record ServerOwner(Suite suite, ScenarioRuntime scenario) {
+        void own(MockServer server) {
+            if (scenario != null) {
+                scenario.ownServer(server);
+            }
+            suite.ownServer(server);
+        }
+    }
+
+    // The owner of the karate.start() in flight on this thread: a mock's Background runs inside that start, on a
+    // runtime with no Suite, and what it starts belongs to the same owner
+    private static final ThreadLocal<ServerOwner> STARTING_FOR = new ThreadLocal<>();
 
     // the Suite running on this thread owns it, not the one a shared JS helper was captured in
-    private Suite startingFor() {
-        ScenarioRuntime rt = liveRuntime();
+    private static ServerOwner startingFor(ScenarioRuntime rt) {
         Suite suite = rt != null && rt.getFeatureRuntime() != null ? rt.getFeatureRuntime().getSuite() : null;
-        return suite != null ? suite : STARTING_FOR.get();
+        if (suite == null) {
+            return STARTING_FOR.get();
+        }
+        if (suite.getCallSingleLock().isHeldByCurrentThread()) {
+            return new ServerOwner(suite, null);
+        }
+        // up the call chain (and from an @setup scenario to the one that ran it) to the top-level scenario; a callonce
+        // or setupOnce anywhere on the way holds its feature's lock
+        ScenarioRuntime top = rt;
+        while (true) {
+            FeatureRuntime fr = top.getFeatureRuntime();
+            if (fr.getCallOnceLock().isHeldByCurrentThread() || Thread.holdsLock(fr.getSetupOnceCache())) {
+                return new ServerOwner(suite, null);
+            }
+            if (top.getSetupCaller() != null) {
+                top = top.getSetupCaller();
+            } else if (fr.isTopLevel() || fr.getCallerScenario() == null) {
+                return new ServerOwner(suite, top);
+            } else {
+                top = fr.getCallerScenario();
+            }
+        }
     }
 
     /**

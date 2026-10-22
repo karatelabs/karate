@@ -467,6 +467,13 @@ var items = server.get('items');
 server.stop();
 ```
 
+**Lifecycle.** A mock started in a scenario (its `Background`, its steps, `karate-config.js`, or a feature it `call`s) is stopped when that top-level scenario ends — so a `Background` that starts a mock on a fixed port binds it afresh for each scenario. A mock started inside `callonce` / `karate.setupOnce()` or `karate.callSingle()` is shared by later scenarios and is stopped when the Suite ends. To start one mock for the whole feature:
+
+```gherkin
+Background:
+  * def started = callonce read('start-mock.feature')
+```
+
 ---
 
 ## CLI

@@ -287,6 +287,192 @@ public class SuiteMockServerTest {
         assertFalse(listening(inner.get()), "the mock the outer's Background started stopped too");
     }
 
+    void scopedProject(String start) throws IOException {
+        project();
+        Files.writeString(root.resolve("mock").resolve("start-mock.feature"), """
+                Feature: start a mock
+
+                Scenario: start
+                  * def server = karate.start({ mock: '/mock/api.feature', port: 0 })
+                  * def url = server.url
+                """);
+        Files.writeString(root.resolve("checks").resolve("scoped.feature"), """
+                Feature: each scenario's Background starts the mock
+
+                Background:
+                  %s
+
+                Scenario: one
+                  Given url mockUrl
+                  And path 'ping'
+                  When method get
+                  Then status 200
+
+                Scenario: two
+                  Given url mockUrl
+                  And path 'ping'
+                  When method get
+                  Then status 200
+
+                @setup
+                Scenario: setup
+                  * def server = karate.start({ mock: '/mock/api.feature', port: 0 })
+                  * def url = server.url
+                """.formatted(start));
+    }
+
+    static int freePort() throws IOException {
+        try (java.net.ServerSocket s = new java.net.ServerSocket(0)) {
+            return s.getLocalPort();
+        }
+    }
+
+    /** A Background runs again for every scenario: the mock it started on a fixed port has to be gone by then. */
+    @Test
+    void aBackgroundMockOnAFixedPortIsStartedAgainForEachScenario() throws Exception {
+        int fixed = freePort();
+        scopedProject("* def mockUrl = karate.start({ mock: '/mock/api.feature', port: " + fixed + " }).url");
+        List<Integer> ports = new CopyOnWriteArrayList<>();
+        SuiteResult result = suite("checks/scoped.feature", new AtomicReference<>())
+                .listener(event -> {
+                    if (event instanceof HttpRunEvent h && h.type() == RunEventType.HTTP_EXIT) {
+                        ports.add(URI.create(h.request().getUrlBase()).getPort());
+                    }
+                    return true;
+                })
+                .parallel(1);
+        assertTrue(result.isPassed(), () -> result.getErrors().toString());
+        assertEquals(List.of(fixed, fixed), ports);
+        assertFalse(listening(fixed));
+    }
+
+    /** The mock a scenario started stops when that scenario ends, not when the Suite does. */
+    @Test
+    void aScenarioMockStopsWhenItsScenarioEnds() throws Exception {
+        scopedProject("* def mockUrl = karate.start({ mock: '/mock/api.feature', port: 0 }).url");
+        List<Integer> ports = new CopyOnWriteArrayList<>();
+        List<Boolean> previousListening = new CopyOnWriteArrayList<>();
+        SuiteResult result = suite("checks/scoped.feature", new AtomicReference<>())
+                .listener(event -> {
+                    if (event instanceof HttpRunEvent h && h.type() == RunEventType.HTTP_EXIT) {
+                        if (!ports.isEmpty()) {
+                            previousListening.add(listening(ports.get(ports.size() - 1)));
+                        }
+                        ports.add(URI.create(h.request().getUrlBase()).getPort());
+                    }
+                    return true;
+                })
+                .parallel(1);
+        assertTrue(result.isPassed(), () -> result.getErrors().toString());
+        assertEquals(2, ports.size());
+        assertNotEquals(ports.get(0), ports.get(1), "each scenario started its own");
+        assertEquals(List.of(false), previousListening, "the first scenario's mock stopped before the second ran");
+        assertFalse(listening(ports.get(1)));
+    }
+
+    /** callonce hands later scenarios the result of the first: the mock it started serves them all, until the Suite
+     *  ends. */
+    @Test
+    void aMockStartedInCallonceServesEveryScenario() throws Exception {
+        scopedProject("* def started = callonce read('/mock/start-mock.feature')\n  * def mockUrl = started.url");
+        List<Integer> ports = new CopyOnWriteArrayList<>();
+        SuiteResult result = suite("checks/scoped.feature", new AtomicReference<>())
+                .listener(event -> {
+                    if (event instanceof HttpRunEvent h && h.type() == RunEventType.HTTP_EXIT) {
+                        ports.add(URI.create(h.request().getUrlBase()).getPort());
+                    }
+                    return true;
+                })
+                .parallel(1);
+        assertTrue(result.isPassed(), () -> result.getErrors().toString());
+        assertEquals(2, ports.size());
+        assertEquals(ports.get(0), ports.get(1), "both scenarios reached the one callonce mock");
+        assertFalse(listening(ports.get(0)), "the Suite stopped it");
+    }
+
+    /** setupOnce, like callonce: the mock the @setup scenario started serves every scenario. */
+    @Test
+    void aMockStartedInSetupOnceServesEveryScenario() throws Exception {
+        scopedProject("* def mockUrl = karate.setupOnce().url");
+        List<Integer> ports = new CopyOnWriteArrayList<>();
+        SuiteResult result = suite("checks/scoped.feature", new AtomicReference<>())
+                .listener(event -> {
+                    if (event instanceof HttpRunEvent h && h.type() == RunEventType.HTTP_EXIT) {
+                        ports.add(URI.create(h.request().getUrlBase()).getPort());
+                    }
+                    return true;
+                })
+                .parallel(1);
+        assertTrue(result.isPassed(), () -> result.getErrors().toString());
+        assertEquals(2, ports.size());
+        assertEquals(ports.get(0), ports.get(1), "both scenarios reached the one setupOnce mock");
+        assertFalse(listening(ports.get(0)), "the Suite stopped it");
+    }
+
+    /** karate.setup() runs the @setup scenario for the scenario asking: the mock it started is that scenario's. */
+    @Test
+    void aMockStartedInSetupOutlivesTheSetupScenario() throws Exception {
+        scopedProject("* def mockUrl = karate.setup().url");
+        AtomicReference<Integer> port = new AtomicReference<>();
+        SuiteResult result = suite("checks/scoped.feature", port).parallel(1);
+        assertTrue(result.isPassed(), () -> result.getErrors().toString());
+        assertFalse(listening(port.get()));
+    }
+
+    /** The @setup runtime evaluates config before it runs: a mock config starts there is the asking scenario's too. */
+    @Test
+    void aMockTheSetupConfigStartedOutlivesTheSetupScenario() throws Exception {
+        scopedProject("* def mockUrl = karate.setup().configUrl");
+        Files.writeString(root.resolve("karate-config.js"), """
+                function fn() {
+                  return { configUrl: karate.start({ mock: '/mock/api.feature', port: 0 }).url };
+                }
+                """);
+        AtomicReference<Integer> port = new AtomicReference<>();
+        SuiteResult result = suite("checks/scoped.feature", port).parallel(1);
+        assertTrue(result.isPassed(), () -> result.getErrors().toString());
+        assertFalse(listening(port.get()));
+    }
+
+    /** Dynamic Examples from karate.setup() are evaluated before any row runs: the mock the setup started has to
+     *  serve the rows. */
+    @Test
+    void aMockStartedForDynamicExamplesServesTheRows() throws Exception {
+        project();
+        Files.writeString(root.resolve("checks").resolve("outline.feature"), """
+                Feature: dynamic examples
+
+                @setup
+                Scenario: setup
+                  * def server = karate.start({ mock: '/mock/api.feature', port: 0 })
+                  * def data = [{ mockUrl: '#(server.url)' }, { mockUrl: '#(server.url)' }]
+
+                Scenario Outline: row
+                  Given url mockUrl
+                  And path 'ping'
+                  When method get
+                  Then status 200
+
+                Examples:
+                  | karate.setup().data |
+                """);
+        AtomicReference<Integer> port = new AtomicReference<>();
+        SuiteResult result = suite("checks/outline.feature", port).parallel(1);
+        assertTrue(result.isPassed(), () -> result.getErrors().toString());
+        assertEquals(2, result.getScenarioCount());
+        assertFalse(listening(port.get()), "the Suite stopped it");
+    }
+
+    /** A mock started in a called feature belongs to the calling scenario: it outlives the call. */
+    @Test
+    void aMockStartedInACalledFeatureOutlivesTheCall() throws Exception {
+        scopedProject("* def started = call read('/mock/start-mock.feature')\n  * def mockUrl = started.url");
+        AtomicReference<Integer> port = new AtomicReference<>();
+        SuiteResult result = suite("checks/scoped.feature", port).parallel(1);
+        assertTrue(result.isPassed(), () -> result.getErrors().toString());
+        assertFalse(listening(port.get()));
+    }
+
     /** A host detaching while the Suite's own shutdown detaches: each server goes to exactly one of them. */
     @Test
     void concurrentDetachesTakeEachServerOnce() throws Exception {
