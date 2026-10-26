@@ -36,7 +36,7 @@ import java.util.List;
 public class Token {
 
     private static final TokenBuffer EMPTY_BUFFER = new TokenBuffer(Resource.text(""));
-    public static final Token EMPTY = new Token(EMPTY_BUFFER, TokenType.EOF, 0, (short) 0, (short) 0, (short) 0);
+    public static final Token EMPTY = new Token(EMPTY_BUFFER, TokenType.EOF, 0, 0, 0, 0);
 
     // Reference to shared buffer (holds Resource, Token[], and comments)
     final TokenBuffer buffer;
@@ -45,12 +45,12 @@ public class Token {
 
     // Core fields kept as public final for direct access performance
     public final int pos;
-    public final short line;
-    public final short col;
+    public final int line;
+    public final int col;
     public final TokenType type;
-    public final short length;
+    public final int length;
 
-    public Token(TokenBuffer buffer, TokenType type, int pos, short line, short col, short length) {
+    public Token(TokenBuffer buffer, TokenType type, int pos, int line, int col, int length) {
         this.buffer = buffer;
         this.type = type;
         this.pos = pos;
@@ -60,9 +60,12 @@ public class Token {
         this.index = buffer.addToken(this);
     }
 
-    // Convenience constructor for creating tokens with int line/col (auto-cast to short)
-    public Token(TokenBuffer buffer, TokenType type, int pos, int line, int col, int length) {
-        this(buffer, type, pos, (short) line, (short) col, (short) length);
+    /**
+     * @deprecated line, col and length are int; use {@link #Token(TokenBuffer, TokenType, int, int, int, int)}
+     */
+    @Deprecated
+    public Token(TokenBuffer buffer, TokenType type, int pos, short line, short col, short length) {
+        this(buffer, type, pos, (int) line, (int) col, (int) length);
     }
 
     public Resource getResource() {

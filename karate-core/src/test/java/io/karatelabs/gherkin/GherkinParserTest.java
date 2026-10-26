@@ -1197,4 +1197,13 @@ class GherkinParserTest {
         assertEquals("next", feature.getSections().get(1).getScenario().getName());
     }
 
+    @Test
+    void testStepTextLongerThanShortMax() {
+        String body = "'" + "a".repeat(40_000) + "'";
+        feature("Feature:\nScenario:\n* request " + body + "\n* method post\n");
+        assertEquals(2, scenario.getSteps().size());
+        assertEquals(body, scenario.getSteps().get(0).getText());
+        assertEquals("post", scenario.getSteps().get(1).getText());
+    }
+
 }

@@ -438,23 +438,17 @@ public abstract class BaseParser {
 
     /**
      * The single LineTerminator scanner. Reads the SOURCE between the two tokens, not their line
-     * numbers. Four reasons, and each one is a case where comparing lines — or looking only at the
-     * intervening token types — silently gives the wrong answer: {@code Token.line} is a
-     * {@code short}, so past 32768 lines it wraps and two genuinely-distant tokens compare equal;
-     * a lone CR and U+2028/U+2029 are LineTerminators the lexer's line counter does not all track;
+     * numbers. Three reasons, and each one is a case where comparing lines — or looking only at the
+     * intervening token types — silently gives the wrong answer: a lone CR and U+2028/U+2029 are
+     * LineTerminators the lexer's line counter does not all track;
      * a newline inside a block comment terminates the statement per spec but moves no token onto a
      * new line the counter agrees about; and a comment between the newline and the next token hides
      * the WS_LF from a single-token-back lookup. The gap is normally one character, so scanning it
      * costs nothing.
-     * <p>
-     * The scan start is clamped: {@code Token.length} is a {@code short}, so a token longer than
-     * 32767 characters reports a negative length (a limitation this engine already has in
-     * {@code Token.getText()}). The clamp makes that fail toward <i>terminating</i> the statement,
-     * which is the safe direction — the unsafe one is silently swallowing the next expression.
      */
     static boolean lineTerminatorBetween(Token last, Token next) {
         String text = last.getResource().getText();
-        int from = Math.max(last.pos, Math.min(last.pos + last.length, text.length()));
+        int from = Math.min(last.pos + last.length, text.length());
         int to = Math.min(next.pos, text.length());
         for (int i = from; i < to; i++) {
             if (isLineTerminator(text.charAt(i))) {

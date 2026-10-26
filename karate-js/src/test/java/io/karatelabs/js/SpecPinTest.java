@@ -2071,9 +2071,9 @@ class SpecPinTest extends EvalBase {
     }
 
     @Test
-    void return_theCheckIsOnTheSourceNotOnALineNumberThatCanWrap() {
-        // `Token.line` is a short. Past 32768 lines it wraps, so a guard clause whose body sits 65536 lines
-        // below its `return` would compare EQUAL and have the body swallowed as the return's argument —
+    void return_theCheckIsOnTheSourceNotOnLineNumbers() {
+        // A guard clause whose body sits 65536 lines below its `return`: were the check a 16-bit line
+        // comparison, the two would compare EQUAL and the body be swallowed as the return's argument —
         // silently, and in the direction that runs code the guard exists to skip.
         StringBuilder sb = new StringBuilder(400_000);
         sb.append("var log = 'none'\nfunction f(x) {\n  if (!x) return\n");

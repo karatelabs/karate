@@ -1,9 +1,11 @@
 package io.karatelabs.parser;
 
 import io.karatelabs.common.Resource;
+import io.karatelabs.js.Engine;
 import io.karatelabs.js.NodeUtils;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Constructor;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -986,6 +988,41 @@ class JsParserTest {
             assertEquals(NodeType.FN_DECL_ARGS, elem.get(1).getFirst().type);
             assertEquals(NodeType.BLOCK, elem.get(1).getLast().type);
         }
+    }
+
+    @Test
+    void testShortConstructorKeptForBinaryCompatibility() throws Exception {
+        // a caller compiled before line, col and length widened links to this exact descriptor
+        Constructor<Token> ctor = Token.class.getConstructor(TokenBuffer.class, TokenType.class, int.class, short.class, short.class, short.class);
+        assertTrue(ctor.isAnnotationPresent(Deprecated.class));
+        Token token = ctor.newInstance(new TokenBuffer(Resource.text("abc")), TokenType.IDENT, 0, (short) 1, (short) 2, (short) 3);
+        assertEquals(1, token.line);
+        assertEquals(2, token.col);
+        assertEquals(3, token.length);
+    }
+
+    @Test
+    void testTokenLongerThanShortMax() {
+        String literal = "'" + "a".repeat(40_000) + "'";
+        String text = "var a = 1;\nvar s = " + literal + "; var b = 2;";
+        Node root = new JsParser(Resource.text(text)).parse();
+        Token str = root.findFirstChild(TokenType.S_STRING).token;
+        assertEquals(40_002, str.length);
+        assertEquals(literal, str.getText());
+        Token b = str.getNextPrimary().getNextPrimary().getNextPrimary();
+        assertEquals("b", b.getText());
+        assertEquals(1, b.line);
+        assertEquals(40_016, b.col);
+        assertEquals(40_000, ((String) new Engine().eval(text + " s")).length());
+    }
+
+    @Test
+    void testProgramWithMoreStatementsThanShortMax() {
+        String text = "var a = 1;\n".repeat(40_000) + "a + 1";
+        Node root = new JsParser(Resource.text(text)).parse();
+        assertEquals(40_002, root.size()); // statements + EOF
+        assertEquals(40_000, root.get(40_000).getFirstToken().line);
+        assertEquals(2, new Engine().eval(text));
     }
 
 }
