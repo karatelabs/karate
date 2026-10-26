@@ -30,6 +30,14 @@ public interface AuthHandler {
     String getType();
 
     /**
+     * False when what {@link #apply} adds is bound to that exact request, so a redirect must come
+     * back to the caller rather than be replayed with a stale header.
+     */
+    default boolean followRedirects() {
+        return true;
+    }
+
+    /**
      * Returns the curl command argument for this auth handler, or null to use the default
      * behavior (including the Authorization header).
      * For example, BasicAuthHandler can return "-u username:password"

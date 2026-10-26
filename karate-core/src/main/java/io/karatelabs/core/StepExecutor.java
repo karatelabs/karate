@@ -34,6 +34,7 @@ import io.karatelabs.gherkin.MatchExpression;
 import io.karatelabs.gherkin.Step;
 import io.karatelabs.gherkin.Table;
 import io.karatelabs.http.AuthHandler;
+import io.karatelabs.http.AwsSigV4AuthHandler;
 import io.karatelabs.http.BasicAuthHandler;
 import io.karatelabs.http.BearerAuthHandler;
 import io.karatelabs.http.ClientCredentialsAuthHandler;
@@ -2051,6 +2052,7 @@ public class StepExecutor {
                 }
                 yield new ClientCredentialsAuthHandler(oauth2Config);
             }
+            case "aws" -> new AwsSigV4AuthHandler(auth);
             default -> null;
         };
     }

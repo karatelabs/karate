@@ -130,6 +130,9 @@ public class HttpRequestBuilder implements SimpleObject {
             request.setBody(Json.toBytes(body));
         }
         request.setHeaders(headers);
+        if (authHandler != null && !authHandler.followRedirects()) {
+            request.setFollowRedirects(false);
+        }
         // Also set params on request so InMemoryHttpClient and others can access them
         if (params != null) {
             request.setParams(params);
@@ -184,6 +187,10 @@ public class HttpRequestBuilder implements SimpleObject {
     public HttpRequestBuilder method(String method) {
         this.method = method;
         return this;
+    }
+
+    public String getMethod() {
+        return method;
     }
 
     public HttpRequestBuilder paths(String... paths) {

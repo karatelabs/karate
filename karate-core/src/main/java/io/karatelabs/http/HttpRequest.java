@@ -67,6 +67,8 @@ public class HttpRequest implements SimpleObject {
     private Map<String, List<Map<String, Object>>> multiParts;
     private Map<String, Object> cacheStore;
     private transient HttpClient httpClient;
+    // false pins this request only; true leaves it to the client's configure followRedirects
+    private boolean followRedirects = true;
 
     /**
      * Set the {@link HttpClient} used by {@link #proceed(String)} to forward this request.
@@ -213,6 +215,14 @@ public class HttpRequest implements SimpleObject {
 
     public void setBody(byte[] body) {
         this.body = body;
+    }
+
+    public boolean isFollowRedirects() {
+        return followRedirects;
+    }
+
+    public void setFollowRedirects(boolean followRedirects) {
+        this.followRedirects = followRedirects;
     }
 
     public String getBodyDisplay() {

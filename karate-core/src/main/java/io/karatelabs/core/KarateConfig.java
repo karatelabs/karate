@@ -103,7 +103,7 @@ public class KarateConfig implements SimpleObject {
     private Map<String, Object> proxy = new HashMap<>();
 
     // Auth: { type, username, password, token, accessTokenUrl, clientId, clientSecret, scope, domain, workstation }
-    // Supported types: basic, bearer, oauth2, ntlm, digest
+    // Supported types: basic, bearer, oauth2, ntlm, digest, aws
     private Map<String, Object> auth = new HashMap<>();
 
     // Retry: { interval, count }
@@ -579,6 +579,13 @@ public class KarateConfig implements SimpleObject {
                     }
                     if (map.containsKey("workstation")) {
                         this.auth.put("workstation", toString(map.get("workstation")));
+                    }
+                }
+                case "aws" -> {
+                    for (String key : List.of("accessKey", "secretKey", "sessionToken", "region", "service")) {
+                        if (map.containsKey(key)) {
+                            this.auth.put(key, toString(map.get(key)));
+                        }
                     }
                 }
             }

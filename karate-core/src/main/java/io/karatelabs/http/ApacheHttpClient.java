@@ -93,6 +93,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     // resting this field's correctness on a different field's volatility is not a property worth
     // keeping. It costs nothing here: the field is read once per request.
     private volatile CloseableHttpClient httpClient;
+    private RequestConfig requestConfig;
     private BasicCookieStore cookieStore;
     private volatile ClassicHttpRequest currentRequest;
 
@@ -479,8 +480,9 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 }
             });
         }
+        requestConfig = configBuilder.build();
         clientBuilder
-                .setDefaultRequestConfig(configBuilder.build())
+                .setDefaultRequestConfig(requestConfig)
                 .addRequestInterceptorLast(this);
         httpClient = clientBuilder.build();
         if (LOGGER.isTraceEnabled()) {
@@ -593,6 +595,9 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 // the port resolved from the scheme, which is how the challenge's scope will name it
                 HttpHost target = RoutingSupport.normalize(RoutingSupport.determineHost(currentRequest), DefaultSchemePortResolver.INSTANCE);
                 context.setCredentialsProvider(credentialsProvider(target));
+            }
+            if (!request.isFollowRedirects()) {
+                context.setRequestConfig(RequestConfig.copy(requestConfig).setRedirectsEnabled(false).build());
             }
             HttpResponse finalResponse;
             try {

@@ -232,9 +232,12 @@ Categories: names, contact, location, numbers, text, business, timestamps. See `
 * configure auth = { type: 'bearer', token: '#(accessToken)' }
 * configure auth = { type: 'oauth2', grantType: 'client_credentials', tokenUrl: '...', clientId: '...', clientSecret: '...' }
 * configure auth = { type: 'digest', username: 'user', password: 'pass' }
+* configure auth = { type: 'aws', accessKey: '...', secretKey: '...', sessionToken: '...', region: 'us-east-1', service: 's3' }
 ```
 
 `digest` answers the server's `401` Digest challenge (qop `auth`, MD5 or SHA-256) in `ApacheHttpClient` and never answers a Basic challenge with the password; a wrong password surfaces as the server's `401`. The credentials (NTLM's too) are scoped to the request's own scheme, host and port and to that challenge scheme, so a proxy's `407` or a host reached by redirect never receives them; proxy credentials are scoped to the proxy.
+
+`aws` is Signature Version 4 (`AwsSigV4AuthHandler`): signed at send time over the final method, path, query, headers and body; `sessionToken` is optional; `service: 's3'` also sends `x-amz-content-sha256` and signs the path as sent (no normalization, no second encoding). Hop-by-hop and proxy headers (`transfer-encoding`, `connection`, `expect`, ...) are left out of the signature, a non-ASCII header value is refused before signing, and a redirect is returned to the caller, never followed, because the signature covers the URI it was made for.
 
 ---
 

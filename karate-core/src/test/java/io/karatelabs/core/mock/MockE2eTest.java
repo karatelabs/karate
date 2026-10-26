@@ -1755,6 +1755,23 @@ class MockE2eTest {
     }
 
     @Test
+    void testConfigureAuthAws() {
+        ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+            Feature: Test AWS SigV4 Auth via configure
+
+            Scenario: aws auth should sign the request
+            * url 'http://localhost:%d'
+            * configure auth = { type: 'aws', accessKey: 'AKIDEXAMPLE', secretKey: 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY', sessionToken: 'session-token', region: 'us-east-1', service: 'execute-api' }
+            * path '/auth/check'
+            * method get
+            * status 200
+            * match response.authorization == '#regex AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/\\\\d{8}/us-east-1/execute-api/aws4_request, SignedHeaders=host;x-amz-date;x-amz-security-token, Signature=[0-9a-f]{64}'
+            """.formatted(port));
+
+        assertPassed(sr);
+    }
+
+    @Test
     void testConfigureAuthBearer() {
         ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
             Feature: Test Bearer Auth via configure
