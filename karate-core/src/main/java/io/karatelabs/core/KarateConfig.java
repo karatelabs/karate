@@ -103,7 +103,7 @@ public class KarateConfig implements SimpleObject {
     private Map<String, Object> proxy = new HashMap<>();
 
     // Auth: { type, username, password, token, accessTokenUrl, clientId, clientSecret, scope, domain, workstation }
-    // Supported types: basic, bearer, oauth2, ntlm
+    // Supported types: basic, bearer, oauth2, ntlm, digest
     private Map<String, Object> auth = new HashMap<>();
 
     // Retry: { interval, count }
@@ -555,7 +555,7 @@ public class KarateConfig implements SimpleObject {
             this.auth.put("type", type);
 
             switch (type != null ? type : "") {
-                case "basic" -> {
+                case "basic", "digest" -> {
                     this.auth.put("username", toString(map.get("username")));
                     this.auth.put("password", toString(map.get("password")));
                 }
@@ -909,6 +909,14 @@ public class KarateConfig implements SimpleObject {
 
     public String getNtlmWorkstation() {
         return "ntlm".equals(auth.get("type")) ? toString(auth.get("workstation")) : null;
+    }
+
+    public String getDigestUsername() {
+        return "digest".equals(auth.get("type")) ? toString(auth.get("username")) : null;
+    }
+
+    public String getDigestPassword() {
+        return "digest".equals(auth.get("type")) ? toString(auth.get("password")) : null;
     }
 
     // ===== Auth Getters =====

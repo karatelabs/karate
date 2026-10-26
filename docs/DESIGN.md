@@ -231,7 +231,10 @@ Categories: names, contact, location, numbers, text, business, timestamps. See `
 * configure auth = { type: 'basic', username: 'user', password: 'pass' }
 * configure auth = { type: 'bearer', token: '#(accessToken)' }
 * configure auth = { type: 'oauth2', grantType: 'client_credentials', tokenUrl: '...', clientId: '...', clientSecret: '...' }
+* configure auth = { type: 'digest', username: 'user', password: 'pass' }
 ```
+
+`digest` answers the server's `401` Digest challenge (qop `auth`, MD5 or SHA-256) in `ApacheHttpClient` and never answers a Basic challenge with the password; a wrong password surfaces as the server's `401`. The credentials (NTLM's too) are scoped to the request's own scheme, host and port and to that challenge scheme, so a proxy's `407` or a host reached by redirect never receives them; proxy credentials are scoped to the proxy.
 
 ---
 

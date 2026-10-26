@@ -28,6 +28,8 @@ import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.NTCredentials;
+import org.apache.hc.client5.http.auth.StandardAuthScheme;
+import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
 import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -44,6 +46,9 @@ import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.impl.routing.DefaultRoutePlanner;
 import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
+import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.routing.RoutingSupport;
+import org.apache.hc.client5.http.ssl.DefaultHostnameVerifier;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
 import org.apache.hc.client5.http.ssl.TrustAllStrategy;
@@ -125,6 +130,9 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private String ntlmDomain;
     private String ntlmWorkstation;
 
+    private String digestUsername;
+    private String digestPassword;
+
     private final HttpLogger logger = new HttpLogger();
 
     /**
@@ -144,8 +152,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
      * <p><b>When in doubt, include the field.</b> An extra component costs one redundant rebuild;
      * a missing one leaves a scenario running against a client that no longer matches its own
      * config, silently. {@code charset} is deliberately coarse on those grounds — compared raw
-     * although {@code apply()} ignores a null one — and only NTLM is taken from auth, because the
-     * rest of auth never reaches the built client.
+     * although {@code apply()} ignores a null one — and only NTLM and digest are taken from auth,
+     * because the rest of auth never reaches the built client.
      *
      * <p><b>Read off the raw config, never off this class's resolved fields</b>, or deciding
      * whether to resolve {@code localAddress} would first resolve it: {@code apply()} puts that
@@ -165,7 +173,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             int readTimeout, int connectTimeout, boolean followRedirects,
             boolean httpRetryEnabled, int retryCount, int retryInterval,
             Charset charset, String localAddress,
-            String ntlmUsername, String ntlmPassword, String ntlmDomain, String ntlmWorkstation) {
+            String ntlmUsername, String ntlmPassword, String ntlmDomain, String ntlmWorkstation,
+            String digestUsername, String digestPassword) {
 
         static ClientKey of(KarateConfig config) {
             // getNonProxyHosts() hands back the live List inside the proxy map rather than a copy,
@@ -195,7 +204,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                     config.isHttpRetryEnabled() ? config.getRetryInterval() : 0,
                     config.getCharset(), config.getLocalAddress(),
                     config.getNtlmUsername(), config.getNtlmPassword(),
-                    config.getNtlmDomain(), config.getNtlmWorkstation());
+                    config.getNtlmDomain(), config.getNtlmWorkstation(),
+                    config.getDigestUsername(), config.getDigestPassword());
         }
     }
 
@@ -275,6 +285,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         ntlmPassword = key.ntlmPassword();
         ntlmDomain = key.ntlmDomain();
         ntlmWorkstation = key.ntlmWorkstation();
+        digestUsername = key.digestUsername();
+        digestPassword = key.digestPassword();
         // Committed only now that every field above took, and only if they all did. Since the
         // assignments now come from the key rather than a second read, the only way to reach here
         // without the fields matching it is a name that would not resolve: that exception is
@@ -319,26 +331,34 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             KeyStore keyStore = getKeyStore(sslKeyStore, sslKeyStorePassword, sslKeyStoreType);
             SSLContext sslContext;
             try {
-                SSLContextBuilder builder = SSLContexts.custom().setProtocol(sslAlgorithm); // will default to TLS if null
-                if (trustStore == null && sslTrustAll) {
-                    builder = builder.loadTrustMaterial(new TrustAllStrategy());
+                if (trustStore == null && keyStore == null && !sslTrustAll
+                        && (sslAlgorithm == null || "TLS".equalsIgnoreCase(sslAlgorithm))) {
+                    // The process default, so SSLContext.setDefault() is honoured and not only the
+                    // javax.net.ssl.trustStore that a fresh TrustManagerFactory would read.
+                    sslContext = SSLContext.getDefault();
                 } else {
-                    if (sslTrustAll) {
-                        builder = builder.loadTrustMaterial(trustStore, new TrustSelfSignedStrategy());
+                    SSLContextBuilder builder = SSLContexts.custom().setProtocol(sslAlgorithm); // will default to TLS if null
+                    if (trustStore == null && sslTrustAll) {
+                        builder = builder.loadTrustMaterial(new TrustAllStrategy());
                     } else {
-                        builder = builder.loadTrustMaterial(trustStore, null); // will use system / java default
+                        if (sslTrustAll) {
+                            builder = builder.loadTrustMaterial(trustStore, new TrustSelfSignedStrategy());
+                        } else {
+                            builder = builder.loadTrustMaterial(trustStore, null); // will use system / java default
+                        }
                     }
+                    if (keyStore != null) {
+                        char[] keyPassword = sslKeyStorePassword == null ? null : sslKeyStorePassword.toCharArray();
+                        builder = builder.loadKeyMaterial(keyStore, keyPassword);
+                    }
+                    sslContext = builder.build();
                 }
-                if (keyStore != null) {
-                    char[] keyPassword = sslKeyStorePassword == null ? null : sslKeyStorePassword.toCharArray();
-                    builder = builder.loadKeyMaterial(keyStore, keyPassword);
-                }
-                sslContext = builder.build();
+                HostnameVerifier hostnameVerifier = sslTrustAll ? new NoopHostnameVerifier() : new DefaultHostnameVerifier();
                 SSLConnectionSocketFactory socketFactory;
                 if (keyStore != null) {
-                    socketFactory = new SSLConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
+                    socketFactory = new SSLConnectionSocketFactory(sslContext, hostnameVerifier);
                 } else {
-                    socketFactory = new LenientSslConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
+                    socketFactory = new LenientSslConnectionSocketFactory(sslContext, hostnameVerifier);
                 }
                 connectionManagerBuilder.setSSLSocketFactory(socketFactory);
             } catch (Exception e) {
@@ -404,31 +424,22 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 // timeout is applied to the leased endpoint's socket before the request runs.
                 .setResponseTimeout(Timeout.ofMilliseconds(readTimeout))
                 .setConnectTimeout(Timeout.ofMilliseconds(connectTimeout));
-        // Configure NTLM authentication (deprecated in HttpClient 5)
-        if (ntlmUsername != null) {
-            BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
-            @SuppressWarnings("deprecation")
-            NTCredentials ntCredentials = new NTCredentials(
-                    ntlmUsername,
-                    ntlmPassword != null ? ntlmPassword.toCharArray() : null,
-                    ntlmWorkstation,
-                    ntlmDomain
-            );
-            credsProvider.setCredentials(new AuthScope(null, -1), ntCredentials);
-            clientBuilder.setDefaultCredentialsProvider(credsProvider);
+        // Digest answers the server's 401 challenge, so it lives in the transport rather than in
+        // an AuthHandler header. Only Digest is preferred, so a Basic challenge never gets the
+        // password in the clear. The credentials themselves are installed per request, scoped to
+        // its target: see credentialsProvider().
+        if (digestUsername != null) {
+            configBuilder.setTargetPreferredAuthSchemes(List.of(StandardAuthScheme.DIGEST));
         }
         // Configure proxy
+        proxyScope = null;
         if (proxyUri != null) {
             try {
                 URI proxy = new URI(proxyUri);
                 HttpHost proxyHost = new HttpHost(proxy.getScheme(), proxy.getHost(), proxy.getPort());
                 if (proxyUsername != null && proxyPassword != null) {
-                    BasicCredentialsProvider proxyCredsProvider = new BasicCredentialsProvider();
-                    proxyCredsProvider.setCredentials(
-                            new AuthScope(proxy.getHost(), proxy.getPort()),
-                            new org.apache.hc.client5.http.auth.UsernamePasswordCredentials(
-                                    proxyUsername, proxyPassword.toCharArray()));
-                    clientBuilder.setDefaultCredentialsProvider(proxyCredsProvider);
+                    proxyScope = new AuthScope(proxy.getHost(), proxy.getPort());
+                    clientBuilder.setDefaultCredentialsProvider(credentialsProvider(null));
                 }
                 if (nonProxyHosts != null && !nonProxyHosts.isEmpty()) {
                     ProxySelector proxySelector = new ProxySelector() {
@@ -475,6 +486,33 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("http client created");
         }
+    }
+
+    private AuthScope proxyScope;
+
+    /**
+     * Proxy credentials scoped to the proxy and, given a target, the NTLM or Digest account scoped
+     * to that origin and that challenge scheme. A wildcard scope would also answer a proxy's 407
+     * Basic challenge, or another host's Digest challenge after a redirect, with the same account.
+     */
+    @SuppressWarnings("deprecation")
+    private BasicCredentialsProvider credentialsProvider(HttpHost target) {
+        BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
+        if (proxyScope != null) {
+            credsProvider.setCredentials(proxyScope, new UsernamePasswordCredentials(proxyUsername, proxyPassword.toCharArray()));
+        }
+        if (target == null) {
+            return credsProvider;
+        }
+        if (ntlmUsername != null) {
+            credsProvider.setCredentials(new AuthScope(target, null, StandardAuthScheme.NTLM), new NTCredentials(
+                    ntlmUsername, ntlmPassword != null ? ntlmPassword.toCharArray() : null, ntlmWorkstation, ntlmDomain));
+        }
+        if (digestUsername != null) {
+            credsProvider.setCredentials(new AuthScope(target, null, StandardAuthScheme.DIGEST), new UsernamePasswordCredentials(
+                    digestUsername, digestPassword != null ? digestPassword.toCharArray() : new char[0]));
+        }
+        return credsProvider;
     }
 
     /**
@@ -550,9 +588,15 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 initHttpClient();
             }
             currentRequest = requestBuilder.build();
+            HttpClientContext context = HttpClientContext.create();
+            if (ntlmUsername != null || digestUsername != null) {
+                // the port resolved from the scheme, which is how the challenge's scope will name it
+                HttpHost target = RoutingSupport.normalize(RoutingSupport.determineHost(currentRequest), DefaultSchemePortResolver.INSTANCE);
+                context.setCredentialsProvider(credentialsProvider(target));
+            }
             HttpResponse finalResponse;
             try {
-                finalResponse = httpClient.execute(currentRequest, response -> buildResponse(response, startTime));
+                finalResponse = httpClient.execute(currentRequest, context, response -> buildResponse(response, startTime));
             } finally {
                 if (orphanRebuild) {
                     closeQuietly();

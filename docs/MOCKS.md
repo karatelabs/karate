@@ -549,6 +549,9 @@ The Karate HTTP client trusts all certificates and skips hostname verification b
 # Trust all certificates (for self-signed) - same as the default, made explicit
 * configure ssl = true
 
+# Verify the certificate chain and hostname; trustAll: false with no trustStore uses SSLContext.getDefault()
+* configure ssl = { trustAll: false }
+
 # With keystore for mTLS
 * configure ssl = { keyStore: 'classpath:client.pfx', keyStorePassword: 'secret', keyStoreType: 'pkcs12' }
 ```

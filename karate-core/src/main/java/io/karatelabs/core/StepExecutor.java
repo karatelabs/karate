@@ -37,6 +37,7 @@ import io.karatelabs.http.AuthHandler;
 import io.karatelabs.http.BasicAuthHandler;
 import io.karatelabs.http.BearerAuthHandler;
 import io.karatelabs.http.ClientCredentialsAuthHandler;
+import io.karatelabs.http.DigestAuthHandler;
 import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.http.HttpResponse;
@@ -2035,6 +2036,10 @@ public class StepExecutor {
             );
             case "bearer" -> new BearerAuthHandler(
                     (String) auth.get("token")
+            );
+            case "digest" -> new DigestAuthHandler(
+                    (String) auth.get("username"),
+                    (String) auth.get("password")
             );
             case "oauth2" -> {
                 Map<String, Object> oauth2Config = new HashMap<>();
