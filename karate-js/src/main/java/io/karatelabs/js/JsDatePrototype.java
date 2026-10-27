@@ -46,15 +46,6 @@ class JsDatePrototype extends Prototype {
 
     static final JsDatePrototype INSTANCE = new JsDatePrototype();
 
-    private static String formatIso(JsDate d) {
-        // Spec ISO format with extended ±YYYYYY year for out-of-range values.
-        ZonedDateTime z = ZonedDateTime.ofInstant(Instant.ofEpochMilli(d.getTime()), ZoneOffset.UTC);
-        return String.format(Locale.ROOT, "%s-%02d-%02dT%02d:%02d:%02d.%03dZ",
-                JsDate.formatYearIso(z.getYear()), z.getMonthValue(), z.getDayOfMonth(),
-                z.getHour(), z.getMinute(), z.getSecond(),
-                (int) Math.floorMod(d.getTime(), 1000L));
-    }
-
     private static String formatUtc(JsDate d) {
         ZonedDateTime z = ZonedDateTime.ofInstant(Instant.ofEpochMilli(d.getTime()), ZoneOffset.UTC);
         String dayName = z.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
@@ -206,7 +197,7 @@ class JsDatePrototype extends Prototype {
         if (d.isInvalid()) {
             throw JsErrorException.rangeError("Invalid time value");
         }
-        return formatIso(d);
+        return Terms.toIsoString(d.getTime());
     }
 
     private Object toUTCString(Context context, Object[] args) {
@@ -242,7 +233,7 @@ class JsDatePrototype extends Prototype {
         // Direct shortcut for Date this — produce ISO string. Avoids the generic
         // Invoke(O, "toISOString") path doing a redundant getMember dispatch.
         if (o instanceof JsDate d) {
-            return formatIso(d);
+            return Terms.toIsoString(d.getTime());
         }
         // Invoke O.toISOString()
         if (o instanceof ObjectLike ol) {

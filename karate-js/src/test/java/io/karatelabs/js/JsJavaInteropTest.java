@@ -586,7 +586,7 @@ class JsJavaInteropTest {
         assertTrue(list.contains(1));
         assertTrue(list.contains(3));
         // One of them should be Terms.UNDEFINED
-        long undefinedCount = list.stream().filter(x -> x == Terms.UNDEFINED).count();
+        long undefinedCount = ((JsArray) list).toList().stream().filter(x -> x == Terms.UNDEFINED).count();
         assertEquals(1, undefinedCount, "Object.values should include raw undefined");
     }
 
@@ -827,7 +827,7 @@ class JsJavaInteropTest {
 
         assertEquals(3, list.size());
         // Check that raw wrapper types are preserved
-        boolean hasJsDate = list.stream().anyMatch(x -> x instanceof JsDate);
+        boolean hasJsDate = ((JsArray) list).toList().stream().anyMatch(x -> x instanceof JsDate);
         assertTrue(hasJsDate, "Should contain raw JsDate");
     }
 

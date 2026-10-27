@@ -513,7 +513,7 @@ class JsArrayPrototype extends Prototype {
 
     @SuppressWarnings("unchecked")
     private static void flatten(List<Object> source, List<Object> result, int depth) {
-        for (Object item : source) {
+        for (Object item : JsArray.rawElements(source)) {
             // Spec FlattenIntoArray skips holes (HasProperty-skipping); the
             // raw List walk would otherwise add HOLE sentinels to the result
             // (visible to user code as the marker object).
@@ -822,7 +822,7 @@ class JsArrayPrototype extends Prototype {
         List<Object> result = new ArrayList<>(thisArray);
         for (Object arg : args) {
             if (arg instanceof List<?> list) {
-                result.addAll((List<Object>) list);
+                result.addAll(JsArray.rawElements(list));
             } else {
                 result.add(arg);
             }
@@ -943,7 +943,7 @@ class JsArrayPrototype extends Prototype {
         specIterate(context, true, true, (k, v) -> {
             Object mapped = callable.call(context, new Object[]{v, k, thisObj});
             if (mapped instanceof List<?> list) {
-                for (Object item : list) {
+                for (Object item : JsArray.rawElements(list)) {
                     if (item == JsArray.HOLE) continue;
                     mappedResult.add(item);
                 }

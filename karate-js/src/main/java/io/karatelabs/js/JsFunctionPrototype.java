@@ -72,7 +72,7 @@ class JsFunctionPrototype extends Prototype {
                 } else {
                     Object first = list.getFirst();
                     if (first instanceof List) {
-                        this.args = ((List<Object>) first);
+                        this.args = JsArray.rawElements((List<Object>) first);
                     } else {
                         this.args = new ArrayList<>();
                     }

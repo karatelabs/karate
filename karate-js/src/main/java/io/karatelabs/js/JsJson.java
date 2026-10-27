@@ -107,7 +107,7 @@ public class JsJson extends JsObject {
      *  key; anything else is ignored, and duplicates collapse. */
     private static List<String> replacerKeys(List<?> replacer) {
         List<String> keys = new ArrayList<>(replacer.size());
-        for (Object entry : replacer) {
+        for (Object entry : JsArray.rawElements(replacer)) {
             String k = replacerKey(entry);
             if (k != null && !keys.contains(k)) {
                 keys.add(k);

@@ -404,6 +404,12 @@ class JsDateTest extends EvalBase {
     }
 
     @Test
+    void testInvalidDateIsTruthy() {
+        assertEquals(true, eval("!!new Date(NaN)"));
+        assertEquals("yes", eval("new Date('garbage') ? 'yes' : 'no'"));
+    }
+
+    @Test
     void testTwoArgConstructor() {
         // new Date(year, month) with 2 args was previously dropping to current time
         assertEquals(1467331200000L, eval("new Date(2016, 6).getTime()"));

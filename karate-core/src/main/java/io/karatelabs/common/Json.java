@@ -59,7 +59,8 @@ public class Json {
         // but not byte[] or char[], which fall through to the generic ArrayWriter and its unchecked
         // (Object[]) cast — a ClassCastException whenever either is nested in a Map or List being
         // serialized (print, match failure messages, JSON request bodies). Render them the way their
-        // boxed-element List equivalents would serialize: numbers for byte[], strings for char[].
+        // boxed-element List equivalents would serialize: numbers for byte[] (unsigned, as a JS
+        // Uint8Array reads them and as StringUtils.formatJson writes them), strings for char[].
         JSONValue.registerWriter(byte[].class, new JsonWriterI<Object>() {
             @Override
             public <E> void writeJSONString(E value, Appendable out, JSONStyle style) throws java.io.IOException {
@@ -67,7 +68,7 @@ public class Json {
                 out.append('[');
                 for (int i = 0; i < bytes.length; i++) {
                     if (i > 0) out.append(',');
-                    out.append(Integer.toString(bytes[i]));
+                    out.append(Integer.toString(bytes[i] & 0xFF));
                 }
                 out.append(']');
             }

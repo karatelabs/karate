@@ -569,8 +569,24 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     }
 
     // =================================================================================================
-    // List<Object> implementation - returns raw values (no auto-unwrap)
+    // List<Object> implementation - every read converts on access, as get(int) does
     // =================================================================================================
+
+    /**
+     * The Java view of a raw element: {@link #HOLE} and undefined as null,
+     * JsValue wrappers unwrapped. The one conversion every {@link List} read
+     * goes through, so a Java caller never sees an engine-internal value.
+     */
+    static Object toJavaElement(Object raw) {
+        return raw == HOLE ? null : Engine.toJava(raw);
+    }
+
+    /** Engine-side element walk over any List: a JsArray's raw storage (the
+     *  List methods above would convert), any other List as-is. */
+    @SuppressWarnings("unchecked")
+    static List<Object> rawElements(List<?> list) {
+        return list instanceof JsArray a ? a.toList() : (List<Object>) list;
+    }
 
     @Override
     public int size() {
@@ -584,22 +600,26 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     @Override
     public boolean contains(Object o) {
-        return list.contains(o);
+        return indexOf(o) >= 0;
     }
 
     @Override
     public Iterator<Object> iterator() {
-        return list.iterator();
+        return listIterator(0);
     }
 
     @Override
     public Object[] toArray() {
-        return list.toArray();
+        Object[] result = new Object[list.size()];
+        for (int i = 0; i < result.length; i++) {
+            result[i] = toJavaElement(list.get(i));
+        }
+        return result;
     }
 
     @Override
     public <T> T[] toArray(T[] a) {
-        return list.toArray(a);
+        return Arrays.asList(toArray()).toArray(a);
     }
 
     @Override
@@ -609,12 +629,22 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     @Override
     public boolean remove(Object o) {
-        return list.remove(o);
+        int index = indexOf(o);
+        if (index < 0) {
+            return false;
+        }
+        list.remove(index);
+        return true;
     }
 
     @Override
     public boolean containsAll(Collection<?> c) {
-        return list.containsAll(c);
+        for (Object o : c) {
+            if (!contains(o)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -629,12 +659,12 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     @Override
     public boolean removeAll(Collection<?> c) {
-        return list.removeAll(c);
+        return list.removeIf(raw -> c.contains(toJavaElement(raw)));
     }
 
     @Override
     public boolean retainAll(Collection<?> c) {
-        return list.retainAll(c);
+        return list.removeIf(raw -> !c.contains(toJavaElement(raw)));
     }
 
     @Override
@@ -644,18 +674,12 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     @Override
     public Object get(int index) {
-        // List.get() auto-unwraps for Java consumers (converts undefined to null,
-        // unwraps JsValue types). Also translates HOLE→null so sparse slots
-        // surface as Java null (the closest representation of JS undefined for
-        // a List consumer; matches what Engine.toJava does for Terms.UNDEFINED).
-        Object v = list.get(index);
-        if (v == HOLE) return null;
-        return Engine.toJava(v);
+        return toJavaElement(list.get(index));
     }
 
     @Override
     public Object set(int index, Object element) {
-        return list.set(index, element);
+        return toJavaElement(list.set(index, element));
     }
 
     @Override
@@ -665,27 +689,48 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     @Override
     public Object remove(int index) {
-        return list.remove(index);
+        return toJavaElement(list.remove(index));
     }
 
     @Override
     public int indexOf(Object o) {
-        return list.indexOf(o);
+        for (int i = 0; i < list.size(); i++) {
+            if (Objects.equals(o, toJavaElement(list.get(i)))) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     @Override
     public int lastIndexOf(Object o) {
-        return list.lastIndexOf(o);
+        for (int i = list.size() - 1; i >= 0; i--) {
+            if (Objects.equals(o, toJavaElement(list.get(i)))) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     @Override
     public ListIterator<Object> listIterator() {
-        return list.listIterator();
+        return listIterator(0);
     }
 
     @Override
     public ListIterator<Object> listIterator(int index) {
-        return list.listIterator(index);
+        ListIterator<Object> raw = list.listIterator(index);
+        return new ListIterator<>() {
+            @Override public boolean hasNext() { return raw.hasNext(); }
+            @Override public Object next() { return toJavaElement(raw.next()); }
+            @Override public boolean hasPrevious() { return raw.hasPrevious(); }
+            @Override public Object previous() { return toJavaElement(raw.previous()); }
+            @Override public int nextIndex() { return raw.nextIndex(); }
+            @Override public int previousIndex() { return raw.previousIndex(); }
+            @Override public void remove() { raw.remove(); }
+            @Override public void set(Object o) { raw.set(o); }
+            @Override public void add(Object o) { raw.add(o); }
+        };
     }
 
     @Override

@@ -753,10 +753,6 @@ Benchmark-gated or coordinated with other work.
   shows it matters.
 - **`HOLE` → tombstone full elimination.** Sparse-array storage rework;
   pair with parser `in` support. Pinned in `SpecPinTest`. ~6–8 h.
-- **HOLE leak audit at `JsArray` Java-interop seams** —
-  `iterator()` / `toArray()` / `subList()` / `contains()` / `indexOf()` /
-  `lastIndexOf()` route raw; only `get(int)` translates HOLE→null.
-  Centralize on one unwrap helper. ~30 min. Pairs with above.
 - **`PropertyKey` abstraction.** Half landed as `JsObject`'s identity-keyed
   symbol slot store beside `privates`; a unified string|symbol key type is
   still the right end state once the well-known symbols leave their string

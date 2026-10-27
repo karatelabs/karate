@@ -44,6 +44,9 @@ public class StringUtils {
 
     public static final String EMPTY = "";
 
+    /** The JS Date range (TimeClip): ±8.64e15 ms. */
+    private static final long MAX_JS_TIME = 8_640_000_000_000_000L;
+
     public static boolean looksLikeJson(String s) {
         if (s == null || s.isEmpty()) {
             return false;
@@ -554,7 +557,9 @@ public class StringUtils {
                     if (pretty) {
                         pad(sb, depth + 1, indent);
                     }
-                    formatRecurse(java.lang.reflect.Array.get(o, i), pretty, lenient, sort, indent, sb, depth + 1, visited);
+                    // bytes are unsigned, as a Uint8Array reads them
+                    Object child = o instanceof byte[] bytes ? bytes[i] & 0xFF : java.lang.reflect.Array.get(o, i);
+                    formatRecurse(child, pretty, lenient, sort, indent, sb, depth + 1, visited);
                     if (i < length - 1) {
                         sb.append(',');
                     }
@@ -654,13 +659,17 @@ public class StringUtils {
                 visited.remove(o);
             }
         } else if (o instanceof java.util.Date date) {
-            // Format Date as ISO 8601 string with milliseconds (matches JavaScript's Date.toISOString())
-            // not date.toInstant(): java.sql.Date and java.sql.Time throw UnsupportedOperationException
-            java.time.Instant instant = java.time.Instant.ofEpochMilli(date.getTime());
-            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter
-                    .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-                    .withZone(java.time.ZoneOffset.UTC);
-            String isoDate = formatter.format(instant);
+            // getTime(), not toInstant(): java.sql.Date / Time throw on toInstant()
+            long millis = date.getTime();
+            String isoDate;
+            if (millis >= -MAX_JS_TIME && millis <= MAX_JS_TIME) {
+                isoDate = Terms.toIsoString(millis);
+            } else { // no JS Date can hold it: keep the prior plain-pattern output
+                isoDate = java.time.format.DateTimeFormatter
+                        .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                        .withZone(java.time.ZoneOffset.UTC)
+                        .format(java.time.Instant.ofEpochMilli(millis));
+            }
             sb.append('"').append(isoDate).append('"');
         } else if (o instanceof Number n) {
             sb.append(Terms.numberToString(n));

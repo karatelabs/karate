@@ -270,11 +270,10 @@ public class StepUtils {
         if (value instanceof JavaCallable) {
             return value;
         }
-        // A raw JS container (a JsArray from `eval var x = [...]`) iterates its elements unconverted,
-        // and a JsDate (or a boxed primitive) is a JsObject, so the Map branch below would copy it to
+        // A JsDate (or a boxed primitive) is a JsObject, so the Map branch below would copy it to
         // an empty map — a date silently became {}. A copy is a value leaving the engine, so it takes
-        // the idiomatic Java form, exactly as a binding read does. Only the wrappers the container
-        // branches would mangle — `undefined` is not one, and stays `undefined` in the copy.
+        // the idiomatic Java form, exactly as a binding read does (and as a raw JS container's List /
+        // Map views already hand out its elements: a Date as Date, `undefined` as null).
         if (value instanceof JsValue jv && (value instanceof Map || value instanceof List)) {
             value = jv.getJavaValue();
             if (value == null) {

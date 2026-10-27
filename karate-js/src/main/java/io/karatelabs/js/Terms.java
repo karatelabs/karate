@@ -1124,12 +1124,9 @@ public class Terms {
         if (value == null || value.equals(UNDEFINED) || value.equals(Double.NaN)) {
             return false;
         }
-        // boxed primitives are always truthy (they are objects)
-        if (value instanceof JsPrimitive) {
+        // boxed primitives, Dates (even Invalid Date) and typed arrays are objects
+        if (value instanceof JsValue) {
             return true;
-        }
-        if (value instanceof JsValue jv) {
-            value = jv.getJavaValue();
         }
         return switch (value) {
             case Boolean b -> b;
@@ -1452,6 +1449,19 @@ public class Terms {
             if (prim != o) return toPropertyKey(prim, ctx);
         }
         return o.toString();
+    }
+
+    /**
+     * {@code Date.prototype.toISOString} over a time value: ISO 8601 UTC with
+     * the spec's extended ±YYYYYY year outside 0..9999. Shared with the JSON
+     * formatter so a {@code java.util.Date} serializes as JS would.
+     */
+    public static String toIsoString(long epochMillis) {
+        ZonedDateTime z = ZonedDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), java.time.ZoneOffset.UTC);
+        return String.format(java.util.Locale.ROOT, "%s-%02d-%02dT%02d:%02d:%02d.%03dZ",
+                JsDate.formatYearIso(z.getYear()), z.getMonthValue(), z.getDayOfMonth(),
+                z.getHour(), z.getMinute(), z.getSecond(),
+                (int) Math.floorMod(epochMillis, 1000L));
     }
 
     /**

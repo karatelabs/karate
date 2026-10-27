@@ -406,6 +406,44 @@ class JsArrayTest extends EvalBase {
     }
 
     @Test
+    void testUint8ArrayIteratesUnsignedBytes() {
+        matchEval("[...new Uint8Array(2)]", "[0, 0]");
+        matchEval("[...new Uint8Array([1, 255])]", "[1, 255]");
+        matchEval("var a = []; for (const b of new Uint8Array([1, 255])) a.push(b); a", "[1, 255]");
+        matchEval("Array.from(new Uint8Array([1, 255]))", "[1, 255]");
+        matchEval("var [x, y] = new Uint8Array([1, 255]); [x, y]", "[1, 255]");
+    }
+
+    @Test
+    void testJavaListViewMatchesGet() {
+        // every java.util.List read a Java caller can reach sees what get(int)
+        // sees: undefined and holes as null, a Date as its Java value
+        eval("var a = [undefined, , new Date(0), 1]");
+        JsArray arr = (JsArray) engine.evalRaw("a");
+        List<Object> expected = new ArrayList<>();
+        for (int i = 0; i < arr.size(); i++) {
+            expected.add(arr.get(i));
+        }
+        assertNull(expected.get(0));
+        assertNull(expected.get(1));
+        assertInstanceOf(java.util.Date.class, expected.get(2));
+        List<Object> iterated = new ArrayList<>();
+        arr.iterator().forEachRemaining(iterated::add);
+        assertEquals(expected, iterated);
+        List<Object> listIterated = new ArrayList<>();
+        arr.listIterator().forEachRemaining(listIterated::add);
+        assertEquals(expected, listIterated);
+        assertEquals(expected, java.util.Arrays.asList(arr.toArray()));
+        assertEquals(expected, java.util.Arrays.asList(arr.toArray(new Object[0])));
+        assertEquals(expected.subList(1, 3), new ArrayList<>(arr.subList(1, 3)));
+        assertTrue(arr.contains(null));
+        assertEquals(0, arr.indexOf(null));
+        assertEquals(1, arr.lastIndexOf(null));
+        assertEquals(2, arr.indexOf(expected.get(2)));
+        assertFalse(arr.contains(Terms.UNDEFINED));
+    }
+
+    @Test
     void testDefinePropertyIndexedAttrs() {
         // defineProperty with writable: false at a numeric index — subsequent
         // [[Set]] is silently ignored, value persists.

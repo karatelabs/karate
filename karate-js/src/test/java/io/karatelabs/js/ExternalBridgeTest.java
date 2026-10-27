@@ -229,6 +229,51 @@ class ExternalBridgeTest extends EvalBase {
     }
 
     @Test
+    void testJavaByteArrayIteratesAsUint8Array() {
+        String pojo = "var DemoPojo = Java.type('io.karatelabs.js.DemoPojo'); var p = new DemoPojo();";
+        NodeUtils.match(eval(pojo + " [...p.bytes()]"), "[1, 2, 3]");
+        NodeUtils.match(eval(pojo + " var a = []; for (const b of p.bytes()) a.push(b); a"), "[1, 2, 3]");
+        NodeUtils.match(eval(pojo + " Array.from(p.bytes())"), "[1, 2, 3]");
+        NodeUtils.match(eval(pojo + " var [x, , z] = p.bytes(); [x, z]"), "[1, 3]");
+        engine.put("raw", new byte[]{1, (byte) 255});
+        NodeUtils.match(engine.eval("[...raw]"), "[1, 255]");
+    }
+
+    public static class DatedBean {
+        public Date getDate() {
+            return new Date(0);
+        }
+        public Instant getInstant() {
+            return Instant.EPOCH;
+        }
+        public LocalDate getLocalDate() {
+            return LocalDate.of(2024, 2, 29);
+        }
+        public byte[] getBytes() {
+            return new byte[]{1, (byte) 255};
+        }
+    }
+
+    @Test
+    void testBeanDateAndBytesPropertiesAreLeafValues() {
+        ObjectLike ol = (ObjectLike) bridge.forInstance(new DatedBean());
+        Map<String, Object> map = ol.toMap();
+        assertEquals(new Date(0), map.get("date"));
+        assertEquals(Instant.EPOCH, map.get("instant"));
+        assertEquals(LocalDate.of(2024, 2, 29), map.get("localDate"));
+        assertArrayEquals(new byte[]{1, (byte) 255}, (byte[]) map.get("bytes"));
+        // a host-bound bean's own properties reach JS through spread / Object.entries
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("b", ol);
+        engine.eval("var o = JSON.parse(JSON.stringify({...b}))");
+        assertEquals("1970-01-01T00:00:00.000Z", engine.eval("o.date"));
+        assertEquals("1970-01-01T00:00:00Z", engine.eval("o.instant"));
+        assertEquals("2024-02-29", engine.eval("o.localDate"));
+        NodeUtils.match(engine.eval("o.bytes"), "[1, 255]");
+    }
+
+    @Test
     void testJavaIntArrayStillBecomesList() {
         // Guard the carve-out: non-byte arrays keep their List mapping (unchanged).
         Object result = eval("var DemoPojo = Java.type('io.karatelabs.js.DemoPojo'); var p = new DemoPojo(); p.intArray = [1, 2]; p.getIntArray()");

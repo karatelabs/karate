@@ -566,6 +566,12 @@ public class JavaUtils {
             }
             return result;
         }
+        // binary and dates are leaf values: byte[] crosses into JS as a Uint8Array,
+        // and the JSON formatter renders both
+        if (object instanceof byte[] || object instanceof java.util.Date
+                || object.getClass().getPackageName().startsWith("java.time")) {
+            return object;
+        }
         if (object.getClass().isArray()) {
             int n = Array.getLength(object);
             List<Object> result = new ArrayList<>(n);

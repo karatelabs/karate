@@ -96,7 +96,8 @@ public class IterUtils {
             // One chain read per GetIterator call (loop setup), not per step.
             Object fn = readMember(jsArray, SYMBOL_ITERATOR, context);
             if (fn instanceof JsBuiltinMethod m && m.delegate() == SYMBOL_ITERATOR_METHOD) {
-                return listIterator(jsArray.list);
+                // a Uint8Array's bytes live in its buffer, read via List.get
+                return listIterator(jsArray instanceof JsUint8Array ? jsArray : jsArray.list);
             }
             if (isJsErrored(context)) {
                 return exhaustedIterator(); // a throwing @@iterator getter propagates
@@ -115,7 +116,10 @@ public class IterUtils {
         if (source instanceof List<?> list) {
             return listIterator((List<Object>) list);
         }
-        // Java native arrays via toJsArray (String[], int[], Object[], byte[] excluded — handled below)
+        if (source instanceof byte[] bytes) {
+            return listIterator(new JsUint8Array(bytes));
+        }
+        // Java native arrays via toJsArray (String[], int[], Object[]; byte[] handled above)
         JsArray asArray = Terms.toJsArray(source);
         if (asArray != null) {
             return listIterator(asArray.list);

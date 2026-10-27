@@ -148,7 +148,7 @@ class JsonEdgeCaseTest extends EvalBase {
         map.put("objects", new Object[]{"x", Map.of("k", "v")});
 
         String json = StringUtils.formatJson(map, false, false, false);
-        assertEquals("{\"bytes\":[1,2,-3],\"ints\":[10,20],\"doubles\":[1.5],\"bools\":[true,false],"
+        assertEquals("{\"bytes\":[1,2,253],\"ints\":[10,20],\"doubles\":[1.5],\"bools\":[true,false],"
                 + "\"chars\":[\"a\",\"b\"],\"strings\":[\"x\",\"y\"],\"objects\":[\"x\",{\"k\":\"v\"}]}", json);
     }
 
@@ -156,6 +156,22 @@ class JsonEdgeCaseTest extends EvalBase {
     void testTopLevelJavaArraySerializesAsJsonArray() {
         assertEquals("[1,2,3]", StringUtils.formatJson(new byte[]{1, 2, 3}, false, false, false));
         assertEquals("[]", StringUtils.formatJson(new String[0], false, false, false));
+    }
+
+    @Test
+    void testJavaDateFormatsLikeToISOString() {
+        for (String utc : new String[]{"1970, 0, 1", "-1, 0, 1", "10000, 0, 1", "275760, 8, 13"}) {
+            Object iso = eval("new Date(Date.UTC(" + utc + ")).toISOString()");
+            long millis = ((Number) eval("Date.UTC(" + utc + ")")).longValue();
+            assertEquals("{\"d\":\"" + iso + "\"}", StringUtils.formatJson(Map.of("d", new java.util.Date(millis)), false, false, false));
+        }
+        assertEquals("{\"d\":\"1970-01-01T00:00:00.000Z\"}",
+                StringUtils.formatJson(Map.of("d", new java.sql.Date(0)), false, false, false));
+        // beyond the JS Date range no toISOString exists; the output is pinned as-is
+        assertEquals("{\"d\":\"+292278994-08-17T07:12:55.807Z\"}",
+                StringUtils.formatJson(Map.of("d", new java.util.Date(Long.MAX_VALUE)), false, false, false));
+        assertEquals("{\"d\":\"+292275056-05-16T16:47:04.192Z\"}",
+                StringUtils.formatJson(Map.of("d", new java.util.Date(Long.MIN_VALUE)), false, false, false));
     }
 
     @Test

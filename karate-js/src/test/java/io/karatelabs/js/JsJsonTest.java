@@ -37,6 +37,15 @@ class JsJsonTest extends EvalBase {
     }
 
     @Test
+    void testStringifyUint8ArrayAsUnsignedArray() {
+        // a JSON array of unsigned bytes (not JS's index-keyed object): byte[]
+        // payloads serialize as arrays everywhere karate formats JSON
+        assertEquals("[1,255]", eval("JSON.stringify(new Uint8Array([1, 255]))"));
+        assertEquals("{\"a\":[0,128]}", eval("JSON.stringify({a: new Uint8Array([0, 128])})"));
+        assertEquals("[[255]]", eval("JSON.stringify([new Uint8Array([255])])"));
+    }
+
+    @Test
     void testStringifyWithReplacerArray() {
         assertEquals("{\"a\":\"b\"}", eval("JSON.stringify({a:'b',c:'d'}, ['a'])"));
     }

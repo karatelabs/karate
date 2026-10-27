@@ -128,7 +128,7 @@ class JsReflect extends JsObject {
         }
         Object[] out = null;
         if (value instanceof List<?> list) {
-            out = list.toArray();
+            out = JsArray.rawElements(list).toArray();
         } else if (value instanceof Object[] arr) {
             // marshalling rewrites the array in place: a raw Java array is the
             // caller's, and its component type may not admit the converted value

@@ -2,7 +2,6 @@ package io.karatelabs.core;
 
 import io.karatelabs.common.Xml;
 import io.karatelabs.js.Engine;
-import io.karatelabs.js.Terms;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -380,11 +379,11 @@ class StepUtilsTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void deepCopyOfARawJsArrayUnwrapsADateButKeepsUndefined() {
+    void deepCopyOfARawJsArrayTakesItsJavaListView() {
         Engine engine = new Engine();
         engine.eval("var raw = [new Date(0), undefined]");
         List<Object> copy = (List<Object>) StepUtils.deepCopy(engine.get("raw"));
         assertEquals(new Date(0), copy.get(0));
-        assertSame(Terms.UNDEFINED, copy.get(1));
+        assertNull(copy.get(1));
     }
 }
