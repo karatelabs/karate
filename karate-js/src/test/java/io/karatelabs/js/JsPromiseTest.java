@@ -694,6 +694,37 @@ class JsPromiseTest extends EvalBase {
         assertEquals("host-visible", ((ObjectLike) e.getReason()).getMember("message"));
     }
 
+    static class HostSignal extends RuntimeException {
+        HostSignal() {
+            super("host signal");
+        }
+    }
+
+    private static boolean causedBy(Throwable t, Class<? extends Throwable> type) {
+        for (; t != null; t = t.getCause()) {
+            if (type.isInstance(t)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Test
+    void testAwaitedRejectionKeepsTheJavaExceptionAsCause() {
+        engine = new Engine();
+        engine.put("signal", (JavaCallable) (ctx, args) -> {
+            throw new HostSignal();
+        });
+        RuntimeException direct = assertThrows(RuntimeException.class,
+                () -> engine.eval("await (async function(){ signal() })()"));
+        assertTrue(causedBy(direct, HostSignal.class), "awaited: " + direct);
+        RuntimeException nested = assertThrows(RuntimeException.class,
+                () -> engine.eval("async function a(){ signal() }\nasync function b(){ await a() }\nawait b()"));
+        assertTrue(causedBy(nested, HostSignal.class), "nested: " + nested);
+        // a JS catch still sees an ordinary Error
+        assertEquals("host signal", engine.eval("try { await (async function(){ signal() })() } catch (e) { e.message }"));
+    }
+
     @Test
     void testPromiseRoundTripsThroughJavaAndBack() {
         engine = new Engine();

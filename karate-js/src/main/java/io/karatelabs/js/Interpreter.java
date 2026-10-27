@@ -2614,7 +2614,9 @@ class Interpreter {
         }
         String message = node.toStringError(rawMessage);
         boolean authored = context.isErrorAuthored();
-        return new EngineException(message, null, errorName, jsMessage,
+        // a host exception that became a JS Error (e.g. a rejection crossing an await) stays the cause
+        Throwable cause = errorThrown instanceof JsError je ? je.getJavaCause() : null;
+        return new EngineException(message, cause, errorName, jsMessage,
                 authored, authored ? errorThrown : null, authored ? context.getErrorAuthoredLine() : 0);
     }
 
