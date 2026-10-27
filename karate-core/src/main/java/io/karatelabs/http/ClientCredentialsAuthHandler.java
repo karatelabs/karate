@@ -8,7 +8,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 
-public class ClientCredentialsAuthHandler implements AuthHandler {
+public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(ClientCredentialsAuthHandler.class);
 
@@ -57,16 +57,11 @@ public class ClientCredentialsAuthHandler implements AuthHandler {
     }
 
     @Override
-    public void apply(HttpRequestBuilder builder) {
+    public String getAccessToken(HttpRequestBuilder builder) {
         if (token == null) {
             token = requestToken(builder.forkNewBuilder(), config, builder.getUrl());
         }
-        builder.header("Authorization", "Bearer " + token.get("access_token"));
-    }
-
-    @Override
-    public String getType() {
-        return "oauth2";
+        return String.valueOf(token.get("access_token"));
     }
 
     @Override

@@ -8,8 +8,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class ClientCredentialsAuthHandlerTest {
 
@@ -43,6 +45,33 @@ class ClientCredentialsAuthHandlerTest {
             assertEquals("Bearer foo", body);
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void accessTokenIsFetchedOnceAndLeavesTheRequestUnsigned() {
+        AtomicInteger fetches = new AtomicInteger();
+        HttpServer server = HttpServer.start(0, request -> {
+            fetches.incrementAndGet();
+            HttpResponse response = new HttpResponse();
+            response.setBody(Json.toBytes(Json.of("{ access_token: 'foo' }").asMap()), ResourceType.JSON);
+            return response;
+        });
+        try (HttpClient client = new ApacheHttpClient()) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("url", "http://localhost:" + server.getPort() + "/token");
+            map.put("client_id", "demo-client");
+            map.put("client_secret", "demo-secret");
+            OAuth2AuthHandler handler = new ClientCredentialsAuthHandler(map);
+            HttpRequestBuilder http = new HttpRequestBuilder(client).url("http://localhost:" + server.getPort() + "/test");
+            assertEquals("foo", handler.getAccessToken(http));
+            assertEquals("foo", handler.getAccessToken(http));
+            assertEquals(1, fetches.get());
+            assertNull(http.getHeader("Authorization"));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            server.stopAsync();
         }
     }
 

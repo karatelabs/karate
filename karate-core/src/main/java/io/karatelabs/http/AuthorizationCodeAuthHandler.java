@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
  * OAuth 2.0 Authorization Code + PKCE Auth Handler.
  * Implements the authorization code flow with PKCE for public clients.
  */
-public class AuthorizationCodeAuthHandler implements AuthHandler {
+public class AuthorizationCodeAuthHandler implements OAuth2AuthHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthorizationCodeAuthHandler.class);
 
@@ -35,7 +35,7 @@ public class AuthorizationCodeAuthHandler implements AuthHandler {
     }
 
     @Override
-    public void apply(HttpRequestBuilder builder) {
+    public String getAccessToken(HttpRequestBuilder builder) {
         OAuth2Token token = tokenManager.getValidToken();
 
         // Check if we need a new token
@@ -56,8 +56,7 @@ public class AuthorizationCodeAuthHandler implements AuthHandler {
             }
         }
 
-        // Apply token to request
-        builder.header("Authorization", "Bearer " + token.getAccessToken());
+        return token.getAccessToken();
     }
 
     /**
