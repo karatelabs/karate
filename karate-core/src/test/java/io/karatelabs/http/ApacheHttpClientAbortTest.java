@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -58,6 +59,28 @@ class ApacheHttpClientAbortTest {
             long took = (finishedAt.get() - at) / 1_000_000;
             assertTrue(took < 1000, "took " + took + " ms");
             assertNotNull(failure.get(), "an aborted call fails");
+        }
+    }
+
+    @Test
+    void abortBeforeTheRequestIsAssignedStillAbortsIt() throws Exception {
+        AtomicInteger hits = new AtomicInteger();
+        server = HttpServer.start(0, request -> {
+            hits.incrementAndGet();
+            return HttpResponse.json("{}");
+        });
+        try (ApacheHttpClient client = new ApacheHttpClient()) {
+            HttpRequestBuilder http = new HttpRequestBuilder(client);
+            http.url("http://localhost:" + server.getPort() + "/fast");
+            // lands in the window between the caller's check and the request's assignment
+            client.beforeAssign = client::abort;
+            assertThrows(RuntimeException.class, () -> http.invoke("get"));
+            assertEquals(0, hits.get(), "an aborted call is not sent");
+            // the abort belonged to that invocation: the next one runs
+            client.beforeAssign = null;
+            http.url("http://localhost:" + server.getPort() + "/fast");
+            assertEquals(200, http.invoke("get").getStatus());
+            assertEquals(1, hits.get());
         }
     }
 

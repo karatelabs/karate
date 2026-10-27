@@ -95,6 +95,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private RequestConfig requestConfig;
     private BasicCookieStore cookieStore;
     private volatile ClassicHttpRequest currentRequest;
+    private volatile boolean aborted;
+    Runnable beforeAssign; // test seam: runs just before the request is published to abort()
 
     private int readTimeout = 30000;
     private int connectTimeout = 30000;
@@ -589,7 +591,14 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 }
                 initHttpClient();
             }
+            if (beforeAssign != null) {
+                beforeAssign.run();
+            }
             currentRequest = requestBuilder;
+            // abort() writes the flag before reading currentRequest, so one side always sees the other
+            if (aborted) {
+                requestBuilder.abort();
+            }
             HttpClientContext context = HttpClientContext.create();
             if (ntlmUsername != null || digestUsername != null) {
                 // the port resolved from the scheme, which is how the challenge's scope will name it
@@ -618,11 +627,14 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             throw new RuntimeException(e);
         } finally {
             currentRequest = null;
+            aborted = false;
         }
     }
 
+    /** Aborts the call in flight, or the next one if none has been published yet; cleared when that call ends. */
     @Override
     public void abort() {
+        aborted = true;
         ClassicHttpRequest req = currentRequest;
         if (req instanceof HttpUriRequestBase) {
             ((HttpUriRequestBase) req).abort();
