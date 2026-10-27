@@ -56,7 +56,6 @@ import org.apache.hc.client5.http.ssl.TrustSelfSignedStrategy;
 import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.io.SocketConfig;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
-import org.apache.hc.core5.http.io.support.ClassicRequestBuilder;
 import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.ssl.SSLContexts;
@@ -538,7 +537,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     public HttpResponse invoke(HttpRequest request) {
         this.request = request;
         try {
-            ClassicRequestBuilder requestBuilder = ClassicRequestBuilder.create(request.getMethod()).setUri(request.getUrlAndPath());
+            // an HttpUriRequestBase, not ClassicRequestBuilder's BasicClassicHttpRequest: only it can be aborted in flight
+            HttpUriRequestBase requestBuilder = new HttpUriRequestBase(request.getMethod(), URI.create(request.getUrlAndPath()));
             if (request.getBody() != null) {
                 EntityBuilder entityBuilder = EntityBuilder.create().setBinary(request.getBody());
                 // Apply charset to content type
@@ -589,7 +589,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 }
                 initHttpClient();
             }
-            currentRequest = requestBuilder.build();
+            currentRequest = requestBuilder;
             HttpClientContext context = HttpClientContext.create();
             if (ntlmUsername != null || digestUsername != null) {
                 // the port resolved from the scheme, which is how the challenge's scope will name it
