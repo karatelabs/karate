@@ -557,6 +557,23 @@ class JsParserTest {
     }
 
     @Test
+    void testErrorRecoveryCarriesHints() {
+        assertEquals("hint: line 2 starts with '[' — without a ';' ending line 1 it continues that statement"
+                        + " (as an index); add ';' to the end of line 1 if a new statement was intended",
+                firstRecoveredError("const a = 1\n[1,2].forEach(function(x){})").hint);
+        assertEquals("hint: line 1 col 11: '' is an empty string followed directly by x — a doubled or stray quote?",
+                firstRecoveredError("const s = ''x';").hint);
+        assertNull(firstRecoveredError("var x = ;").hint);
+    }
+
+    private static SyntaxError firstRecoveredError(String source) {
+        JsParser parser = new JsParser(Resource.text(source), true);
+        parser.parse();
+        assertTrue(parser.hasErrors(), source);
+        return parser.getErrors().get(0);
+    }
+
+    @Test
     void testIncompleteExpression() {
         // User is typing: let x = 1 +
         JsParser parser = new JsParser(Resource.text("let x = 1 +"), true);

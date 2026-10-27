@@ -110,15 +110,17 @@ public abstract class BaseParser {
         return sb.toString();
     }
 
+    private String hint() {
+        String hint = AsiHint.forFailure(tokens, position);
+        return hint != null ? hint : StrayQuoteHint.forFailure(tokens, position);
+    }
+
     protected void error(String message) {
         Token token = peekToken();
+        String hint = hint();
         if (errorRecoveryEnabled) {
-            errors.add(new SyntaxError(token, message));
+            errors.add(new SyntaxError(token, message, null, hint));
             return;
-        }
-        String hint = AsiHint.forFailure(tokens, position);
-        if (hint == null) {
-            hint = StrayQuoteHint.forFailure(tokens, position);
         }
         if (token.getResource().isFile()) {
             System.err.println("file://" + token.getResource().getUri().getPath() + ":" + token.getPositionDisplay() + " " + message);
@@ -131,7 +133,7 @@ public abstract class BaseParser {
 
     protected void error(NodeType... expected) {
         if (errorRecoveryEnabled) {
-            errors.add(new SyntaxError(peekToken(), "expected: " + Arrays.asList(expected), expected[0]));
+            errors.add(new SyntaxError(peekToken(), "expected: " + Arrays.asList(expected), expected[0], hint()));
             return;
         }
         error("expected: " + Arrays.asList(expected));
@@ -139,7 +141,7 @@ public abstract class BaseParser {
 
     protected void error(TokenType... expected) {
         if (errorRecoveryEnabled) {
-            errors.add(new SyntaxError(peekToken(), "expected: " + Arrays.asList(expected)));
+            errors.add(new SyntaxError(peekToken(), "expected: " + Arrays.asList(expected), null, hint()));
             return;
         }
         error("expected: " + Arrays.asList(expected));

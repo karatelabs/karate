@@ -34,11 +34,18 @@ public class SyntaxError {
     public final Token token;
     public final String message;
     public final NodeType expected;
+    /** The missed-semicolon or stray-quote hint a non-recovering parse appends to its message; else null. */
+    public final String hint;
 
-    public SyntaxError(Token token, String message, NodeType expected) {
+    public SyntaxError(Token token, String message, NodeType expected, String hint) {
         this.token = token;
         this.message = message;
         this.expected = expected;
+        this.hint = hint;
+    }
+
+    public SyntaxError(Token token, String message, NodeType expected) {
+        this(token, message, expected, null);
     }
 
     public SyntaxError(Token token, String message) {
@@ -59,7 +66,7 @@ public class SyntaxError {
 
     @Override
     public String toString() {
-        return "[" + getLine() + ":" + getColumn() + "] " + message;
+        return "[" + getLine() + ":" + getColumn() + "] " + message + (hint == null ? "" : "\n" + hint);
     }
 
 }
