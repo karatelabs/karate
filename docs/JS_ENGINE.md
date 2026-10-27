@@ -1110,7 +1110,7 @@ function gets the promise, not an auto-awaited value (blocking unwrap is opt-in:
   exactly once. Decided only at scope quiescence (so a later-queued `.catch`
   counts); the default is **fail the eval** with the first terminal rejection,
   the rest logged. `Engine.setAsyncRejectionWarnOnly(true)` downgrades to WARN on
-  SLF4J and the `console` consumer (`ContextRoot.onConsoleLog`).
+  SLF4J and the `console` consumer (`ContextRoot.onConsole`, level `warn`).
 - **`JsRejectionException`** carries a rejection across the Java boundary and is
   the **only** exception the engine ever unwraps back into a JS reason. Java → JS
   rules, in order (`AsyncSupport.reasonFromStage`): unwrap `CompletionException` /

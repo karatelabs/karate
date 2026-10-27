@@ -530,6 +530,17 @@ class EngineTest {
     }
 
     @Test
+    void testOnConsoleLevel() {
+        Engine engine = new Engine();
+        List<String> lines = new ArrayList<>();
+        engine.setOnConsole((level, text) -> lines.add(level + ":" + text));
+        engine.eval("console.log('a'); console.info('b'); console.debug('c'); console.warn('d'); console.error('e');"
+                + " const w = console.warn; w('f'); console.assert(false, 'g'); console.count()");
+        assertEquals(List.of("log:a", "info:b", "debug:c", "warn:d", "error:e",
+                "warn:f", "error:Assertion failed: g", "log:default: 1"), lines);
+    }
+
+    @Test
     void testErrorLog() {
         Engine engine = new Engine();
         try {

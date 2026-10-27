@@ -50,8 +50,12 @@ class JsConsole implements SimpleObject {
     }
 
     private void output(String message) {
-        if (root.onConsoleLog != null) {
-            root.onConsoleLog.accept(message);
+        output("log", message);
+    }
+
+    private void output(String level, String message) {
+        if (root.onConsole != null) {
+            root.onConsole.accept(level, message);
         } else {
             System.out.println(message);
         }
@@ -61,7 +65,7 @@ class JsConsole implements SimpleObject {
     public Object jsGet(String name) {
         return switch (name) {
             case "log", "info", "debug", "warn", "error" -> (JsCallable) (context, args) -> {
-                output(argsToString(context, args));
+                output(name, argsToString(context, args));
                 return null;
             };
             case "trace" -> (JsCallable) (context, args) -> {
@@ -89,7 +93,7 @@ class JsConsole implements SimpleObject {
                         System.arraycopy(args, 1, rest, 0, rest.length);
                         message = message + ": " + argsToString(context, rest);
                     }
-                    output(message);
+                    output("error", message);
                 }
                 return null;
             };

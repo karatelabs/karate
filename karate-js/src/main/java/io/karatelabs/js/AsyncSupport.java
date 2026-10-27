@@ -872,9 +872,9 @@ final class AsyncSupport {
 
     private static void warn(Engine engine, String message) {
         logger.warn(message);
-        java.util.function.Consumer<String> consumer = engine.root().onConsoleLog;
+        java.util.function.BiConsumer<String, String> consumer = engine.root().onConsole;
         if (consumer != null) {
-            consumer.accept(message);
+            consumer.accept("warn", message);
         }
     }
 

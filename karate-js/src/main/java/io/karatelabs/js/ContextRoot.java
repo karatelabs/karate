@@ -31,7 +31,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * Engine-state holder. Sits above the script-level {@link CoreContext} as the
@@ -86,7 +86,7 @@ class ContextRoot implements Context {
     private final long nanoOrigin = System.nanoTime();
     private final double timeOrigin = System.currentTimeMillis();
 
-    Consumer<String> onConsoleLog;
+    BiConsumer<String, String> onConsole;
 
     ContextListener listener;
     ExternalBridge bridge;
@@ -99,10 +99,6 @@ class ContextRoot implements Context {
         this.engine = engine;
         this.bindings = engine.bindings;
         this.thisObject = new JsGlobalThis(this);
-    }
-
-    void setOnConsoleLog(Consumer<String> onConsoleLog) {
-        this.onConsoleLog = onConsoleLog;
     }
 
     /**

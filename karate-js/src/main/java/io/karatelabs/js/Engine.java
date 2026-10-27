@@ -36,6 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class Engine {
@@ -374,7 +375,15 @@ public class Engine {
     }
 
     public void setOnConsoleLog(Consumer<String> onConsoleLog) {
-        root.setOnConsoleLog(onConsoleLog);
+        root.onConsole = onConsoleLog == null ? null : (level, text) -> onConsoleLog.accept(text);
+    }
+
+    /**
+     * Receives each console line with its level: {@code log}, {@code info}, {@code debug}, {@code warn}
+     * or {@code error}. Replaces any {@link #setOnConsoleLog} consumer.
+     */
+    public void setOnConsole(BiConsumer<String, String> onConsole) {
+        root.onConsole = onConsole;
     }
 
     /**
