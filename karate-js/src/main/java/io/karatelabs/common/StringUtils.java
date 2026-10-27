@@ -510,6 +510,23 @@ public class StringUtils {
     }
 
     /**
+     * The JSON text of a java.util.Date: Date.prototype.toISOString's form, shared by every
+     * serializer so a date reads the same in JSON.stringify, print and a request body.
+     */
+    public static String formatIsoDate(java.util.Date date) {
+        // getTime(), not toInstant(): java.sql.Date / Time throw on toInstant()
+        long millis = date.getTime();
+        if (millis >= -MAX_JS_TIME && millis <= MAX_JS_TIME) {
+            return Terms.toIsoString(millis);
+        }
+        // no JS Date can hold it: keep the prior plain-pattern output
+        return java.time.format.DateTimeFormatter
+                .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                .withZone(java.time.ZoneOffset.UTC)
+                .format(java.time.Instant.ofEpochMilli(millis));
+    }
+
+    /**
      * Strict JSON text for a value at any position: unlike {@link #formatJson}, a String is
      * a JSON string (never re-parsed or passed through) and a host scalar — java.util.Date,
      * java.time, a POJO — is the quoted text it gets when nested, not its bare toString.
@@ -659,18 +676,7 @@ public class StringUtils {
                 visited.remove(o);
             }
         } else if (o instanceof java.util.Date date) {
-            // getTime(), not toInstant(): java.sql.Date / Time throw on toInstant()
-            long millis = date.getTime();
-            String isoDate;
-            if (millis >= -MAX_JS_TIME && millis <= MAX_JS_TIME) {
-                isoDate = Terms.toIsoString(millis);
-            } else { // no JS Date can hold it: keep the prior plain-pattern output
-                isoDate = java.time.format.DateTimeFormatter
-                        .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-                        .withZone(java.time.ZoneOffset.UTC)
-                        .format(java.time.Instant.ofEpochMilli(millis));
-            }
-            sb.append('"').append(isoDate).append('"');
+            sb.append('"').append(formatIsoDate(date)).append('"');
         } else if (o instanceof Number n) {
             sb.append(Terms.numberToString(n));
         } else if (o instanceof Boolean) {

@@ -236,6 +236,43 @@ class JsonTest {
     }
 
     @Test
+    void testBothSerializersAgreeOnDates() {
+        // json-smart walked dates as beans: a LocalDate failed bytecode verification (a match or
+        // request body holding one crashed), an Instant wrote {}, a java.util.Date its toString
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("localDate", java.time.LocalDate.of(2026, 10, 26));
+        map.put("localDateTime", java.time.LocalDateTime.of(2026, 10, 26, 9, 30));
+        map.put("instant", java.time.Instant.parse("2026-10-26T21:19:40.123Z"));
+        map.put("zoned", java.time.ZonedDateTime.parse("2026-10-26T09:30:00+05:30[Asia/Kolkata]"));
+        map.put("offset", java.time.OffsetDateTime.parse("2026-10-26T09:30:00+05:30"));
+        map.put("localTime", java.time.LocalTime.of(9, 30));
+        map.put("date", new Date(0));
+        map.put("timestamp", new java.sql.Timestamp(0));
+        map.put("sqlDate", new java.sql.Date(0));
+        String json = Json.stringifyStrict(map);
+        assertEquals(json, StringUtils.formatJson(map, false, false, false));
+        assertTrue(json.contains("\"localDate\":\"2026-10-26\""), json);
+        assertTrue(json.contains("\"instant\":\"2026-10-26T21:19:40.123Z\""), json);
+        assertTrue(json.contains("\"date\":\"1970-01-01T00:00:00.000Z\""), json);
+        assertTrue(json.contains("\"timestamp\":\"1970-01-01T00:00:00.000Z\""), json);
+    }
+
+    @Test
+    void testMatchOnMapHoldingJavaDates() {
+        Map<String, Object> actual = new LinkedHashMap<>();
+        actual.put("day", java.time.LocalDate.of(2026, 10, 26));
+        actual.put("at", java.time.Instant.parse("2026-10-26T21:19:40.123Z"));
+        Map<String, Object> expected = new LinkedHashMap<>(actual);
+        Result result = Match.evaluate(actual, null, null)._equals(expected);
+        assertTrue(result.pass, result.message);
+        // a failing match renders the dates in its message instead of crashing on them
+        expected.put("day", java.time.LocalDate.of(2026, 10, 27));
+        result = Match.evaluate(actual, null, null)._equals(expected);
+        assertFalse(result.pass);
+        assertTrue(result.message.contains("\"day\":\"2026-10-26\""), result.message);
+    }
+
+    @Test
     void testStringifyStrictBreaksCyclesThroughArrays() {
         // a cycle whose back-edge sits inside an Object[] was invisible to the
         // Map/List-only cycle walk, so json-smart recursed to StackOverflowError

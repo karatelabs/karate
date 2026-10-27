@@ -73,6 +73,24 @@ public class Json {
                 out.append(']');
             }
         });
+        // json-smart's bean writer walks dates as beans: a LocalDate fails ASM bytecode verification
+        // (VerifyError, so a match or request body holding one crashes), an Instant writes {}, and a
+        // java.util.Date its zone-dependent toString. Write them as JSON.stringify does: java.util.Date
+        // (and java.sql subclasses) as Date.prototype.toISOString, java.time as its ISO toString.
+        JsonWriterI<java.util.Date> dateWriter = new JsonWriterI<>() {
+            @Override
+            public <E extends java.util.Date> void writeJSONString(E date, Appendable out, JSONStyle style) throws java.io.IOException {
+                JSONValue.writeJSONString(StringUtils.formatIsoDate(date), out, style);
+            }
+        };
+        JSONValue.registerWriter(java.util.Date.class, dateWriter);
+        JSONValue.defaultWriter.registerWriterInterfaceFirst(java.util.Date.class, dateWriter);
+        JSONValue.defaultWriter.registerWriterInterfaceFirst(java.time.temporal.TemporalAccessor.class, new JsonWriterI<java.time.temporal.TemporalAccessor>() {
+            @Override
+            public <E extends java.time.temporal.TemporalAccessor> void writeJSONString(E value, Appendable out, JSONStyle style) throws java.io.IOException {
+                JSONValue.writeJSONString(value.toString(), out, style);
+            }
+        });
         JSONValue.registerWriter(char[].class, new JsonWriterI<Object>() {
             @Override
             public <E> void writeJSONString(E value, Appendable out, JSONStyle style) throws java.io.IOException {

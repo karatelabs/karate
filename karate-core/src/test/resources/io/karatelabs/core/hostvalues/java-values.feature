@@ -44,6 +44,9 @@ Scenario: java dates serialize to ISO strings
 * def jud = new JDate(0)
 * def root = JSON.stringify(jud)
 * match root == '"1970-01-01T00:00:00.000Z"'
+# karate's own serializer (string keyword, match messages, request bodies) agrees
+* string text = data
+* match text == '{"d":"2026-10-26","i":"2026-10-26T21:19:40.123Z"}'
 
 Scenario: a java.util.Date is the JS Date's mirror and JS setters write through
 * def jud = new JDate(0)
