@@ -248,6 +248,11 @@ public class JavaUtils {
         return NOT_FOUND;
     }
 
+    /** Whether {@code object}'s class has a public getter, field or method serving {@code name}. */
+    static boolean hasMember(Object object, String name) {
+        return resolveMember(object.getClass(), name) != NOT_FOUND;
+    }
+
     static Object get(Object object, String name) {
         Object result = getOrNotFound(object, name);
         if (result == NOT_FOUND) {

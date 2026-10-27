@@ -29,6 +29,7 @@ import io.karatelabs.parser.TokenType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.temporal.Temporal;
 import java.util.List;
 import java.util.Map;
 
@@ -944,6 +945,14 @@ class PropertyAccess {
             if (own != null) {
                 return own.read(receiver, context);
             }
+            // A JsDate viewing a java.time value is the call path's wrap of a Java
+            // object: a name Java defines resolves there before Date.prototype.
+            if (object instanceof JsDate jd && context.root.bridge != null) {
+                Temporal host = jd.getHostFirstSource();
+                if (host != null && JavaUtils.hasMember(host, name)) {
+                    return accessViaBridge(host, name, context, functionCall);
+                }
+            }
             Object result = jsObj.getMember(name, receiver, context);
             if (isFound(result)) return result;
             // JsValue wrappers may carry an original Java value (e.g. JsDate
@@ -1025,6 +1034,10 @@ class PropertyAccess {
             // it apart before the bridge would resolve the Java member instead
             if (context.root.bridge != null && chainHasSlot(PROTOTYPE_PROBE, name)) return result;
         } else {
+            // the non-call shape of the java.time rule in the JsObject branch above
+            if (object instanceof Temporal && context.root.bridge != null && JavaUtils.hasMember(object, name)) {
+                return accessViaBridge(object, name, context, functionCall);
+            }
             ObjectLike ol = Terms.toObjectLike(object);
             if (ol != null) {
                 Object result = ol.getMember(name, receiver, context);

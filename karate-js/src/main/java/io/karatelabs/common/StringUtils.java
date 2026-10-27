@@ -506,6 +506,17 @@ public class StringUtils {
         }
     }
 
+    /**
+     * Strict JSON text for a value at any position: unlike {@link #formatJson}, a String is
+     * a JSON string (never re-parsed or passed through) and a host scalar — java.util.Date,
+     * java.time, a POJO — is the quoted text it gets when nested, not its bare toString.
+     */
+    public static String formatJsonValue(Object o, boolean pretty, String indent) {
+        StringBuilder sb = new StringBuilder();
+        formatRecurse(o, pretty, false, false, indent, sb, 0, Collections.newSetFromMap(new IdentityHashMap<>()));
+        return sb.toString();
+    }
+
     @SuppressWarnings("unchecked")
     private static void formatRecurse(Object o, boolean pretty, boolean lenient, boolean sort,
                                        String indent, StringBuilder sb, int depth, Set<Object> visited) {
@@ -644,7 +655,8 @@ public class StringUtils {
             }
         } else if (o instanceof java.util.Date date) {
             // Format Date as ISO 8601 string with milliseconds (matches JavaScript's Date.toISOString())
-            java.time.Instant instant = date.toInstant();
+            // not date.toInstant(): java.sql.Date and java.sql.Time throw UnsupportedOperationException
+            java.time.Instant instant = java.time.Instant.ofEpochMilli(date.getTime());
             java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter
                     .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
                     .withZone(java.time.ZoneOffset.UTC);

@@ -465,7 +465,8 @@ class ExternalBridgeTest extends EvalBase {
         LocalDateTime ldt = LocalDateTime.of(2025, 3, 15, 10, 30, 0);
         engine.put("localDT", ldt);
         assertEquals(2025, engine.eval("localDT.getFullYear()"));
-        assertEquals(2, engine.eval("localDT.getMonth()"));  // 0-indexed
+        // getMonth is a Java method on LocalDateTime: Java wins (Month enum, not 0-indexed)
+        assertEquals(java.time.Month.MARCH, engine.eval("localDT.getMonth()"));
         assertEquals(15, engine.eval("localDT.getDate()"));
         assertEquals(10, engine.eval("localDT.getHours()"));
         assertEquals(30, engine.eval("localDT.getMinutes()"));
@@ -480,9 +481,135 @@ class ExternalBridgeTest extends EvalBase {
         LocalDate ld = LocalDate.of(2025, 6, 20);
         engine.put("localDate", ld);
         assertEquals(2025, engine.eval("localDate.getFullYear()"));
-        assertEquals(5, engine.eval("localDate.getMonth()"));  // 0-indexed
+        // getMonth is a Java method on LocalDate: Java wins (Month enum, not 0-indexed)
+        assertEquals(java.time.Month.JUNE, engine.eval("localDate.getMonth()"));
         assertEquals(20, engine.eval("localDate.getDate()"));
         assertEquals(0, engine.eval("localDate.getHours()"));  // start of day
+    }
+
+    @Test
+    void testJavaTimeMembersWinOverDatePrototype() {
+        // A java.time value is a Java object first: a name Java defines resolves to the
+        // Java member, in every access shape. Date.prototype only answers names Java lacks.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("ld", LocalDate.of(2026, 10, 26));
+        engine.eval("var Instant = Java.type('java.time.Instant'); var LocalDate = Java.type('java.time.LocalDate')");
+        String iso = "2026-10-26T21:19:40.123Z";
+        assertEquals(iso, engine.eval("Instant.parse('" + iso + "').toString()"));
+        assertEquals(iso, engine.eval("var i = Instant.parse('" + iso + "'); i.toString()"));
+        assertEquals(iso, engine.eval("i['toString']()"));
+        assertEquals(iso, engine.eval("i.toString.call(i)"));
+        assertEquals(iso, engine.eval("i?.toString()"));
+        assertEquals("2026-10-26", engine.eval("ld.toString()"));
+        assertEquals(2026, engine.eval("ld.getYear()")); // not the Annex B year-1900
+        assertEquals("2026-10-27", engine.eval("LocalDate.of(2026, 10, 26).plusDays(1).toString()"));
+        assertEquals("2026-10-26", engine.eval("[ld].map(x => x.toString())[0]"));
+        // names Java lacks still reach Date.prototype
+        assertEquals(1793049580123L, engine.eval("i.getTime()"));
+        assertEquals(iso, engine.eval("i.toISOString()"));
+        assertEquals(2026, engine.eval("ld.getFullYear()"));
+    }
+
+    @Test
+    void testJavaTimeCoercion() {
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("ld", LocalDate.of(2026, 10, 26));
+        engine.put("ld2", LocalDate.of(2026, 10, 27));
+        engine.put("i", Instant.parse("2026-10-26T21:19:40.123Z"));
+        // every string coercion is the Java toString, as `'' + v` always was
+        assertEquals("2026-10-26", engine.eval("String(ld)"));
+        assertEquals("2026-10-26", engine.eval("`${ld}`"));
+        assertEquals("2026-10-26", engine.eval("'' + ld"));
+        assertEquals("2026-10-26T21:19:40.123Z", engine.eval("`${i}`"));
+        // numeric coercion is epoch ms, like the Date it converts to
+        assertEquals(-86400000, engine.eval("ld - ld2"));
+        assertEquals(true, engine.eval("ld < ld2"));
+        assertEquals(false, engine.eval("ld2 < ld"));
+        // JSON: root and nested agree, and both are quoted strings
+        assertEquals("\"2026-10-26\"", engine.eval("JSON.stringify(ld)"));
+        assertEquals("{\"d\":\"2026-10-26\"}", engine.eval("JSON.stringify({d: ld})"));
+        assertEquals("\"2026-10-26T21:19:40.123Z\"", engine.eval("JSON.stringify(i)"));
+        // a property key is the same Java toString
+        assertEquals(1, engine.eval("var o = {}; o[ld] = 1; o['2026-10-26']"));
+        // past a long's ms range is Invalid Date, not a Java ArithmeticException leak
+        engine.put("imax", Instant.MAX);
+        assertEquals(Double.NaN, engine.eval("imax - imax"));
+        // OffsetDateTime converts like ZonedDateTime
+        engine.put("odt", java.time.OffsetDateTime.parse("2026-10-26T21:19:40.123Z"));
+        assertEquals("2026-10-26T21:19:40.123Z", engine.eval("new Date(odt).toISOString()"));
+        assertEquals("2026-10-26T21:19:40.123Z", engine.eval("odt.toString()"));
+        assertEquals(1793049580123L, engine.eval("odt.getTime()"));
+    }
+
+    @Test
+    void testJsonStringifySqlDates() {
+        // java.sql.Date / Time reject toInstant(); the formatter must not call it
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("sd", new java.sql.Date(0));
+        engine.put("st", new java.sql.Time(0));
+        assertEquals("\"1970-01-01T00:00:00.000Z\"", engine.eval("JSON.stringify(sd)"));
+        assertEquals("{\"t\":\"1970-01-01T00:00:00.000Z\"}", engine.eval("JSON.stringify({t: st})"));
+    }
+
+    @Test
+    void testJavaDateAsDateArgumentAndReceiver() {
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("i", Instant.parse("2026-10-26T21:19:40.123Z"));
+        engine.put("jud", new Date(0));
+        assertEquals("2026-10-26T21:19:40.123Z", engine.eval("new Date(i).toISOString()"));
+        assertEquals(1793049580123L, engine.eval("Date.prototype.getTime.call(i)"));
+        assertEquals(0L, engine.eval("jud['getTime']()"));
+        assertEquals(0L, engine.eval("jud.getTime.call(jud)"));
+        // JSON root is the quoted ISO form a nested java.util.Date already got
+        assertEquals("\"1970-01-01T00:00:00.000Z\"", engine.eval("JSON.stringify(jud)"));
+        // string concatenation agrees with String(jud): the JS form, not Date.toString
+        assertEquals(engine.eval("String(jud)"), engine.eval("'' + jud"));
+    }
+
+    @Test
+    void testDateSetterOnJavaValues() {
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        // a java.util.Date is mutable: a JS setter writes through to it
+        Date jud = new Date(0);
+        engine.put("jud", jud);
+        engine.eval("jud.setTime(1000)");
+        assertEquals(1000L, jud.getTime());
+        // structuredClone of a Java Date is a new Date, not the same mutable object
+        engine.eval("structuredClone(jud).setTime(9000)");
+        assertEquals(1000L, jud.getTime());
+        // new Date(javaDate) is a copy, never an alias of the Java value
+        engine.eval("var copy = new Date(jud); copy.setTime(5000)");
+        assertEquals(1000L, jud.getTime());
+        // every view of the Date reads the Date, so a write through one is seen by all
+        engine.eval("Date.prototype.self = function() { return this }; var a = jud.self(); var b = jud.self(); a.setTime(3000)");
+        assertEquals(3000L, engine.eval("b.getTime()"));
+        engine.eval("delete Date.prototype.self");
+        // a java.util.Date cannot hold Invalid Date: a TypeError, not a dropped write
+        try {
+            engine.eval("jud.setTime(NaN)");
+            fail("expected a TypeError");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("cannot set a java.util.Date to Invalid Date"), e.getMessage());
+        }
+        assertEquals(3000L, jud.getTime());
+        // a setter works from the time captured before argument coercion: an arg's
+        // valueOf that writes the same Date does not leak into the preserved fields
+        engine.put("d0", new Date(0));
+        assertEquals(1000L, engine.eval("d0.setUTCSeconds({ valueOf() { d0.setTime(3600000); return 1 } })"));
+        assertEquals(1L, engine.eval("d0.setTime(0); d0.setUTCMilliseconds({ valueOf() { d0.setTime(3600000); return 1 } })"));
+        // java.time is immutable: a setter is a TypeError, not a silently dropped write
+        engine.put("ld", LocalDate.of(2026, 10, 26));
+        try {
+            engine.eval("ld.setFullYear(2030)");
+            fail("expected a TypeError");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("cannot modify an immutable java.time.LocalDate"), e.getMessage());
+        }
     }
 
     @Test

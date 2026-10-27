@@ -23,7 +23,6 @@
  */
 package io.karatelabs.js;
 
-import java.util.Date;
 
 /**
  * JavaScript Date constructor function.
@@ -71,8 +70,10 @@ class JsDateConstructor extends JsFunction {
             if (arg instanceof JsDate jd) {
                 return new JsDate(jd.getTimeValue());
             }
-            if (arg instanceof Date d) {
-                return new JsDate(d);
+            // a Java date (java.util.Date or java.time) is copied by time value —
+            // never aliased, since a JsDate over a java.util.Date writes through
+            if (Terms.toJsValue(arg) instanceof JsDate jd) {
+                return new JsDate(jd.getTimeValue());
             }
             Object prim = arg;
             if (arg instanceof ObjectLike) {

@@ -346,7 +346,8 @@ The engine uses `CallInfo` to track invocation context:
 │  LocalDateTime  │ ──────────────────►  │  (internal      │
 │  LocalDate      │ ──────────────────►  │   timeValue:    │
 │  ZonedDateTime  │ ──────────────────►  │   double, NaN = │
-└─────────────────┘                      │   Invalid Date) │
+│  OffsetDateTime │ ──────────────────►  │   Invalid Date) │
+└─────────────────┘                      │                 │
                                          └────────┬────────┘
                                                   │
                         JS → Java                 │
@@ -373,11 +374,16 @@ static JavaMirror toJavaMirror(Object o) {
         case LocalDateTime ldt -> new JsDate(ldt);
         case LocalDate ld -> new JsDate(ld);
         case ZonedDateTime zdt -> new JsDate(zdt);
+        case OffsetDateTime odt -> new JsDate(odt);
         case byte[] bytes -> new JsUint8Array(bytes);
         case null, default -> null;
     };
 }
 ```
+
+The `JsDate` a `java.time` value converts to is a view, not a replacement:
+Java members on it win — see
+[Java dates — java.time is host-first](#java-dates--javatime-is-host-first-javautildate-is-js-first).
 
 **Why lazy?**
 - Thread-safety: Engine bindings may be updated by external threads
@@ -450,6 +456,46 @@ null. The `JsObject` branch re-routes a `JsPrimitive` through the bridge on
 `getJavaValue()`; without that, the dot-call shape would diverge from
 `s.hashCode`, `s['hashCode']()` and `var f = s.hashCode; f()`, which resolve
 through the raw-value path.
+
+### Java dates — java.time is host-first, java.util.Date is JS-first
+
+**The precedence above is inverted for `java.time`.** An `Instant`,
+`LocalDate`, `LocalDateTime`, `ZonedDateTime` or `OffsetDateTime` is a Java
+object first:
+`PropertyAccess.getByName` resolves a name the Java class defines
+(`JavaUtils.hasMember`) to the Java member before `Date.prototype` is
+consulted, whether the receiver arrives raw or as the call path's `JsDate`
+view (`JsDate.getHostFirstSource`). Only names Java lacks — `getTime`,
+`toISOString`, `getFullYear`, `getHours` — fall through to the JS Date. The
+two vocabularies collide on `toString`, `getYear` and `getMonth`, and the JS
+answers are wrong for a Java caller: Annex B `getYear()` is year − 1900 and
+`getMonth()` is 0-based where `LocalDate.getMonth()` is a `Month`. Karate v1
+(GraalJS) treated these as plain host objects; this matches it. The rest of
+the surface agrees with the same rule: ToString (`String(v)`, template
+literals, `'' + v`) is the Java `toString`, ToNumber is epoch ms (so
+`b - a` and `a < b` compare instants), and `JSON.stringify` emits the quoted
+Java `toString` at the root as when nested.
+
+**`java.util.Date` (and `java.sql.Date` / `Timestamp`) stays JS-first.** It is
+the JS Date's own Java mirror — `JsDate.getJavaValue()` of a JS-created date —
+so a date that crosses into Java and back must still behave as the JS Date it
+was. Its deprecated getters agree with the JS ones anyway, and its string
+forms (`String(d)`, `'' + d`) are the JS `toString`.
+
+**A `JsDate` over a Java value is a per-access view, so writes need a rule.**
+`JsDate.setTimeValue` writes through to a `java.util.Date` source (mutable,
+and a v1 script mutating a Date from Java code expected exactly that) and
+throws a `TypeError` for a `java.time` source (immutable — the alternative is
+a write silently lost on a discarded view) and for a result a `java.util.Date`
+cannot hold (Invalid Date). A view of a `java.util.Date` reads its time from
+the Date, so every view sees a write made through any one. Accepted cost: a
+`java.util.Date` held as a JS `Map` / `Set` key is keyed by its Java
+`hashCode`, so mutating it orphans the entry — the same pitfall as a mutable
+key in a Java `HashMap`. Out-of-range `java.time` values (`Instant.MAX`)
+convert to Invalid Date rather than leaking an `ArithmeticException`. `new Date(javaDate)` copies by
+time value and never aliases. `Date.prototype` methods accept a raw Java date
+as `this` (`d['getTime']()`, `getTime.call(d)`), the same view the dot-call
+path builds.
 
 ---
 

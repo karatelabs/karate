@@ -32,7 +32,9 @@ import java.math.BigInteger;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
+import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -200,6 +202,9 @@ public class Terms {
             case Date d -> d.getTime();
             case String s -> stringToNumber(s);
             case null -> 0;
+            // a java.time value is its epoch ms, like the Date it converts to —
+            // so `ld2 - ld1` and `ld1 < ld2` compare instants
+            case Temporal t when toJsValue(t) instanceof JsDate d -> narrow(d.getTimeValue());
             // includes undefined
             default -> Double.NaN;
         };
@@ -846,6 +851,9 @@ public class Terms {
     private static String concatOperand(Object o) {
         if (o instanceof String s) return s;
         if (o instanceof Number n) return numberToString(n);
+        // a java.util.Date is a JS Date to scripts — its string form is the JS
+        // one (as String(d) and `${d}` already give), not Date.toString's
+        if (o instanceof Date d) return new JsDate(d.getTime()).toString();
         return String.valueOf(o);
     }
 
@@ -900,6 +908,7 @@ public class Terms {
             case LocalDateTime ldt -> new JsDate(ldt);
             case LocalDate ld -> new JsDate(ld);
             case ZonedDateTime zdt -> new JsDate(zdt);
+            case OffsetDateTime odt -> new JsDate(odt);
             case byte[] bytes -> new JsUint8Array(bytes);
             default -> null;
         };
@@ -1430,6 +1439,8 @@ public class Terms {
         if (o instanceof JsString js) return js.toString();
         if (o instanceof Number n) return numberToString(n);
         if (o instanceof Boolean) return o.toString();
+        // java.time keys by its Java toString, as String(v) does (toStringCoerce)
+        if (o instanceof Temporal) return o.toString();
         if (ctx != null) {
             // Spec §7.1.18 ToPropertyKey: ToPrimitive(hint string) → ToString.
             // ordinaryToPrimitive tries toString then valueOf, throws TypeError
@@ -1527,6 +1538,11 @@ public class Terms {
             return "undefined";
         }
         if (isPrimitive(o) || o instanceof JsValue) {
+            return o.toString();
+        }
+        // java.time is host-first (see JsDate.getHostFirstSource): its own
+        // toString — Instant ISO-8601, LocalDate yyyy-MM-dd — as `'' + v` gives
+        if (o instanceof Temporal) {
             return o.toString();
         }
         // Java-native types (Map, List, raw arrays, XML Node, Date) are wrapped so

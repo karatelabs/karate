@@ -89,20 +89,17 @@ public class JsJson extends JsObject {
                 }
             }
 
-            // Use centralized StringUtils.formatJson for both compact and pretty output
-            // This ensures proper handling of JS types (undefined, JsValue wrappers)
-            // lenient=false for strict JSON (double quotes), sort=false to preserve order.
-            // A String value is the exception: formatJson passes a bare String through as
-            // already-formatted text, but here it is a JSON string and has to be quoted —
-            // the shape a root-level toJSON (Date) or replacer return lands in.
+            // StringUtils.formatJsonValue for both compact and pretty output: the
+            // root is formatted exactly as a nested value would be, so a String is
+            // a quoted JSON string (a root-level toJSON (Date) or replacer return)
+            // and a Java scalar — java.util.Date, java.time — is quoted text, not
+            // the bare toString the generic formatJson gives a non-container root.
             // §25.5.2: an unrepresentable root (undefined, a function) is JS
             // undefined, not the text "undefined" the generic formatter emits
             if (value instanceof JsUndefined || value instanceof JsFunction) {
                 return Terms.UNDEFINED;
             }
-            return value instanceof String s
-                    ? StringUtils.formatJsonString(s)
-                    : StringUtils.formatJson(value, pretty, false, false, indentStr);
+            return StringUtils.formatJsonValue(value, pretty, indentStr);
         };
     }
 

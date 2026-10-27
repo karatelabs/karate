@@ -26,11 +26,13 @@ package io.karatelabs.js;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
+import java.time.temporal.Temporal;
 import java.util.Date;
 import java.util.Locale;
 
@@ -84,7 +86,7 @@ non-sealed class JsDate extends JsObject implements JsDateValue {
     private double timeValue;
 
     /**
-     * Original Java date object (Date / Instant / LocalDate / LocalDateTime / ZonedDateTime)
+     * Original Java date object (Date / Instant / LocalDate / LocalDateTime / ZonedDateTime / OffsetDateTime)
      * preserved when this JsDate was constructed from a Java host value. Enables:
      * <ul>
      *   <li>Method fall-through: {@code zdt.format(formatter)} routes to the
@@ -92,8 +94,8 @@ non-sealed class JsDate extends JsObject implements JsDateValue {
      *   <li>Round-trip: {@code engine.put(zdt) → engine.get()} returns the
      *       same {@code ZonedDateTime}, not a derived {@code Date}.</li>
      * </ul>
-     * Cleared when the JsDate is mutated (setTime, setHours, etc.) since the
-     * source no longer matches the current time value.
+     * A mutation (setTime, setHours, etc.) writes through to a java.util.Date
+     * source and is refused for an immutable java.time one; see setTimeValue.
      */
     private Object javaSource;
 
@@ -129,23 +131,38 @@ non-sealed class JsDate extends JsObject implements JsDateValue {
     }
 
     JsDate(Instant instant) {
-        this(instant == null ? Double.NaN : (double) instant.toEpochMilli());
+        this(instant == null ? Double.NaN : epochMs(instant));
         this.javaSource = instant;
     }
 
     JsDate(LocalDateTime ldt) {
-        this(ldt == null ? Double.NaN : (double) ldt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+        this(ldt == null ? Double.NaN : epochMs(ldt.atZone(ZoneId.systemDefault()).toInstant()));
         this.javaSource = ldt;
     }
 
     JsDate(LocalDate ld) {
-        this(ld == null ? Double.NaN : (double) ld.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli());
+        this(ld == null ? Double.NaN : epochMs(ld.atStartOfDay(ZoneId.systemDefault()).toInstant()));
         this.javaSource = ld;
     }
 
     JsDate(ZonedDateTime zdt) {
-        this(zdt == null ? Double.NaN : (double) zdt.toInstant().toEpochMilli());
+        this(zdt == null ? Double.NaN : epochMs(zdt.toInstant()));
         this.javaSource = zdt;
+    }
+
+    JsDate(OffsetDateTime odt) {
+        this(odt == null ? Double.NaN : epochMs(odt.toInstant()));
+        this.javaSource = odt;
+    }
+
+    /** Epoch ms, or NaN (Invalid Date) past what a long holds — Instant.MAX would
+     *  otherwise leak an ArithmeticException; TimeClip rejects the rest of the range. */
+    private static double epochMs(Instant instant) {
+        try {
+            return instant.toEpochMilli();
+        } catch (ArithmeticException e) {
+            return Double.NaN;
+        }
     }
 
     JsDate(String text) {
@@ -153,29 +170,56 @@ non-sealed class JsDate extends JsObject implements JsDateValue {
     }
 
     boolean isInvalid() {
-        return Double.isNaN(timeValue);
+        return Double.isNaN(getTimeValue());
     }
 
-    /** [[DateValue]] in ms (UTC). NaN if Invalid Date. */
+    /** [[DateValue]] in ms (UTC). NaN if Invalid Date. A view of a java.util.Date
+     *  reads the Date itself, so every view of it sees a write made through any one. */
     double getTimeValue() {
-        return timeValue;
+        return javaSource instanceof Date d ? timeClip(d.getTime()) : timeValue;
     }
 
     /** Convenience: long value of the timestamp. Caller is expected to check {@link #isInvalid()} first. */
     long getTime() {
-        return (long) timeValue;
+        return (long) getTimeValue();
     }
 
     void setTimeValue(double v) {
-        this.timeValue = timeClip(v);
-        // Mutation invalidates the original Java source — the source no longer
-        // corresponds to this date's current time value.
-        this.javaSource = null;
+        // A JsDate over a Java value is a view built per access (Terms.toJsValue),
+        // so a write that stayed on the view would be silently lost. java.time
+        // values are immutable: refuse rather than drop the write. A java.util.Date
+        // is mutable and is the JS Date's own Java mirror: write through, so
+        // `d.setHours(0)` on a Date from Java code changes that Date.
+        if (javaSource instanceof Temporal) {
+            throw JsErrorException.typeError("cannot modify an immutable "
+                    + javaSource.getClass().getName() + " - use its Java methods, e.g. plusDays() or withYear()");
+        }
+        double clipped = timeClip(v);
+        if (javaSource instanceof Date d) {
+            if (Double.isNaN(clipped)) {
+                throw JsErrorException.typeError("cannot set a java.util.Date to Invalid Date");
+            }
+            d.setTime((long) clipped);
+        }
+        this.timeValue = clipped;
     }
 
     /**
-     * Returns the original Java date object this JsDate was constructed from,
-     * or {@code null} if it wasn't (or has been mutated). Used by the property-
+     * The original java.time value when this JsDate is a view of one, else null.
+     * Such a value is a Java object first: a member name Java defines resolves to
+     * the Java member (Instant.toString is ISO-8601, LocalDate.getYear is the
+     * year), and only names Java lacks fall through to Date.prototype. A
+     * java.util.Date source is not host-first — it is the JS Date's own Java
+     * mirror (what getJavaValue returns for a JS-created date), and its legacy
+     * getters already agree with the JS ones.
+     */
+    Temporal getHostFirstSource() {
+        return javaSource instanceof Temporal t ? t : null;
+    }
+
+    /**
+     * Returns the original Java date object this JsDate is a view of, or
+     * {@code null} for a JS-created date. Used by the property-
      * access fall-through path so Java methods on the original type (e.g.
      * {@code ZonedDateTime.format}) remain callable.
      */
@@ -189,14 +233,14 @@ non-sealed class JsDate extends JsObject implements JsDateValue {
         if (isInvalid()) {
             return "Invalid Date";
         }
-        ZonedDateTime z = ZonedDateTime.ofInstant(Instant.ofEpochMilli((long) timeValue), ZoneId.systemDefault());
+        ZonedDateTime z = ZonedDateTime.ofInstant(Instant.ofEpochMilli(getTime()), ZoneId.systemDefault());
         // Format manually to honour the spec's negative-year padding (-0001 not 0001 BC).
         String dayName = z.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
         String monthName = z.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
         return String.format(Locale.ROOT, "%s %s %02d %s %02d:%02d:%02d %s",
                 dayName, monthName, z.getDayOfMonth(), formatYear4(z.getYear()),
                 z.getHour(), z.getMinute(), z.getSecond(),
-                formatGmtOffset((int) (localTzaMs((long) timeValue) / 1000L)));
+                formatGmtOffset((int) (localTzaMs(getTime()) / 1000L)));
     }
 
     @Override
@@ -204,13 +248,13 @@ non-sealed class JsDate extends JsObject implements JsDateValue {
         if (isInvalid()) {
             return null;
         }
-        // Round-trip preservation: if this JsDate wraps an Instant / LocalDate /
-        // LocalDateTime / ZonedDateTime / Date that hasn't been mutated, return
-        // the original so put-then-get yields the same Java type the caller put.
+        // Round-trip preservation: a view of a Java date returns the original (a
+        // java.util.Date carries any write made through the view), so put-then-get
+        // yields the same Java object the caller put.
         if (javaSource != null) {
             return javaSource;
         }
-        return new Date((long) timeValue);
+        return new Date(getTime());
     }
 
     @Override
@@ -218,7 +262,7 @@ non-sealed class JsDate extends JsObject implements JsDateValue {
         if (isInvalid()) {
             return Double.NaN;
         }
-        return (long) timeValue;
+        return getTime();
     }
 
     // ---------- spec helpers ----------

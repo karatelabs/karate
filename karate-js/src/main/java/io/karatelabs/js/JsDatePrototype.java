@@ -130,6 +130,11 @@ class JsDatePrototype extends Prototype {
         if (thisObj instanceof JsDate d) {
             return d;
         }
+        // A raw Java date as `this` — `jud['getTime']()` or `getTime.call(jud)`
+        // reach here without the dot-call path's receiver wrap; same view.
+        if (Terms.toJsValue(thisObj) instanceof JsDate d) {
+            return d;
+        }
         throw JsErrorException.typeError("this is not a Date object");
     }
 
@@ -147,6 +152,17 @@ class JsDatePrototype extends Prototype {
 
     private static ZonedDateTime utcZdt(JsDate d) {
         return ZonedDateTime.ofInstant(Instant.ofEpochMilli(d.getTime()), ZoneOffset.UTC);
+    }
+
+    // Setters decompose the time value captured before argument coercion (spec
+    // `Let t be thisTimeValue`), never a re-read: a view of a java.util.Date reads
+    // the Date live, and an argument's valueOf may have written to it meanwhile.
+    private static ZonedDateTime localZdt(double t) {
+        return ZonedDateTime.ofInstant(Instant.ofEpochMilli((long) t), ZoneId.systemDefault());
+    }
+
+    private static ZonedDateTime utcZdt(double t) {
+        return ZonedDateTime.ofInstant(Instant.ofEpochMilli((long) t), ZoneOffset.UTC);
     }
 
     // ---------- getters ----------
@@ -412,7 +428,7 @@ class JsDatePrototype extends Prototype {
         if (c == null) return Double.NaN;
         if (Double.isNaN(t)) return Double.NaN;
         double local = JsDate.utcToLocal(t);
-        ZonedDateTime z = localZdt(d);
+        ZonedDateTime z = localZdt(t);
         double time = JsDate.makeTime(z.getHour(), z.getMinute(), z.getSecond(), c[0]);
         double newLocal = JsDate.makeDate(Math.floor(local / JsDate.MS_PER_DAY), time);
         d.setTimeValue(JsDate.localToUtc(newLocal));
@@ -427,7 +443,7 @@ class JsDatePrototype extends Prototype {
         double[] c = coerceArgs(args, n, cc(context));
         if (c == null) return Double.NaN;
         if (Double.isNaN(t)) return Double.NaN;
-        ZonedDateTime z = localZdt(d);
+        ZonedDateTime z = localZdt(t);
         double local = JsDate.utcToLocal(t);
         double useMs = (n > 1) ? c[1] : Math.floorMod((long) t, 1000L);
         double time = JsDate.makeTime(z.getHour(), z.getMinute(), c[0], useMs);
@@ -444,7 +460,7 @@ class JsDatePrototype extends Prototype {
         double[] c = coerceArgs(args, n, cc(context));
         if (c == null) return Double.NaN;
         if (Double.isNaN(t)) return Double.NaN;
-        ZonedDateTime z = localZdt(d);
+        ZonedDateTime z = localZdt(t);
         double local = JsDate.utcToLocal(t);
         double useS = (n > 1) ? c[1] : z.getSecond();
         double useMs = (n > 2) ? c[2] : Math.floorMod((long) t, 1000L);
@@ -462,7 +478,7 @@ class JsDatePrototype extends Prototype {
         double[] c = coerceArgs(args, n, cc(context));
         if (c == null) return Double.NaN;
         if (Double.isNaN(t)) return Double.NaN;
-        ZonedDateTime z = localZdt(d);
+        ZonedDateTime z = localZdt(t);
         double local = JsDate.utcToLocal(t);
         double useM = (n > 1) ? c[1] : z.getMinute();
         double useS = (n > 2) ? c[2] : z.getSecond();
@@ -479,7 +495,7 @@ class JsDatePrototype extends Prototype {
         double[] c = coerceArgs(args, 1, cc(context));
         if (c == null) return Double.NaN;
         if (Double.isNaN(t)) return Double.NaN;
-        ZonedDateTime z = localZdt(d);
+        ZonedDateTime z = localZdt(t);
         double local = JsDate.utcToLocal(t);
         double timeOfDay = local - Math.floor(local / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
         double day = JsDate.makeDay(z.getYear(), z.getMonthValue() - 1, c[0]);
@@ -496,7 +512,7 @@ class JsDatePrototype extends Prototype {
         double[] c = coerceArgs(args, n, cc(context));
         if (c == null) return Double.NaN;
         if (Double.isNaN(t)) return Double.NaN;
-        ZonedDateTime z = localZdt(d);
+        ZonedDateTime z = localZdt(t);
         double local = JsDate.utcToLocal(t);
         double timeOfDay = local - Math.floor(local / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
         double useDt = (n > 1) ? c[1] : z.getDayOfMonth();
@@ -520,7 +536,7 @@ class JsDatePrototype extends Prototype {
             z = ZonedDateTime.ofInstant(Instant.EPOCH, ZoneId.systemDefault());
             timeOfDay = 0;
         } else {
-            z = localZdt(d);
+            z = localZdt(t);
             double local = JsDate.utcToLocal(t);
             timeOfDay = local - Math.floor(local / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
         }
@@ -553,7 +569,7 @@ class JsDatePrototype extends Prototype {
             z = ZonedDateTime.ofInstant(Instant.EPOCH, ZoneId.systemDefault());
             timeOfDay = 0;
         } else {
-            z = localZdt(d);
+            z = localZdt(t);
             double local = JsDate.utcToLocal(t);
             timeOfDay = local - Math.floor(local / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
         }
@@ -571,7 +587,7 @@ class JsDatePrototype extends Prototype {
         double[] c = coerceArgs(args, 1, cc(context));
         if (c == null) return Double.NaN;
         if (Double.isNaN(t)) return Double.NaN;
-        ZonedDateTime z = utcZdt(d);
+        ZonedDateTime z = utcZdt(t);
         double time = JsDate.makeTime(z.getHour(), z.getMinute(), z.getSecond(), c[0]);
         double v = JsDate.makeDate(Math.floor(t / JsDate.MS_PER_DAY), time);
         d.setTimeValue(v);
@@ -586,7 +602,7 @@ class JsDatePrototype extends Prototype {
         double[] c = coerceArgs(args, n, cc(context));
         if (c == null) return Double.NaN;
         if (Double.isNaN(t)) return Double.NaN;
-        ZonedDateTime z = utcZdt(d);
+        ZonedDateTime z = utcZdt(t);
         double useMs = (n > 1) ? c[1] : Math.floorMod((long) t, 1000L);
         double time = JsDate.makeTime(z.getHour(), z.getMinute(), c[0], useMs);
         double v = JsDate.makeDate(Math.floor(t / JsDate.MS_PER_DAY), time);
@@ -602,7 +618,7 @@ class JsDatePrototype extends Prototype {
         double[] c = coerceArgs(args, n, cc(context));
         if (c == null) return Double.NaN;
         if (Double.isNaN(t)) return Double.NaN;
-        ZonedDateTime z = utcZdt(d);
+        ZonedDateTime z = utcZdt(t);
         double useS = (n > 1) ? c[1] : z.getSecond();
         double useMs = (n > 2) ? c[2] : Math.floorMod((long) t, 1000L);
         double time = JsDate.makeTime(z.getHour(), c[0], useS, useMs);
@@ -619,7 +635,7 @@ class JsDatePrototype extends Prototype {
         double[] c = coerceArgs(args, n, cc(context));
         if (c == null) return Double.NaN;
         if (Double.isNaN(t)) return Double.NaN;
-        ZonedDateTime z = utcZdt(d);
+        ZonedDateTime z = utcZdt(t);
         double useM = (n > 1) ? c[1] : z.getMinute();
         double useS = (n > 2) ? c[2] : z.getSecond();
         double useMs = (n > 3) ? c[3] : Math.floorMod((long) t, 1000L);
@@ -635,7 +651,7 @@ class JsDatePrototype extends Prototype {
         double[] c = coerceArgs(args, 1, cc(context));
         if (c == null) return Double.NaN;
         if (Double.isNaN(t)) return Double.NaN;
-        ZonedDateTime z = utcZdt(d);
+        ZonedDateTime z = utcZdt(t);
         double timeOfDay = t - Math.floor(t / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
         double day = JsDate.makeDay(z.getYear(), z.getMonthValue() - 1, c[0]);
         double v = JsDate.makeDate(day, timeOfDay);
@@ -651,7 +667,7 @@ class JsDatePrototype extends Prototype {
         double[] c = coerceArgs(args, n, cc(context));
         if (c == null) return Double.NaN;
         if (Double.isNaN(t)) return Double.NaN;
-        ZonedDateTime z = utcZdt(d);
+        ZonedDateTime z = utcZdt(t);
         double timeOfDay = t - Math.floor(t / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
         double useDt = (n > 1) ? c[1] : z.getDayOfMonth();
         double day = JsDate.makeDay(z.getYear(), c[0], useDt);
@@ -673,7 +689,7 @@ class JsDatePrototype extends Prototype {
             z = ZonedDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC);
             timeOfDay = 0;
         } else {
-            z = utcZdt(d);
+            z = utcZdt(t);
             timeOfDay = t - Math.floor(t / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
         }
         double useMo = (n > 1) ? c[1] : (z.getMonthValue() - 1);

@@ -74,6 +74,11 @@ final class JsStructuredClone {
         if (value instanceof JsDate d) {
             return remember(memo, value, new JsDate(d.getTimeValue()));
         }
+        // a java.util.Date is mutable (a JS setter writes through to it), so its clone
+        // must be a new Date; java.time is immutable and passes through as itself
+        if (value instanceof java.util.Date jd) {
+            return remember(memo, value, new JsDate(jd.getTime()));
+        }
         if (value instanceof JsRegex r) {
             return remember(memo, value, new JsRegex(r.pattern, r.flags));
         }
