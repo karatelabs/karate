@@ -35,6 +35,14 @@ class JsArrayTest extends EvalBase {
     }
 
     @Test
+    void testToStringCallsThisJoin() {
+        assertEquals("J", eval("var a = [1, 2]; a.join = function() { return 'J' }; String(a)"));
+        assertEquals("X", eval("Array.prototype.toString.call({ join: function() { return 'X' } })"));
+        assertEquals("[object Object]", eval("Array.prototype.toString.call({})"));
+        assertEquals("[object Object]", eval("Array.prototype.toString.call({ join: 1 })"));
+    }
+
+    @Test
     void testBuiltinPrototypeExtensionVisibleToInstances() {
         // Spec: built-in prototype methods are configurable: true / writable: true.
         // Adding a method to Array.prototype must be visible on every array instance

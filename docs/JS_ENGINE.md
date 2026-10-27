@@ -376,13 +376,29 @@ which":
 | `BYTES` | `byte[]` | `JsUint8Array` |
 
 `kind()` never allocates; a caller builds the mirror only when it needs one.
-The coercion sites (`objectToNumber`, `toStringCoerce`, `toPropertyKey`,
-`concatOperand`), `Object.prototype.toString`'s tag, iteration,
-`JavaUtils.convertIfArray`, `structuredClone`, `new Date(x)` and
-`Date.prototype`'s receiver check all classify through it; each still decides
-its own answer for a kind (they do not all agree yet — `'' + list` is the
-Java form, `String(list)` the JS one). Other `java.time` types (`LocalTime`,
-`Year`, …) are `NONE`: plain host objects.
+The coercion sites, `instanceof`, `Array.isArray`, `Object.prototype.toString`'s
+tag, iteration, `JavaUtils.convertIfArray`, `structuredClone`, `new Date(x)` and
+`Date.prototype`'s receiver check all classify through it. Other `java.time`
+types (`LocalTime`, `Year`, …) are `NONE`: plain host objects.
+
+**A raw host value coerces as its mirror.** The operator gates (`add`,
+`toNumericOperand`, `looseEq`, `isLessThan`, `ArraySetLength`) treat
+`Terms.isObjectOperand` — an `ObjectLike`, or a `kind()` other than `NONE`,
+tested after the primitive fast paths — as an object and ToPrimitive it,
+building the mirror once:
+
+| kind | ToPrimitive | `instanceof` / `Array.isArray` |
+|---|---|---|
+| `UTIL_DATE` | as a JS Date: default hint → string (`jud + 1` concatenates, `jud == 0` is false, `jud - 0` is epoch ms) | `Date` true |
+| `TEMPORAL` (raw or a retained view) | `HostMirror.temporalToPrimitive`: a JS Date's `@@toPrimitive` with the Java `toString` — string / default → Java `toString` (`'' + ld` → `2026-10-26`, `ld == '2026-10-26'`, `i + 1` concatenates), number → epoch ms (`ld - ld2`, `ld < ld2`, `+ld`) | `Date` false |
+| `LIST`, `JAVA_ARRAY` | `Array.prototype.toString` on the view (`'' + list` → `1,2`, `[5]`-shaped `list - 1` → 4, `list == '1,2'`) | `Array` true / true |
+| `BYTES` | as a `Uint8Array`: join of unsigned values (`'' + bytes` → `1,255`) | `Uint8Array` true / false |
+
+Only object-vs-primitive
+`==` changes: two host values, or a host value and a JS object, compare as
+before. A bracket key without a context (`PropertyAccess`) uses
+`HostMirror.jsString`, the mirror's built-in `toString` result. Map, POJO and
+XML Node are not mirrored and coerce as before.
 
 The `JsDate` a `java.time` value converts to is a view, not a replacement:
 Java members on it win — see
@@ -478,13 +494,15 @@ answers are wrong for a Java caller: Annex B `getYear()` is year − 1900 and
 the surface agrees with the same rule: ToString (`String(v)`, template
 literals, `'' + v`) is the Java `toString`, ToNumber is epoch ms (so
 `b - a` and `a < b` compare instants), and `JSON.stringify` emits the quoted
-Java `toString` at the root as when nested.
+Java `toString` at the root as when nested — for a raw value and a retained
+`JsDateView` alike (see the coercion table above). It is not `instanceof Date`.
 
 **`java.util.Date` (and `java.sql.Date` / `Timestamp`) stays JS-first.** It is
 the JS Date's own Java mirror — `JsDate.getJavaValue()` of a JS-created date —
 so a date that crosses into Java and back must still behave as the JS Date it
-was. Its deprecated getters agree with the JS ones anyway, and its string
-forms (`String(d)`, `'' + d`) are the JS `toString`.
+was. Its deprecated getters agree with the JS ones anyway, its string
+forms (`String(d)`, `'' + d`, a property key) are the JS `toString`, it
+coerces like a JS Date, and it is `instanceof Date`.
 
 **A `JsDate` over a Java value is a per-access view, so writes need a rule.**
 That view is `JsDateView extends JsDate`, the only class holding a Java

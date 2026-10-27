@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -586,6 +587,105 @@ class ExternalBridgeTest extends EvalBase {
         assertEquals("2026-10-26T21:19:40.123Z", engine.eval("new Date(odt).toISOString()"));
         assertEquals("2026-10-26T21:19:40.123Z", engine.eval("odt.toString()"));
         assertEquals(1793049580123L, engine.eval("odt.getTime()"));
+    }
+
+    @Test
+    void testJavaTimeCoercionIsTheSameForARetainedView() {
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("i", Instant.EPOCH);
+        engine.put("ld", LocalDate.of(2026, 10, 26));
+        engine.put("ld2", LocalDate.of(2026, 10, 27));
+        engine.eval("Date.prototype.self = function() { return this }; var vi = i.self(); var v = ld.self()");
+        // default hint is the Java toString, as a JS Date's is its toString
+        assertEquals("1970-01-01T00:00:00Z1", engine.eval("i + 1"));
+        assertEquals("1970-01-01T00:00:00Z1", engine.eval("vi + 1"));
+        assertEquals("1970-01-01T00:00:00Z", engine.eval("'' + vi"));
+        assertEquals(true, engine.eval("ld == '2026-10-26'"));
+        assertEquals(true, engine.eval("v == '2026-10-26'"));
+        assertEquals(false, engine.eval("i == 0"));
+        assertEquals("2026-10-26", engine.eval("String(v)"));
+        assertEquals("2026-10-26", engine.eval("`${v}`"));
+        // number hint is epoch ms
+        assertEquals(-86400000, engine.eval("v - ld2"));
+        assertEquals(true, engine.eval("v < ld2"));
+        assertEquals(0, engine.eval("+i"));
+        assertEquals(0, engine.eval("Number(vi)"));
+        assertEquals(1, engine.eval("var o = {}; o[v] = 1; o['2026-10-26']"));
+        assertEquals(1, engine.eval("var o = {'2026-10-26': 1}; o[ld]"));
+    }
+
+    @Test
+    void testJavaUtilDateCoercesAsAJsDate() {
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("jud", new Date(0));
+        engine.put("jud2", new Date(1000));
+        String js = (String) engine.eval("String(new Date(0))");
+        // default hint is string, as for a JS Date
+        assertEquals(js + "1", engine.eval("jud + 1"));
+        assertEquals(false, engine.eval("jud == 0"));
+        assertEquals(true, engine.eval("jud == String(new Date(0))"));
+        assertEquals(true, engine.eval("jud - 0 === 0"));
+        assertEquals(true, engine.eval("jud < jud2"));
+        assertEquals(js, engine.eval("'' + jud"));
+        assertEquals(js, engine.eval("String(jud)"));
+        engine.put("key", js);
+        assertEquals(1, engine.eval("var o = {}; o[jud] = 1; o[key]"));
+        assertEquals(2, engine.eval("var o = {}; o[key] = 2; o[jud]"));
+        // two Java dates still compare as objects
+        assertEquals(false, engine.eval("jud == jud2"));
+    }
+
+    @Test
+    void testJavaListAndArrayCoerceAsAJsArray() {
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("list", new ArrayList<>(List.of(1, 2)));
+        engine.put("l5", new ArrayList<>(List.of(5)));
+        engine.put("sarr", new String[]{"a", "b"});
+        engine.put("iarr", new int[]{5});
+        engine.put("bytes", new byte[]{1, (byte) 255});
+        assertEquals("1,2", engine.eval("'' + list"));
+        assertEquals("1,2", engine.eval("String(list)"));
+        assertEquals(4, engine.eval("l5 - 1"));
+        assertEquals(true, engine.eval("list == '1,2'"));
+        assertEquals(true, engine.eval("l5 > 4"));
+        assertEquals(1, engine.eval("var o = {}; o[list] = 1; o['1,2']"));
+        assertEquals("a,b", engine.eval("'' + sarr"));
+        assertEquals(4, engine.eval("iarr - 1"));
+        assertEquals("a,b", engine.eval("var o = {}; o[sarr] = 1; Object.keys(o)[0]"));
+        // byte[] is a Uint8Array: unsigned values
+        assertEquals("1,255", engine.eval("'' + bytes"));
+        assertEquals("1,255", engine.eval("var o = {}; o[bytes] = 1; Object.keys(o)[0]"));
+        // through Array.prototype.toString, so a patched join is honored
+        assertEquals("J", engine.eval("Array.prototype.join = function() { return 'J' }; '' + list"));
+    }
+
+    @Test
+    void testHostValuesAnswerInstanceofAndIsArrayAsTheirMirror() {
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("jud", new java.sql.Timestamp(0));
+        engine.put("i", Instant.EPOCH);
+        engine.put("ld", LocalDate.of(2026, 10, 26));
+        engine.put("list", List.of(1));
+        engine.put("sarr", new String[]{"a"});
+        engine.put("bytes", new byte[]{1});
+        engine.put("u8", new JsUint8Array(new byte[]{1}));
+        assertEquals(true, engine.eval("jud instanceof Date"));
+        assertEquals(false, engine.eval("i instanceof Date"));
+        assertEquals(false, engine.eval("ld instanceof Date"));
+        assertEquals(true, engine.eval("list instanceof Array && Array.isArray(list)"));
+        assertEquals(true, engine.eval("sarr instanceof Array && Array.isArray(sarr)"));
+        assertEquals(true, engine.eval("bytes instanceof Uint8Array && u8 instanceof Uint8Array"));
+        assertEquals(false, engine.eval("Array.isArray(bytes)"));
+        assertEquals(false, engine.eval("Array.isArray(u8)"));
+        assertEquals(false, engine.eval("[] instanceof Uint8Array"));
+        assertEquals(false, engine.eval("bytes instanceof Array || u8 instanceof Array"));
+        assertEquals(false, engine.eval("list instanceof Date"));
+        // a Java type on the right is not a JS constructor: false, not a TypeError
+        assertEquals(false, engine.eval("list instanceof Java.type('java.util.ArrayList')"));
     }
 
     @Test

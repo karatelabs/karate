@@ -99,7 +99,12 @@ class JsArrayConstructor extends JsFunction {
     }
 
     private Object isArray(Object[] args) {
-        return args.length > 0 && args[0] instanceof List;
+        if (args.length == 0) {
+            return false;
+        }
+        // a Uint8Array is a typed array, not an Array
+        Object o = args[0];
+        return o instanceof List ? !(o instanceof JsUint8Array) : HostMirror.kind(o) == HostMirror.Kind.JAVA_ARRAY;
     }
 
     private Object of(Object[] args) {

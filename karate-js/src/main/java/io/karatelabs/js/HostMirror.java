@@ -31,10 +31,12 @@ import java.time.ZonedDateTime;
 import java.time.temporal.Temporal;
 import java.util.Date;
 import java.util.List;
+import java.util.StringJoiner;
 
 /**
  * The one classifier for raw Java values that have a JS mirror: which mirror
- * (JsDateView / JsArray / JsUint8Array) and whether lookup on it is host-first.
+ * (JsDateView / JsArray / JsUint8Array), whether lookup on it is host-first, and
+ * java.time's coercion policy.
  * Classification never allocates; a caller builds the mirror only when it needs one.
  * Classification is by Java type alone — callers test JsValue / ObjectLike first
  * where that matters (a JsArray is also a List).
@@ -105,6 +107,34 @@ final class HostMirror {
     /** [[DateValue]] of a raw Java date ({@link #isDate}), without building a view. */
     static double timeValue(Object raw) {
         return JsDateView.timeValueOf(raw);
+    }
+
+    /**
+     * ToPrimitive of a java.time value, raw or viewed: a JS Date's @@toPrimitive
+     * with the Java toString in place of Date.prototype.toString — epoch ms (NaN
+     * past a long) for the number hint, the Java toString for string and default.
+     */
+    static Object temporalToPrimitive(Temporal t, String hint) {
+        return "number".equals(hint) ? Terms.narrow(timeValue(t)) : t.toString();
+    }
+
+    /**
+     * ToString of a raw host value ({@link #kind} not NONE) where no context can
+     * run JS, e.g. a bracket key: what the mirror's built-in toString gives.
+     */
+    static String jsString(Object raw) {
+        switch (kind(raw)) {
+            case UTIL_DATE:
+                return new JsDate(timeValue(raw)).toString();
+            case LIST, JAVA_ARRAY, BYTES:
+                StringJoiner sj = new StringJoiner(",");
+                for (Object v : ((JsArray) Terms.toObjectLike(raw)).toList()) {
+                    sj.add(v == null || v == Terms.UNDEFINED ? "" : Terms.toPropertyKey(v));
+                }
+                return sj.toString();
+            default:
+                return String.valueOf(raw);
+        }
     }
 
 }

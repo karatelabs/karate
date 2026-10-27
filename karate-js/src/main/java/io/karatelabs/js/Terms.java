@@ -31,6 +31,7 @@ import java.lang.reflect.Array;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.time.ZonedDateTime;
+import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -533,6 +534,20 @@ public class Terms {
             if (context != null && context.isError()) {
                 return false;
             }
+        } else if (isObjectOperand(lhs)) {
+            // a raw host value is an object only against a primitive; two host
+            // values compare as Java objects in eq
+            if (isPrimitiveOperand(rhs)) {
+                lhs = toPrimitive(lhs, "default", context);
+                if (context != null && context.isError()) {
+                    return false;
+                }
+            }
+        } else if (isObjectOperand(rhs) && isPrimitiveOperand(lhs)) {
+            rhs = toPrimitive(rhs, "default", context);
+            if (context != null && context.isError()) {
+                return false;
+            }
         }
         if (isNotANumber(lhs) || isNotANumber(rhs)) {
             return false;
@@ -568,7 +583,7 @@ public class Terms {
             }
             return a < b ? 1 : 0;
         }
-        if (lhs instanceof ObjectLike || rhs instanceof ObjectLike) {
+        if (isObjectOperand(lhs) || isObjectOperand(rhs)) {
             if (leftFirst) {
                 lhs = toPrimitive(lhs, "number", context);
                 if (context != null && context.isError()) {
@@ -638,7 +653,22 @@ public class Terms {
     }
 
     /**
-     * Spec ToNumeric for a numeric-operator operand: an ObjectLike routes
+     * An operand ToPrimitive applies to: an ObjectLike, or a raw host value with a
+     * JS mirror ({@link HostMirror#kind}). Primitives answer before the classifier runs.
+     */
+    static boolean isObjectOperand(Object o) {
+        if (o instanceof String || o instanceof Number || o instanceof Boolean) {
+            return false;
+        }
+        return o instanceof ObjectLike || HostMirror.kind(o) != HostMirror.Kind.NONE;
+    }
+
+    private static boolean isPrimitiveOperand(Object o) {
+        return o instanceof String || o instanceof Number || o instanceof Boolean;
+    }
+
+    /**
+     * Spec ToNumeric for a numeric-operator operand: an {@link #isObjectOperand} routes
      * through {@code @@toPrimitive} / {@code valueOf} / {@code toString} with
      * the live ctx — an abrupt completion in those surfaces via
      * {@code context.isError()}, and callers must check and bail with
@@ -646,7 +676,7 @@ public class Terms {
      * keeps the {@link #objectToNumber} fast path untouched.
      */
     private static Number toNumericOperand(Object o, CoreContext context) {
-        if (o instanceof ObjectLike) {
+        if (isObjectOperand(o)) {
             Object prim = toPrimitive(o, "number", context);
             if (context != null && context.isError()) {
                 return Double.NaN;
@@ -819,13 +849,13 @@ public class Terms {
 
     static Object add(Object lhs, Object rhs, CoreContext context) {
         // Spec evaluation of binary +: ToPrimitive both operands first (default hint),
-        // then string-or-number dispatch on the *primitives*. ObjectLike on either side
+        // then string-or-number dispatch on the *primitives*. An object on either side
         // is the rare case — primitives short-circuit through the existing fast path.
-        if (lhs instanceof ObjectLike) {
+        if (isObjectOperand(lhs)) {
             lhs = toPrimitive(lhs, "default", context);
             if (context != null && context.isError()) return UNDEFINED;
         }
-        if (rhs instanceof ObjectLike) {
+        if (isObjectOperand(rhs)) {
             rhs = toPrimitive(rhs, "default", context);
             if (context != null && context.isError()) return UNDEFINED;
         }
@@ -1216,35 +1246,46 @@ public class Terms {
     }
 
     static boolean instanceOf(Object lhs, Object rhs) {
-        // Handle built-in constructors by class comparison
-        // JsArray doesn't extend JsObject, so handle it first
-        if (rhs instanceof JsArray && lhs instanceof JsArray) {
+        // Function.prototype is callable per spec, though not a JsCallable here
+        if (!(rhs instanceof JsCallable) && rhs != JsFunctionPrototype.INSTANCE) {
+            // a Java type is not a JS constructor, but it is not a JS value either
+            if (rhs instanceof ExternalAccess) {
+                return false;
+            }
+            throw JsErrorException.typeError("Right-hand side of 'instanceof' is not callable");
+        }
+        if (!(lhs instanceof ObjectLike)) {
+            HostMirror.Kind k = HostMirror.kind(lhs);
+            if (k == HostMirror.Kind.NONE || k == HostMirror.Kind.TEMPORAL) {
+                return false;
+            }
+            lhs = toObjectLike(lhs);
+        }
+        // Uint8Array / TextEncoder / TextDecoder: globals that are instances
+        // standing in for their constructor
+        if (!(rhs instanceof JsFunction) && lhs.getClass() == rhs.getClass()) {
             return true;
         }
-        // For built-in types that implement JsCallable but aren't JsFunction
-        // (JsRegex, JsDate — registered globals that double as instances).
-        // Same-class comparison covers `new RegExp() instanceof RegExp` etc.
-        // Error types no longer hit this — JsErrorConstructor IS a JsFunction
-        // and instances walk the prototype chain at the bottom of this method.
-        if (rhs instanceof JsCallable && !(rhs instanceof JsFunction)) {
-            if (lhs != null && lhs.getClass().equals(rhs.getClass())) {
+        // a typed array borrows Array.prototype's methods (there is no
+        // %TypedArray%.prototype chain yet) but is not an Array
+        if (lhs instanceof JsUint8Array && rhs instanceof JsArrayConstructor) {
+            return false;
+        }
+        if (!(rhs instanceof ObjectLike objectRhs)) {
+            return false;
+        }
+        Object target = objectRhs.getMember("prototype");
+        // null is also what an accessor slot reads as here: left as no match
+        if (target != null && !(target instanceof ObjectLike)) {
+            throw JsErrorException.typeError("Function has non-object prototype '"
+                    + toPropertyKey(target) + "' in instanceof check");
+        }
+        ObjectLike current = ((ObjectLike) lhs).getPrototype();
+        while (current != null) {
+            if (current == target) {
                 return true;
             }
-        }
-        // JsValue: same class means same type
-        if (lhs instanceof JsValue && rhs instanceof JsValue) {
-            return lhs.getClass().equals(rhs.getClass());
-        }
-        // Walk prototype chain for any ObjectLike (JsObject, JsArray, JsString, etc.)
-        if (lhs instanceof ObjectLike objectLhs && rhs instanceof ObjectLike objectRhs) {
-            Object target = objectRhs.getMember("prototype");
-            ObjectLike current = objectLhs.getPrototype();
-            while (current != null) {
-                if (current == target) {
-                    return true;
-                }
-                current = current.getPrototype();
-            }
+            current = current.getPrototype();
         }
         return false;
     }
@@ -1333,6 +1374,10 @@ public class Terms {
         }
         if (value instanceof BigInteger || isPrimitive(value)) {
             return value;
+        }
+        Temporal t = HostMirror.hostFirstSource(value);
+        if (t != null) {
+            return HostMirror.temporalToPrimitive(t, hint);
         }
         // ObjectLike (or Java-native types we wrap): run OrdinaryToPrimitive.
         ObjectLike ol = (value instanceof ObjectLike) ? (ObjectLike) value : toObjectLike(value);
@@ -1436,7 +1481,8 @@ public class Terms {
         if (o instanceof Number n) return numberToString(n);
         if (o instanceof Boolean) return o.toString();
         // java.time keys by its Java toString, as String(v) does (toStringCoerce)
-        if (HostMirror.kind(o) == HostMirror.Kind.TEMPORAL) return o.toString();
+        Temporal t = HostMirror.hostFirstSource(o);
+        if (t != null) return t.toString();
         if (ctx != null) {
             // Spec §7.1.18 ToPropertyKey: ToPrimitive(hint string) → ToString.
             // ordinaryToPrimitive tries toString then valueOf, throws TypeError
@@ -1446,6 +1492,8 @@ public class Terms {
             Object prim = toPrimitive(o, "string", ctx);
             if (ctx.isError()) return "";
             if (prim != o) return toPropertyKey(prim, ctx);
+        } else if (!(o instanceof ObjectLike) && HostMirror.kind(o) != HostMirror.Kind.NONE) {
+            return HostMirror.jsString(o);
         }
         return o.toString();
     }
@@ -1546,12 +1594,16 @@ public class Terms {
         if (o == UNDEFINED) {
             return "undefined";
         }
-        if (isPrimitive(o) || o instanceof JsValue) {
+        if (isPrimitive(o)) {
             return o.toString();
         }
-        // java.time is host-first (HostMirror.hostFirstSource): its own
-        // toString — Instant ISO-8601, LocalDate yyyy-MM-dd — as `'' + v` gives
-        if (HostMirror.kind(o) == HostMirror.Kind.TEMPORAL) {
+        // java.time, raw or viewed, is its Java toString — Instant ISO-8601,
+        // LocalDate yyyy-MM-dd (HostMirror.temporalToPrimitive's string hint)
+        Temporal t = HostMirror.hostFirstSource(o);
+        if (t != null) {
+            return t.toString();
+        }
+        if (o instanceof JsValue) {
             return o.toString();
         }
         // Java-native types (Map, List, raw arrays, XML Node, Date) are wrapped so

@@ -600,6 +600,18 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testInstanceofNonCallableRightHandSideIsTypeError() {
+        assertEquals("TypeError: Right-hand side of 'instanceof' is not callable",
+                eval("try { new Date(0) instanceof new Date(0) } catch (e) { e.name + ': ' + e.message }"));
+        assertEquals(true, eval("try { ({}) instanceof {} } catch (e) { e instanceof TypeError }"));
+        assertEquals(true, eval("try { 1 instanceof 1 } catch (e) { e instanceof TypeError }"));
+        assertEquals(true, eval("try { 1 instanceof undefined } catch (e) { e instanceof TypeError }"));
+        // Function.prototype is callable: a primitive is simply not an instance
+        assertEquals(false, eval("0 instanceof Function.prototype"));
+        assertEquals(true, eval("var f = function() {}; f.prototype = 1; try { ({}) instanceof f } catch (e) { e instanceof TypeError }"));
+    }
+
+    @Test
     void testErrorInstanceOf() {
         // same-type: an instance is instanceof its own constructor
         assertEquals(true, eval("new Error() instanceof Error"));

@@ -38,28 +38,24 @@ import java.util.*;
  */
 class JsArrayPrototype extends Prototype {
 
-    static final JsArrayPrototype INSTANCE = new JsArrayPrototype();
-
     /**
-     * The default {@code Array.prototype.toString} — equivalent to {@code this.join(",")}.
-     * Exposed so pretty-printers (e.g. {@link JsConsole}) can detect a user-overridden
-     * {@code toString} vs the default by reference identity. Stand-alone identity
-     * (not wrapped in a JsBuiltinMethod) since identity-comparison is the contract.
+     * The default {@code Array.prototype.toString} (spec §23.1.3.36): {@code this.join()}
+     * when callable, else {@code Object.prototype.toString}. Exposed so pretty-printers
+     * (e.g. {@link JsConsole}) can detect a user-overridden {@code toString} vs the
+     * default by reference identity. Stand-alone identity (not wrapped in a
+     * JsBuiltinMethod) since identity-comparison is the contract.
      * <p>
-     * Declared AFTER {@link #INSTANCE} because the lambda references {@code INSTANCE.join}
-     * (forward-reference rules forbid the inverse). The constructor's
-     * {@code install("toString", DEFAULT_TO_STRING)} therefore stores null, which the
-     * post-construction fixup below replaces with the live lambda.
+     * Declared BEFORE {@link #INSTANCE}: the constructor installs it.
      */
-    static final JsCallable DEFAULT_TO_STRING =
-            (context, args) -> INSTANCE.join(context, new Object[0]);
+    static final JsCallable DEFAULT_TO_STRING = (context, args) -> {
+        ObjectLike array = toReceiver(context.getThisObject());
+        CoreContext cc = context instanceof CoreContext c ? c : null;
+        JsCallable fn = array.getMember("join", array, cc) instanceof JsCallable join
+                ? join : JsObjectPrototype.DEFAULT_TO_STRING;
+        return cc != null ? Interpreter.invokeGetter(fn, array, cc) : fn.call(context, new Object[0]);
+    };
 
-    // Post-static-init fixup: the constructor ran with DEFAULT_TO_STRING still null
-    // (declared after INSTANCE). Replace the null toString slot with the live lambda
-    // now that all static fields are assigned.
-    static {
-        INSTANCE.install("toString", DEFAULT_TO_STRING);
-    }
+    static final JsArrayPrototype INSTANCE = new JsArrayPrototype();
 
     private JsArrayPrototype() {
         super(JsObjectPrototype.INSTANCE);

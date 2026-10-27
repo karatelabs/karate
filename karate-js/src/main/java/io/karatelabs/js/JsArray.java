@@ -1166,7 +1166,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
          * (spec considers them valid — widening tracked in TEST262.md).
          */
         static long coerceToUint32(Object value, CoreContext context) {
-            Object first = value instanceof ObjectLike && context != null
+            Object first = Terms.isObjectOperand(value) && context != null
                     ? Terms.toPrimitive(value, "number", context) : value;
             Number n1 = Terms.objectToNumber(first);
             double d1 = n1 == null ? Double.NaN : n1.doubleValue();
@@ -1179,7 +1179,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
                 if (modded < 0) modded += 4294967296L;
                 u32 = modded;
             }
-            Object second = value instanceof ObjectLike && context != null
+            Object second = Terms.isObjectOperand(value) && context != null
                     ? Terms.toPrimitive(value, "number", context) : value;
             Number n2 = Terms.objectToNumber(second);
             double d2 = n2 == null ? Double.NaN : n2.doubleValue();

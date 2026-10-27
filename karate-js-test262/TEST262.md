@@ -791,6 +791,38 @@ Not test262 items: how a host drives the engine.
     leaves a rejected promise and a pending timer. The rejection must surface
     from the nested call, and the outer eval must finish clean.
 
+Host-value mirrors (`HostMirror`; see
+[JS_ENGINE.md § Lazy Input Conversion](../docs/JS_ENGINE.md#lazy-input-conversion)),
+deferred from the mirror unification:
+
+- **Bridge-aware host-first presence.** `ExternalAccess` has no presence
+  contract and its default `getMethod` manufactures an invokable, so
+  `PropertyAccess.getByName` asks `JavaUtils.hasMember`, which bypasses a
+  restrictive custom bridge.
+- **Java array / `byte[]` ownership.** The `JsArray` / `JsUint8Array` views
+  copy / clone, so a JS write never reaches the Java array (`List` is shared).
+  `Terms.toJsArray`, `JsUint8Array(byte[])`.
+- **Outbound identity for array views.** `Engine.toJava` /
+  `Interpreter.marshalExternalArgs` hand Java the view's copy, not the array
+  that came in.
+- **`structuredClone` of a raw Java array / typed array loses its type**
+  (`JsStructuredClone`).
+- **`JsArray.subList` returns a copy, not a backed view** (`List` contract).
+- **`JSON.stringify` of a bridge-wrapped Java object throws
+  `no instance property: toJSON`** (`JsJson`).
+- **A JS object as a bracket key keys by its Java `toString`** (`o[[1,2]]` →
+  `io.karatelabs.js.JsArray@…`, not `1,2`). `PropertyAccess`'s ~11 key sites
+  call the no-context `Terms.toPropertyKey`; passing the context needs an
+  abrupt-completion check at each, since none exists there today (a throwing
+  `toString` would otherwise read / write a `""` key). Host values already key
+  by their JS form (`HostMirror.jsString`).
+- **`Uint8Array` inherits `Array.prototype`** (no `%TypedArray%.prototype`
+  chain): `Object.getPrototypeOf(u8) === Array.prototype`. `instanceof Array`
+  and `Array.isArray` answer false through a guard in `Terms.instanceOf` and
+  the `isArray` check, not the chain.
+- **A mutated `java.util.Date` used as a `Map` / `Set` key orphans its entry**
+  (keyed by Java `hashCode`). Accepted, as for a `HashMap`.
+
 ### Engine — spec alignment
 
 Observably non-spec; pick up when the owning slice surfaces them.
