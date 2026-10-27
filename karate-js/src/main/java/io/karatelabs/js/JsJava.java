@@ -23,6 +23,9 @@
  */
 package io.karatelabs.js;
 
+import java.util.Collection;
+import java.util.List;
+
 public class JsJava implements SimpleObject {
 
     final ExternalBridge bridge;
@@ -32,6 +35,11 @@ public class JsJava implements SimpleObject {
             throw new RuntimeException("java bridge not enabled");
         }
         this.bridge = bridge;
+    }
+
+    @Override
+    public Collection<String> jsKeys() {
+        return List.of("type", "to");
     }
 
     @Override

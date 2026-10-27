@@ -29,8 +29,14 @@ import io.karatelabs.parser.ParserException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 
 /**
@@ -149,18 +155,55 @@ class ContextRoot implements Context {
         return canInitGlobal(key);
     }
 
+    // every name initGlobal produces
+    static final List<String> GLOBALS = List.of(
+            "console", "parseInt", "parseFloat", "encodeURIComponent", "decodeURIComponent",
+            "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Function",
+            "Infinity", "Java", "JSON", "Map", "Math", "NaN", "Number", "BigInt", "Boolean",
+            "Object", "Promise", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
+            "SyntaxError", "URIError", "EvalError", "AggregateError", "WeakMap", "WeakSet",
+            "TextEncoder", "TextDecoder", "Uint8Array", "globalThis",
+            "setTimeout", "clearTimeout", "structuredClone", "performance",
+            "isNaN", "isFinite", "eval", "Symbol", "Reflect");
+
+    private static final Set<String> GLOBAL_SET = Set.copyOf(GLOBALS);
+
     private static boolean canInitGlobal(String key) {
-        return switch (key) {
-            case "console", "parseInt", "parseFloat", "encodeURIComponent", "decodeURIComponent",
-                 "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Function",
-                 "Infinity", "Java", "JSON", "Map", "Math", "NaN", "Number", "BigInt", "Boolean",
-                 "Object", "Promise", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
-                 "SyntaxError", "URIError", "EvalError", "AggregateError", "WeakMap", "WeakSet",
-                 "TextEncoder", "TextDecoder", "Uint8Array", "globalThis",
-                 "setTimeout", "clearTimeout", "structuredClone", "performance",
-                 "isNaN", "isFinite", "eval", "Symbol", "Reflect" -> true;
-            default -> false;
-        };
+        return GLOBAL_SET.contains(key);
+    }
+
+    /** Backs {@link Engine#builtins()}: read off a fresh engine so it tracks what the engine installs. */
+    static Map<String, List<String>> builtinMembers() {
+        Engine engine = new Engine();
+        engine.setExternalBridge(new ExternalBridge() {
+        });
+        ContextRoot root = engine.root();
+        Map<String, List<String>> members = new LinkedHashMap<>();
+        for (String name : GLOBALS) {
+            Object global = root.get(name);
+            // its own keys are whichever globals happen to be initialized
+            members.put(name, global == root.thisObject ? GLOBALS : ownNames(global));
+            if (global instanceof JsObject jo && jo.getMember("prototype") instanceof Prototype proto) {
+                members.put(name + ".prototype", ownNames(proto));
+            }
+        }
+        return Collections.unmodifiableMap(members);
+    }
+
+    private static List<String> ownNames(Object value) {
+        Collection<String> names;
+        if (value instanceof Prototype proto) {
+            names = proto.builtinNames();
+        } else if (value instanceof JsObject jo) {
+            names = new LinkedHashSet<>(jo.toMap().keySet());
+            jo.ownIntrinsicNames().forEach(names::add);
+            names.removeIf(n -> !jo.isOwnProperty(n));
+        } else if (value instanceof SimpleObject so) {
+            names = so.jsKeys();
+        } else {
+            names = List.of();
+        }
+        return names.stream().filter(n -> !n.startsWith("@@")).toList();
     }
 
     //=== Context interface =============================================================================================

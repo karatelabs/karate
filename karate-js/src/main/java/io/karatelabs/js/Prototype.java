@@ -23,6 +23,7 @@
  */
 package io.karatelabs.js;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -157,6 +158,10 @@ abstract class Prototype implements ObjectLike {
 
     Prototype(Prototype __proto__) {
         this.__proto__ = __proto__;
+    }
+
+    Collection<String> builtinNames() {
+        return Collections.unmodifiableSet(builtins.keySet());
     }
 
     @Override

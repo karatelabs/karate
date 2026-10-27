@@ -374,6 +374,19 @@ public class Engine {
         bindings.remove(name);
     }
 
+    /**
+     * The built-in globals, each mapped to its own member names, plus a {@code Name.prototype} entry per
+     * built-in constructor. Inherited members appear under their own prototype's entry; symbol-keyed
+     * members are left out. Unmodifiable.
+     */
+    public static Map<String, List<String>> builtins() {
+        return BuiltinsHolder.BUILTINS;
+    }
+
+    private static final class BuiltinsHolder {
+        static final Map<String, List<String>> BUILTINS = ContextRoot.builtinMembers();
+    }
+
     public void setOnConsoleLog(Consumer<String> onConsoleLog) {
         root.onConsole = onConsoleLog == null ? null : (level, text) -> onConsoleLog.accept(text);
     }

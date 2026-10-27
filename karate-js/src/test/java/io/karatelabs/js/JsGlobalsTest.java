@@ -2,7 +2,10 @@ package io.karatelabs.js;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class JsGlobalsTest extends EvalBase {
 
@@ -175,6 +178,38 @@ class JsGlobalsTest extends EvalBase {
                 + " for (let i = 0; i < 200000; i++) x += i;"
                 + " const b = performance.now(); b > a && x > 0"));
         assertEquals(true, eval("performance.timeOrigin > 0"));
+    }
+
+    @Test
+    void testBuiltinsEnumeratesGlobalsAndMembers() {
+        Map<String, List<String>> builtins = Engine.builtins();
+        assertTrue(builtins.keySet().containsAll(List.of("parseInt", "undefined", "globalThis", "setTimeout")));
+        assertTrue(builtins.get("Math").containsAll(List.of("PI", "max", "floor")));
+        assertTrue(builtins.get("JSON").containsAll(List.of("parse", "stringify")));
+        assertTrue(builtins.get("Object").containsAll(List.of("keys", "assign", "prototype")));
+        assertTrue(builtins.get("Promise").containsAll(List.of("all", "resolve")));
+        assertTrue(builtins.get("console").containsAll(List.of("log", "info", "debug", "warn", "error")));
+        assertTrue(builtins.get("Java").containsAll(List.of("type", "to")));
+        assertTrue(builtins.get("String.prototype").containsAll(List.of("indexOf", "padStart", "trim")));
+        assertTrue(builtins.get("Array.prototype").containsAll(List.of("map", "filter", "includes")));
+        assertTrue(builtins.get("Object.prototype").contains("hasOwnProperty"));
+        assertTrue(builtins.get("Promise.prototype").containsAll(List.of("then", "catch", "finally")));
+        assertEquals(List.of(), builtins.get("NaN"));
+        assertEquals(List.copyOf(builtins.keySet().stream().filter(k -> !k.contains(".")).toList()),
+                builtins.get("globalThis"));
+        assertFalse(builtins.get("Array.prototype").contains("@@iterator"));
+        Engine engine = new Engine();
+        engine.setExternalBridge(new ExternalBridge() {
+        });
+        builtins.forEach((owner, names) -> {
+            if (!owner.equals("undefined")) {
+                assertNotEquals("undefined", engine.eval("typeof " + owner), owner);
+            }
+            for (String name : names) {
+                assertEquals(true, engine.eval("'" + name + "' in Object(" + owner + ")"), owner + "." + name);
+            }
+        });
+        assertThrows(UnsupportedOperationException.class, () -> builtins.put("x", List.of()));
     }
 
 }

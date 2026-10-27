@@ -23,7 +23,9 @@
  */
 package io.karatelabs.js;
 
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 class JsConsole implements SimpleObject {
@@ -59,6 +61,15 @@ class JsConsole implements SimpleObject {
         } else {
             System.out.println(message);
         }
+    }
+
+    private static final List<String> NAMES = List.of("log", "info", "debug", "warn", "error", "trace", "dir",
+            "dirxml", "table", "assert", "count", "countReset", "time", "timeLog", "timeEnd", "group",
+            "groupCollapsed", "groupEnd", "clear");
+
+    @Override
+    public Collection<String> jsKeys() {
+        return NAMES;
     }
 
     @Override
