@@ -641,18 +641,18 @@ public class JavaUtils {
         // special-case Terms.toJsValue / toJsArray already make) so a Java method
         // returning byte[] round-trips back to byte[] at the external-call boundary,
         // instead of degrading to a List<Byte> that no longer reads as binary.
-        if (o instanceof byte[]) {
-            return Terms.toJsValue(o);
-        }
-        if (o != null && o.getClass().isArray()) {
-            List<Object> list = new ArrayList<>();
-            int count = Array.getLength(o);
-            for (int i = 0; i < count; i++) {
-                list.add(Array.get(o, i));
-            }
-            return list;
-        } else {
-            return o;
+        switch (HostMirror.kind(o)) {
+            case BYTES:
+                return Terms.toJsValue(o);
+            case JAVA_ARRAY:
+                List<Object> list = new ArrayList<>();
+                int count = Array.getLength(o);
+                for (int i = 0; i < count; i++) {
+                    list.add(Array.get(o, i));
+                }
+                return list;
+            default:
+                return o;
         }
     }
 

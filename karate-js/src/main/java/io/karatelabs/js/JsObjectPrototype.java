@@ -64,8 +64,9 @@ class JsObjectPrototype extends Prototype {
     private static String builtinTag(Object o) {
         if (o == null) return "Null";
         if (o == Terms.UNDEFINED) return "Undefined";
-        if (o instanceof JsArray || o instanceof java.util.List) return "Array";
-        if (o instanceof JsDate || o instanceof java.util.Date) return "Date";
+        HostMirror.Kind host = HostMirror.kind(o);
+        if (o instanceof JsArray || host == HostMirror.Kind.LIST) return "Array";
+        if (o instanceof JsDate || host == HostMirror.Kind.UTIL_DATE) return "Date";
         if (o instanceof JsRegex) return "RegExp";
         if (o instanceof JsError) return "Error";
         if (o instanceof JsSymbol) return "Symbol";

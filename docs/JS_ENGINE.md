@@ -361,25 +361,28 @@ The engine uses `CallInfo` to track invocation context:
 
 ### Lazy Input Conversion
 
-Conversion happens at point-of-use in `Terms.toJavaMirror()`:
+Conversion happens at point-of-use in `Terms.toJsValue()` / `toObjectLike()`.
+Primitives (`String`, `BigInteger`, `Number`, `Boolean`) take the switch's
+fast path; every other raw Java value is classified by **`HostMirror.kind()`**
+— the one place that answers "does this Java value have a JS mirror, and
+which":
 
-```java
-static JavaMirror toJavaMirror(Object o) {
-    return switch (o) {
-        case String s -> new JsString(s);
-        case Number n -> new JsNumber(n);
-        case Boolean b -> new JsBoolean(b);
-        case java.util.Date d -> new JsDate(d);
-        case Instant i -> new JsDate(i);
-        case LocalDateTime ldt -> new JsDate(ldt);
-        case LocalDate ld -> new JsDate(ld);
-        case ZonedDateTime zdt -> new JsDate(zdt);
-        case OffsetDateTime odt -> new JsDate(odt);
-        case byte[] bytes -> new JsUint8Array(bytes);
-        case null, default -> null;
-    };
-}
-```
+| `HostMirror.Kind` | Java types | mirror |
+|---|---|---|
+| `UTIL_DATE` | `java.util.Date` (+ `java.sql` subclasses) | `JsDateView`, JS-first |
+| `TEMPORAL` | `Instant`, `LocalDate`, `LocalDateTime`, `ZonedDateTime`, `OffsetDateTime` | `JsDateView`, host-first |
+| `LIST` | `List` | `JsArray` over the same list |
+| `JAVA_ARRAY` | non-`byte` Java array | `JsArray` over a copy |
+| `BYTES` | `byte[]` | `JsUint8Array` |
+
+`kind()` never allocates; a caller builds the mirror only when it needs one.
+The coercion sites (`objectToNumber`, `toStringCoerce`, `toPropertyKey`,
+`concatOperand`), `Object.prototype.toString`'s tag, iteration,
+`JavaUtils.convertIfArray`, `structuredClone`, `new Date(x)` and
+`Date.prototype`'s receiver check all classify through it; each still decides
+its own answer for a kind (they do not all agree yet — `'' + list` is the
+Java form, `String(list)` the JS one). Other `java.time` types (`LocalTime`,
+`Year`, …) are `NONE`: plain host objects.
 
 The `JsDate` a `java.time` value converts to is a view, not a replacement:
 Java members on it win — see
@@ -464,8 +467,9 @@ through the raw-value path.
 object first:
 `PropertyAccess.getByName` resolves a name the Java class defines
 (`JavaUtils.hasMember`) to the Java member before `Date.prototype` is
-consulted, whether the receiver arrives raw or as the call path's `JsDate`
-view (`JsDate.getHostFirstSource`). Only names Java lacks — `getTime`,
+consulted, whether the receiver arrives raw or as the call path's
+`JsDateView` — decided once, at the top of `getByName`, from
+`HostMirror.hostFirstSource` (an own slot on the view still wins). Only names Java lacks — `getTime`,
 `toISOString`, `getFullYear`, `getHours` — fall through to the JS Date. The
 two vocabularies collide on `toString`, `getYear` and `getMonth`, and the JS
 answers are wrong for a Java caller: Annex B `getYear()` is year − 1900 and
@@ -483,7 +487,9 @@ was. Its deprecated getters agree with the JS ones anyway, and its string
 forms (`String(d)`, `'' + d`) are the JS `toString`.
 
 **A `JsDate` over a Java value is a per-access view, so writes need a rule.**
-`JsDate.setTimeValue` writes through to a `java.util.Date` source (mutable,
+That view is `JsDateView extends JsDate`, the only class holding a Java
+source; a plain `JsDate` is a pure JS Date (its time value is a field).
+`JsDateView.setTimeValue` writes through to a `java.util.Date` source (mutable,
 and a v1 script mutating a Date from Java code expected exactly that) and
 throws a `TypeError` for a `java.time` source (immutable — the alternative is
 a write silently lost on a discarded view) and for a result a `java.util.Date`
@@ -707,9 +713,14 @@ Consolidates object wrapping for property access:
 ```java
 static ObjectLike toObjectLike(Object o) {
     if (o instanceof ObjectLike ol) return ol;
-    if (o instanceof List list) return new JsArray(list);
-    JavaMirror mirror = toJavaMirror(o);
-    return mirror instanceof ObjectLike ol ? ol : null;
+    switch (HostMirror.kind(o)) {
+        case LIST: return new JsArray((List<Object>) o);
+        case JAVA_ARRAY: return toJsArray(o);
+        case UTIL_DATE, TEMPORAL: return HostMirror.dateView(o);
+        case BYTES: return new JsUint8Array((byte[]) o);
+        default: break;
+    }
+    // XML Node → JsObject over its Map form; primitives → toJsValue
 }
 ```
 
@@ -728,10 +739,7 @@ class JsDate extends JsObject implements JsDateValue {
     JsDate(double timeValue) {
         this.timeValue = timeClip(timeValue);         // spec TimeClip
     }
-    JsDate(java.util.Date d) {
-        this(d == null ? Double.NaN : (double) d.getTime());
-    }
-    // (Instant / LocalDateTime / LocalDate / ZonedDateTime overloads also)
+    // a view of a Java date is the JsDateView subclass, not a JsDate field
 
     boolean isInvalid() { return Double.isNaN(timeValue); }
     double  getTimeValue() { return timeValue; }

@@ -76,8 +76,8 @@ final class JsStructuredClone {
         }
         // a java.util.Date is mutable (a JS setter writes through to it), so its clone
         // must be a new Date; java.time is immutable and passes through as itself
-        if (value instanceof java.util.Date jd) {
-            return remember(memo, value, new JsDate(jd.getTime()));
+        if (HostMirror.kind(value) == HostMirror.Kind.UTIL_DATE) {
+            return remember(memo, value, new JsDate(((java.util.Date) value).getTime()));
         }
         if (value instanceof JsRegex r) {
             return remember(memo, value, new JsRegex(r.pattern, r.flags));

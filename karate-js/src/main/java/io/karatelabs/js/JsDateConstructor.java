@@ -72,8 +72,8 @@ class JsDateConstructor extends JsFunction {
             }
             // a Java date (java.util.Date or java.time) is copied by time value —
             // never aliased, since a JsDate over a java.util.Date writes through
-            if (Terms.toJsValue(arg) instanceof JsDate jd) {
-                return new JsDate(jd.getTimeValue());
+            if (HostMirror.isDate(HostMirror.kind(arg))) {
+                return new JsDate(HostMirror.timeValue(arg));
             }
             Object prim = arg;
             if (arg instanceof ObjectLike) {

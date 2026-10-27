@@ -589,6 +589,22 @@ class ExternalBridgeTest extends EvalBase {
     }
 
     @Test
+    void testJavaTimeOutsideTheDateMirrorIsAPlainHostObject() {
+        // only the five java.time types Terms.toJsValue converts have a Date mirror
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("lt", java.time.LocalTime.of(10, 30));
+        assertEquals(10, engine.eval("lt.getHour()"));
+        assertEquals("10:30", engine.eval("lt.toString()"));
+        assertEquals("10:30", engine.eval("String(lt)"));
+        assertEquals("10:30", engine.eval("'' + lt"));
+        assertEquals(1, engine.eval("var o = {}; o[lt] = 1; o['10:30']"));
+        assertEquals(true, engine.eval("isNaN(lt - lt)"));
+        assertEquals("[object Object]", engine.eval("Object.prototype.toString.call(lt)"));
+        assertEquals(true, engine.eval("lt.getTime === undefined"));
+    }
+
+    @Test
     void testJsonStringifySqlDates() {
         // java.sql.Date / Time reject toInstant(); the formatter must not call it
         engine = new Engine();

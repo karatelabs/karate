@@ -123,8 +123,8 @@ class JsDatePrototype extends Prototype {
         }
         // A raw Java date as `this` — `jud['getTime']()` or `getTime.call(jud)`
         // reach here without the dot-call path's receiver wrap; same view.
-        if (Terms.toJsValue(thisObj) instanceof JsDate d) {
-            return d;
+        if (HostMirror.isDate(HostMirror.kind(thisObj))) {
+            return HostMirror.dateView(thisObj);
         }
         throw JsErrorException.typeError("this is not a Date object");
     }

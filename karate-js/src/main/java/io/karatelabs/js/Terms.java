@@ -30,11 +30,7 @@ import org.w3c.dom.Node;
 import java.lang.reflect.Array;
 import java.math.BigInteger;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
-import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -199,14 +195,16 @@ public class Terms {
         return switch (o) {
             case Number n -> n;
             case Boolean b -> b ? 1 : 0;
-            case Date d -> d.getTime();
             case String s -> stringToNumber(s);
             case null -> 0;
-            // a java.time value is its epoch ms, like the Date it converts to —
-            // so `ld2 - ld1` and `ld1 < ld2` compare instants
-            case Temporal t when toJsValue(t) instanceof JsDate d -> narrow(d.getTimeValue());
-            // includes undefined
-            default -> Double.NaN;
+            default -> switch (HostMirror.kind(o)) {
+                case UTIL_DATE -> ((Date) o).getTime();
+                // a java.time value is its epoch ms, like the Date it converts to —
+                // so `ld2 - ld1` and `ld1 < ld2` compare instants
+                case TEMPORAL -> narrow(HostMirror.timeValue(o));
+                // includes undefined
+                default -> Double.NaN;
+            };
         };
     }
 
@@ -853,7 +851,7 @@ public class Terms {
         if (o instanceof Number n) return numberToString(n);
         // a java.util.Date is a JS Date to scripts — its string form is the JS
         // one (as String(d) and `${d}` already give), not Date.toString's
-        if (o instanceof Date d) return new JsDate(d.getTime()).toString();
+        if (HostMirror.kind(o) == HostMirror.Kind.UTIL_DATE) return new JsDate(((Date) o).getTime()).toString();
         return String.valueOf(o);
     }
 
@@ -903,21 +901,18 @@ public class Terms {
             case BigInteger bi -> new JsBigInt(bi);
             case Number n -> new JsNumber(n);
             case Boolean b -> new JsBoolean(b);
-            case Date d -> new JsDate(d);
-            case Instant i -> new JsDate(i);
-            case LocalDateTime ldt -> new JsDate(ldt);
-            case LocalDate ld -> new JsDate(ld);
-            case ZonedDateTime zdt -> new JsDate(zdt);
-            case OffsetDateTime odt -> new JsDate(odt);
-            case byte[] bytes -> new JsUint8Array(bytes);
-            default -> null;
+            default -> switch (HostMirror.kind(o)) {
+                case UTIL_DATE, TEMPORAL -> HostMirror.dateView(o);
+                case BYTES -> new JsUint8Array((byte[]) o);
+                default -> null;
+            };
         };
     }
 
     // Convert Java native arrays (String[], int[], Object[], etc.) to JsArray
     // Note: byte[] is excluded as it has special handling (JsUint8Array)
     static JsArray toJsArray(Object o) {
-        if (o != null && o.getClass().isArray() && !(o instanceof byte[])) {
+        if (HostMirror.kind(o) == HostMirror.Kind.JAVA_ARRAY) {
             int length = Array.getLength(o);
             List<Object> list = new ArrayList<>(length);
             for (int i = 0; i < length; i++) {
@@ -933,13 +928,17 @@ public class Terms {
         if (o instanceof ObjectLike ol) {
             return ol;
         }
-        if (o instanceof List<?> list) {
-            return new JsArray((List<Object>) list);
-        }
-        // Java native arrays (String[], int[], Object[], etc.)
-        JsArray jsArray = toJsArray(o);
-        if (jsArray != null) {
-            return jsArray;
+        switch (HostMirror.kind(o)) {
+            case LIST:
+                return new JsArray((List<Object>) o);
+            case JAVA_ARRAY:
+                return toJsArray(o);
+            case UTIL_DATE, TEMPORAL:
+                return HostMirror.dateView(o);
+            case BYTES:
+                return new JsUint8Array((byte[]) o);
+            default:
+                break;
         }
         // XML Node: convert to Map structure for JS-style property access
         if (o instanceof Node node) {
@@ -1437,7 +1436,7 @@ public class Terms {
         if (o instanceof Number n) return numberToString(n);
         if (o instanceof Boolean) return o.toString();
         // java.time keys by its Java toString, as String(v) does (toStringCoerce)
-        if (o instanceof Temporal) return o.toString();
+        if (HostMirror.kind(o) == HostMirror.Kind.TEMPORAL) return o.toString();
         if (ctx != null) {
             // Spec §7.1.18 ToPropertyKey: ToPrimitive(hint string) → ToString.
             // ordinaryToPrimitive tries toString then valueOf, throws TypeError
@@ -1550,9 +1549,9 @@ public class Terms {
         if (isPrimitive(o) || o instanceof JsValue) {
             return o.toString();
         }
-        // java.time is host-first (see JsDate.getHostFirstSource): its own
+        // java.time is host-first (HostMirror.hostFirstSource): its own
         // toString — Instant ISO-8601, LocalDate yyyy-MM-dd — as `'' + v` gives
-        if (o instanceof Temporal) {
+        if (HostMirror.kind(o) == HostMirror.Kind.TEMPORAL) {
             return o.toString();
         }
         // Java-native types (Map, List, raw arrays, XML Node, Date) are wrapped so

@@ -113,16 +113,15 @@ public class IterUtils {
         if (source instanceof String s) {
             return stringIterator(s);
         }
-        if (source instanceof List<?> list) {
-            return listIterator((List<Object>) list);
-        }
-        if (source instanceof byte[] bytes) {
-            return listIterator(new JsUint8Array(bytes));
-        }
-        // Java native arrays via toJsArray (String[], int[], Object[]; byte[] handled above)
-        JsArray asArray = Terms.toJsArray(source);
-        if (asArray != null) {
-            return listIterator(asArray.list);
+        switch (HostMirror.kind(source)) {
+            case LIST:
+                return listIterator((List<Object>) source);
+            case BYTES:
+                return listIterator(new JsUint8Array((byte[]) source));
+            case JAVA_ARRAY:
+                return listIterator(Terms.toJsArray(source).list);
+            default:
+                break;
         }
         if (source instanceof ObjectLike obj) {
             // Receiver+ctx read so an accessor at @@iterator fires; if that
