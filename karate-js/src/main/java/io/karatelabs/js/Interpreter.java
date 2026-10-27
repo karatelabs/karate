@@ -2074,7 +2074,11 @@ class Interpreter {
         if (context.isError()) {
             return Terms.UNDEFINED;
         }
-        return Terms.in(lhs, eval(node.get(2), context));
+        Object rhs = eval(node.get(2), context);
+        if (context.isError()) {
+            return Terms.UNDEFINED;
+        }
+        return Terms.in(lhs, rhs, context);
     }
 
     private static BindScope toScope(BindScope scope) {

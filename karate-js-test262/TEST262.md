@@ -810,12 +810,6 @@ deferred from the mirror unification:
 - **`JsArray.subList` returns a copy, not a backed view** (`List` contract).
 - **`JSON.stringify` of a bridge-wrapped Java object throws
   `no instance property: toJSON`** (`JsJson`).
-- **A JS object as a bracket key keys by its Java `toString`** (`o[[1,2]]` →
-  `io.karatelabs.js.JsArray@…`, not `1,2`). `PropertyAccess`'s ~11 key sites
-  call the no-context `Terms.toPropertyKey`; passing the context needs an
-  abrupt-completion check at each, since none exists there today (a throwing
-  `toString` would otherwise read / write a `""` key). Host values already key
-  by their JS form (`HostMirror.jsString`).
 - **`Uint8Array` inherits `Array.prototype`** (no `%TypedArray%.prototype`
   chain): `Object.getPrototypeOf(u8) === Array.prototype`. `instanceof Array`
   and `Array.isArray` answer false through a guard in `Terms.instanceOf` and

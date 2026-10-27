@@ -1767,6 +1767,71 @@ class SpecPinTest extends EvalBase {
     }
 
     // -------------------------------------------------------------------------
+    // Computed member keys run spec ToPropertyKey (§7.1.19): an object key goes
+    // through @@toPrimitive / toString / valueOf, exactly once per reference.
+    // ToObject(base) precedes it, and for `o[k] = v` it follows the RHS.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void computedKey_arrayKeysByItsJoin() {
+        assertEquals(1, eval("var o = {'1,2': 1}; o[[1,2]]"));
+        assertEquals(2, eval("var o = {}; o[[1,2]] = 2; o['1,2']"));
+        assertEquals(true, eval("var o = {'1,2': 1}; [1,2] in o"));
+        assertEquals(false, eval("var o = {'1,2': 1}; delete o[[1,2]]; '1,2' in o"));
+    }
+
+    @Test
+    void computedKey_userToStringRunsOnEveryOperation() {
+        String k = "var k = {toString(){ return 'p' }}; var o = {p: 1};";
+        assertEquals(1, eval(k + " o[k]"));
+        assertEquals(5, eval(k + " o[k] = 5; o.p"));
+        assertEquals(11, eval(k + " o[k] += 10; o.p"));
+        assertEquals(true, eval(k + " o[k] ||= 9; o.p === 1"));
+        assertEquals("1 2 3", eval(k + " var a = o[k]++; var b = ++o[k]; a + ' ' + (b - 1) + ' ' + o.p"));
+        assertEquals(false, eval(k + " delete o[k]; 'p' in o"));
+        assertEquals(true, eval(k + " k in o"));
+        assertEquals(42, eval(k + " o.p = function(){ return this === o ? 42 : 0 }; o[k]()"));
+        assertEquals(7, eval("var k = {toString(){ return 'm' }};"
+                + " class P { m() { return 7 } } class C extends P { m() { return super[k]() } } new C().m()"));
+        assertEquals("v", eval("var k = {toString(){ return 'x' }};"
+                + " class P {} class C extends P { m() { super[k] = 'v'; return this.x } } new C().m()"));
+        // a boxed symbol keys the symbol store
+        assertEquals(3, eval("var s = Symbol('s'); var o = {[s]: 3}; o[Object(s)]"));
+    }
+
+    @Test
+    void computedKey_throwingToStringPropagatesAndTouchesNothing() {
+        String k = "var k = {toString(){ throw 'BOOM' }}; var o = {p: 1}; var r;";
+        assertEquals("BOOM", eval(k + " try { o[k] } catch(e) { r = e } r"));
+        assertEquals("BOOM 1", eval(k + " try { o[k] = 2 } catch(e) { r = e } r + ' ' + Object.keys(o).length"));
+        assertEquals("BOOM 1", eval(k + " try { o[k] += 2 } catch(e) { r = e } r + ' ' + Object.keys(o).length"));
+        assertEquals("BOOM 1", eval(k + " try { o[k]++ } catch(e) { r = e } r + ' ' + Object.keys(o).length"));
+        assertEquals("BOOM 1", eval(k + " try { --o[k] } catch(e) { r = e } r + ' ' + Object.keys(o).length"));
+        assertEquals("BOOM 1", eval(k + " try { delete o[k] } catch(e) { r = e } r + ' ' + Object.keys(o).length"));
+        assertEquals("BOOM", eval(k + " try { k in o } catch(e) { r = e } r"));
+    }
+
+    @Test
+    void computedKey_conversionOrder() {
+        // assignment: ToPropertyKey after the RHS
+        assertEquals("EK", eval("var order = ''; var k = {toString(){ order += 'K'; return 'p' }};"
+                + " var o = {}; o[k] = (order += 'E', 1); order"));
+        // compound / update: once, before the RHS
+        assertEquals("KE", eval("var order = ''; var k = {toString(){ order += 'K'; return 'p' }};"
+                + " var o = {p: 1}; o[k] += (order += 'E', 1); order"));
+        assertEquals("K", eval("var order = ''; var k = {toString(){ order += 'K'; return 'p' }};"
+                + " var o = {p: 1}; o[k]++; order"));
+        // a null base is a TypeError before the key's toString runs
+        assertEquals("TypeError", eval("var order = ''; var k = {toString(){ order += 'K'; return 'p' }};"
+                + " var o = null; var r; try { o[k] } catch(e) { r = e.name } r + order"));
+        assertEquals("TypeError", eval("var order = ''; var k = {toString(){ order += 'K'; return 'p' }};"
+                + " var o; var r; try { o[k]++ } catch(e) { r = e.name } r + order"));
+        // `in` rejects a non-object target before converting the key
+        assertEquals("TypeError", eval("var order = ''; var k = {toString(){ order += 'K'; return 'p' }};"
+                + " var r; try { k in 1 } catch(e) { r = e.name } r + order"));
+    }
+
+    // -------------------------------------------------------------------------
     // Lexing: IdentifierPart is ID_Continue plus ZWNJ/ZWJ (§12.7). A non-ASCII
     // char that is neither spec whitespace nor identifier material is a
     // SyntaxError — not a phantom identifier. eval-code that fails to parse

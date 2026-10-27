@@ -189,6 +189,32 @@ class PropertyAccess {
         return new AccessSite(target, index, true, null, superReceiver);
     }
 
+    /**
+     * Spec {@code ToPropertyKey} for a computed key: an object key runs
+     * {@code @@toPrimitive} / {@code toString} / {@code valueOf} (hint string)
+     * with the live context and yields a String or a minted symbol. Any other
+     * key passes through for the by-index / by-name workers to key. An abrupt
+     * completion leaves the context stopped; callers check it.
+     */
+    static Object computedKey(Object key, CoreContext context) {
+        if (!(key instanceof ObjectLike) || key instanceof JsSymbol) return key;
+        Object prim = Terms.toPrimitive(key, "string", context);
+        if (context.isStopped()) return null;
+        return prim instanceof JsSymbol ? prim : Terms.toPropertyKey(prim);
+    }
+
+    /** The site with its computed key converted, null on an abrupt completion.
+     *  A null / undefined base skips the conversion: ToObject(base) fails first. */
+    private static AccessSite keyed(AccessSite site, CoreContext context) {
+        if (!site.isIndex || !(site.key instanceof ObjectLike)
+                || site.target == null || site.target == Terms.UNDEFINED) {
+            return site;
+        }
+        Object key = computedKey(site.key, context);
+        if (context.isStopped()) return null;
+        return key == site.key ? site : new AccessSite(site.target, key, true, null, site.receiver);
+    }
+
     /** Site read honoring a super receiver; the non-super shape delegates to
      *  the ordinary index/name workers unchanged. */
     private static Object siteRead(AccessSite site, CoreContext context) {
@@ -292,6 +318,7 @@ class PropertyAccess {
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
                 if (site == null || site == SHORT_CIRCUIT_SITE) return;
+                if ((site = keyed(site, context)) == null) return;
                 if (site.privateName != null) PrivateAccess.set(site.target, site.privateName, value, context);
                 else siteWrite(site, value, context, trackingNode);
             }
@@ -336,6 +363,8 @@ class PropertyAccess {
                     // fallback would treat the write as a scope update.
                     throw JsErrorException.typeError("cannot set property on null 'super' base");
                 }
+                // ToPropertyKey follows the RHS (§13.15.2 / PutValue)
+                if ((site = keyed(site, context)) == null) yield value;
                 if (site.privateName != null) PrivateAccess.set(site.target, site.privateName, value, context);
                 else siteWrite(site, value, context, trackingNode);
                 yield value;
@@ -373,6 +402,7 @@ class PropertyAccess {
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
                 if (site == null || site == SHORT_CIRCUIT_SITE || context.isStopped()) yield Terms.UNDEFINED;
+                if ((site = keyed(site, context)) == null) yield Terms.UNDEFINED;
                 Object oldValue = site.privateName != null
                         ? PrivateAccess.get(site.target, site.privateName, context)
                         : siteRead(site, context);
@@ -428,6 +458,7 @@ class PropertyAccess {
                     throw JsErrorException.typeError("cannot read properties of "
                             + (site.target == null ? "null" : "undefined"));
                 }
+                if ((site = keyed(site, context)) == null) yield null;
                 if (site.privateName != null) {
                     Object oldValue = PrivateAccess.get(site.target, site.privateName, context);
                     if (!shouldLogicalAssign(operator, oldValue)) yield oldValue;
@@ -550,6 +581,7 @@ class PropertyAccess {
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
                 if (site == null || site == SHORT_CIRCUIT_SITE) yield Terms.UNDEFINED;
+                if ((site = keyed(site, context)) == null) yield Terms.UNDEFINED;
                 if (site.privateName != null) yield privateIncDec(site, isIncrement, false, context);
                 if (site.receiver != null) yield superIncDec(site, isIncrement, false, context);
                 yield site.isIndex
@@ -588,6 +620,7 @@ class PropertyAccess {
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
                 if (site == null || site == SHORT_CIRCUIT_SITE) yield Terms.UNDEFINED;
+                if ((site = keyed(site, context)) == null) yield Terms.UNDEFINED;
                 if (site.privateName != null) yield privateIncDec(site, isIncrement, true, context);
                 if (site.receiver != null) yield superIncDec(site, isIncrement, true, context);
                 yield site.isIndex
@@ -615,7 +648,7 @@ class PropertyAccess {
                 // a short-circuited chain leaves no reference to delete, which
                 // per spec is a successful delete
                 if (site == SHORT_CIRCUIT_SITE) yield true;
-                if (site == null) yield false;
+                if (site == null || (site = keyed(site, context)) == null) yield false;
                 JsSymbol sym = JsSymbol.keyedBy(site.key);
                 if (sym != null) {
                     yield !(site.target instanceof JsObject jo)
@@ -793,6 +826,10 @@ class PropertyAccess {
         if (node.getFirst().type == NodeType.SUPER_EXPR) {
             ObjectLike superProto = Interpreter.evalSuperBase(context);
             Object index = Interpreter.eval(node.get(2), context);
+            if (superProto != null) {
+                index = computedKey(index, context);
+                if (context.isStopped()) return Terms.UNDEFINED;
+            }
             JsSymbol sym = JsSymbol.keyedBy(index);
             if (sym != null) {
                 // the lookup walks the super base, but `this` stays the receiver
@@ -851,6 +888,10 @@ class PropertyAccess {
         if (node.getFirst().type == NodeType.SUPER_EXPR) {
             ObjectLike superProto = Interpreter.evalSuperBase(context);
             Object index = Interpreter.eval(node.get(2), context);
+            if (superProto != null) {
+                index = computedKey(index, context);
+                if (context.isStopped()) return Terms.UNDEFINED;
+            }
             JsSymbol sym = JsSymbol.keyedBy(index);
             Object result = sym != null
                     ? (superProto instanceof JsObject jo
@@ -911,6 +952,11 @@ class PropertyAccess {
                 return getByName(object, Terms.toPropertyKey(index), optional, context, functionCall);
             }
             throw JsErrorException.typeError("get by index [" + i + "] for non-array: " + object);
+        }
+        if (index instanceof ObjectLike && object != null && object != Terms.UNDEFINED) {
+            Object key = computedKey(index, context);
+            if (context.isStopped()) return Terms.UNDEFINED;
+            if (key != index) return getByIndex(object, key, optional, context, functionCall);
         }
         return getByName(object, Terms.toPropertyKey(index), optional, context, functionCall);
     }

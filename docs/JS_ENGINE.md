@@ -396,7 +396,7 @@ building the mirror once:
 
 Only object-vs-primitive
 `==` changes: two host values, or a host value and a JS object, compare as
-before. A bracket key without a context (`PropertyAccess`) uses
+before. A host value as a bracket key (`PropertyAccess`) keys by
 `HostMirror.jsString`, the mirror's built-in `toString` result. Map, POJO and
 XML Node are not mirrored and coerce as before.
 
@@ -1956,6 +1956,15 @@ passes non-string keys). The numeric branch (`Terms.numberToString`)
 is spec Number::toString: `0.000001` → `"0.000001"` (BigDecimal
 plain-string with `stripTrailingZeros()` so `Double.toString`'s
 `"1.0E-6"` round-trip doesn't leak a trailing zero through scale).
+
+**Computed member keys convert once, at the spec's step.** Every `o[k]`
+site runs `PropertyAccess.computedKey` (an `ObjectLike` key only; primitives
+keep the worker fast paths) via `keyed(site)` or `getByIndex`. ToObject(base)
+comes first — a null / undefined base throws before any user `toString`. For
+`o[k] = v` the conversion follows the RHS (test262
+`assignment/target-member-computed-reference*`); compound, logical and
+inc/dec convert once before the read (`S11.13.2_A7.*_T3/T4`,
+`S11.3.1_A6_T3`). `in` rejects a non-object target first.
 
 ### BigInt
 

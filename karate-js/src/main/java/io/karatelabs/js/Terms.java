@@ -1297,11 +1297,15 @@ public class Terms {
      * object (per spec §13.10.1 step 7), since the {@code [[HasProperty]]}
      * internal method is only defined on objects.
      */
-    static boolean in(Object lhs, Object rhs) {
+    static boolean in(Object lhs, Object rhs, CoreContext context) {
         if (!(rhs instanceof ObjectLike obj)) {
             throw JsErrorException.typeError(
                     "Cannot use 'in' operator to search for '"
                             + String.valueOf(lhs) + "' in " + String.valueOf(rhs));
+        }
+        if (lhs instanceof ObjectLike) {
+            lhs = PropertyAccess.computedKey(lhs, context);
+            if (context.isStopped()) return false;
         }
         JsSymbol sym = JsSymbol.keyedBy(lhs);
         if (sym != null) {

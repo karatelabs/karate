@@ -205,7 +205,7 @@ public class JsJson extends JsObject {
             if (propertyList != null) {
                 result = new LinkedHashMap<>(propertyList.size());
                 for (String key : propertyList) {
-                    if (!Terms.in(key, value)) {
+                    if (!Terms.in(key, value, ctx)) {
                         continue; // absent everywhere on the chain — skipped, not null
                     }
                     Object child = jo.getMember(key, value, ctx);
