@@ -112,3 +112,25 @@ jobs:
           name: karate-release-${{ steps.version.outputs.version }}
           retention-days: 10
           path: target/karate-${{ steps.version.outputs.version }}.zip
+
+  # Windows-only path handling (drive letters, ':' and '\' in paths) is not covered by the
+  # Linux CI, so a release runs the same build and tests on Windows alongside. Nothing is
+  # deployed from here, and no release secrets reach this job.
+  windows:
+    if: github.event.inputs.tests == 'enabled'
+    timeout-minutes: 60
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Build and test
+        run: mvn -B -ntp clean install -Pcicd
