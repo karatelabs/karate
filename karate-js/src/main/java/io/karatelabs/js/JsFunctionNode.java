@@ -38,14 +38,18 @@ class JsFunctionNode extends JsFunction {
 
     static final Logger logger = LoggerFactory.getLogger(JsFunctionNode.class);
 
+    private static final String STACK_EXCEEDED = "Maximum call stack size exceeded";
+
     static {
         // Build one throwaway RangeError now. The recursion guard in
         // bindArgsAndExecute builds one on a thread whose stack is already
         // exhausted, and a class initializer that fails there is fatal for the
         // life of the JVM (every later touch is a NoClassDefFoundError). This
         // class loads with the first function definition, long before any deep
-        // recursion, so the error path is warm by the time it is needed.
-        JsErrorException.rangeError("");
+        // recursion, so the error path is warm by the time it is needed. The
+        // real message matters: an invokedynamic site (JsError.toString's
+        // concat) whose first link overflows fails for good.
+        JsErrorException.rangeError(STACK_EXCEEDED);
     }
 
     final boolean arrow;
@@ -299,7 +303,7 @@ class JsFunctionNode extends JsFunction {
         try {
             return executeBody(functionContext, parentContext, args);
         } catch (StackOverflowError e) {
-            throw JsErrorException.rangeError("Maximum call stack size exceeded");
+            throw JsErrorException.rangeError(STACK_EXCEEDED);
         }
     }
 

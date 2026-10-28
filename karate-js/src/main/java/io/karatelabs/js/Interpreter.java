@@ -2798,7 +2798,11 @@ class Interpreter {
             sb.append("  Error: ").append(body).append("\n");
             sb.append("==========");
             if (first.getResource().isFile()) {
-                System.err.println("file://" + first.getResource().getUri().getPath() + ":" + first.getPositionDisplay() + " " + e);
+                // StringBuilder, not +: this can be the first run, on an almost exhausted stack
+                // (runaway recursion), and a concat call site whose first link overflows is broken
+                // for the life of the JVM
+                System.err.println(new StringBuilder("file://").append(first.getResource().getUri().getPath())
+                        .append(':').append(first.line + 1).append(':').append(first.col + 1).append(' ').append(e));
             }
             throw new EngineException(sb.toString(), e, jsErrorName, jsMessage);
         }

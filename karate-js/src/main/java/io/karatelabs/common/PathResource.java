@@ -28,8 +28,12 @@ import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 
 public class PathResource implements Resource {
+
+    // compiled up front for the same reason as MemoryResource.LINE_BREAK
+    private static final Pattern LINE_BREAK = Pattern.compile("\\r?\\n");
 
     private final Path path;
     private final Path root;
@@ -256,7 +260,7 @@ public class PathResource implements Resource {
     @Override
     public String getLine(int index) {
         if (lines == null) {
-            lines = getText().split("\\r?\\n");
+            lines = LINE_BREAK.split(getText());
         }
         return lines[index];
     }

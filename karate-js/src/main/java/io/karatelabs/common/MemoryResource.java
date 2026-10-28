@@ -28,10 +28,16 @@ import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 
 public class MemoryResource implements Resource {
 
     private static final Path SYSTEM_TEMP = Path.of(System.getProperty("java.io.tmpdir"));
+
+    // Compiled up front, not on the first getLine: that call can come from an error
+    // handler on an almost exhausted stack, where Pattern.compile turns the
+    // StackOverflowError into a PatternSyntaxException.
+    private static final Pattern LINE_BREAK = Pattern.compile("\\r?\\n");
 
     private final Path root;
     private final Path classpathRoot;
@@ -133,7 +139,7 @@ public class MemoryResource implements Resource {
         // bounds check would then be against neither.
         String[] temp = lines;
         if (temp == null) {
-            temp = getText().split("\\r?\\n");
+            temp = LINE_BREAK.split(getText());
             lines = temp;
         }
         int adjusted = index - lineOffset;

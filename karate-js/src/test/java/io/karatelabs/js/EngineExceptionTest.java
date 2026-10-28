@@ -316,6 +316,25 @@ class EngineExceptionTest {
     }
 
     @Test
+    void testDeepRecursionIsARangeErrorWhereverTheOverflowLands() {
+        // Where the overflow lands within a JS call varies with JIT state; the
+        // error path then runs with almost no stack left. Starting each run a
+        // few Java frames deeper sweeps the landing point across a whole call.
+        for (int depth = 0; depth < 200; depth++) {
+            assertEquals("RangeError|Maximum call stack size exceeded", evalAtDepth(depth,
+                    "function f(){ return f() }; try { f() } catch (e) { e.name + '|' + e.message }"), "depth " + depth);
+            int d = depth;
+            EngineException ex = assertThrows(EngineException.class,
+                    () -> evalAtDepth(d, "function f(){ return f() }; f()"));
+            assertEquals("RangeError", ex.getJsErrorName(), "depth " + depth);
+        }
+    }
+
+    private static Object evalAtDepth(int depth, String script) {
+        return depth == 0 ? new Engine().eval(script) : evalAtDepth(depth - 1, script);
+    }
+
+    @Test
     void testAuthoredThrowCarriesTheValueAndTheThrowLine() {
         EngineException ex = assertThrowsEngineException("var a = 1;\nthrow 'no vehicles';");
         assertTrue(ex.isAuthoredThrow());

@@ -29,6 +29,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 
 /**
  * Resource implementation for HTTP/HTTPS URLs.
@@ -38,6 +39,9 @@ import java.nio.file.Path;
 public class UrlResource implements Resource {
 
     private static final Path SYSTEM_TEMP = Path.of(System.getProperty("java.io.tmpdir"));
+
+    // compiled up front for the same reason as MemoryResource.LINE_BREAK
+    private static final Pattern LINE_BREAK = Pattern.compile("\\r?\\n");
 
     private final URL url;
     private final URI uri;
@@ -84,7 +88,7 @@ public class UrlResource implements Resource {
     @Override
     public String getLine(int index) {
         if (lines == null) {
-            lines = getText().split("\\r?\\n");
+            lines = LINE_BREAK.split(getText());
         }
         return lines[index];
     }
