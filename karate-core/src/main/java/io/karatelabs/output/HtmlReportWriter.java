@@ -863,6 +863,14 @@ public final class HtmlReportWriter {
             if (comments != null && !comments.isEmpty()) {
                 data.put("comments", comments);
             }
+            // The step's own source beyond its first line: a doc string (a multiline function,
+            // a JSON body) or a data table, shown beneath the step row as written
+            if (step.getStep().getDocString() != null) {
+                data.put("docString", step.getStep().getDocString());
+            }
+            if (step.getStep().getTable() != null) {
+                data.put("table", step.getStep().getTable().getRows());
+            }
         } else {
             // Fake step (e.g., for @fail tag, or a lifecycle hook)
             data.put("prefix", "*");

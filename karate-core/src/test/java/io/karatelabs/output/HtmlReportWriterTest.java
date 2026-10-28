@@ -833,6 +833,65 @@ class HtmlReportWriterTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void testDocStringAndTableOfCalledFeatureStepsAreRendered(@TempDir Path tempDir) throws Exception {
+        Files.writeString(tempDir.resolve("helper.feature"), """
+            @ignore
+            Feature: Function definitions
+
+            Scenario: Define a multiline function
+              * def doubleValue =
+              \"\"\"
+              function(value) {
+                return value * 2;
+              }
+              \"\"\"
+              * table rows
+                | name  | age |
+                | 'Bob' | 5   |
+            """);
+        Path feature = tempDir.resolve("caller.feature");
+        Files.writeString(feature, """
+            Feature: Multiline function source in the HTML report
+
+            Scenario: Call a helper and verify its function executes
+              * def helper = call read('helper.feature')
+              * def result = helper.doubleValue(3)
+              * match result == 6
+            """);
+        Path reportDir = tempDir.resolve("reports");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+        assertEquals(0, result.getScenarioFailedCount());
+
+        String html = Files.readString(reportDir.resolve(HtmlReportListener.SUBFOLDER).resolve("caller.html"));
+        String open = "<script id=\"karate-data\" type=\"application/json\">";
+        int start = html.indexOf(open) + open.length();
+        String dataJson = html.substring(start, html.indexOf("</script>", start));
+        Map<String, Object> data = (Map<String, Object>) Json.of(dataJson).value();
+        Map<String, Object> scenario = ((List<Map<String, Object>>) data.get("scenarios")).get(0);
+        Map<String, Object> callStep = ((List<Map<String, Object>>) scenario.get("steps")).get(0);
+        Map<String, Object> called = ((List<Map<String, Object>>) callStep.get("callResults")).get(0);
+        List<Map<String, Object>> nestedSteps = (List<Map<String, Object>>)
+                ((List<Map<String, Object>>) called.get("scenarios")).get(0).get("steps");
+        assertEquals("function(value) {\n  return value * 2;\n}", nestedSteps.get(0).get("docString"));
+        assertEquals(List.of(List.of("name", "age"), List.of("'Bob'", "5")), nestedSteps.get(1).get("table"));
+        assertNull(((List<Map<String, Object>>) scenario.get("steps")).get(1).get("docString"));
+
+        // the client renders both beneath the step row, escaped, without needing the row expanded
+        Engine engine = summaryPageEngine("{}");
+        engine.put("nestedSteps", nestedSteps);
+        String rendered = (String) engine.eval("KarateReport.renderSteps(nestedSteps)");
+        assertTrue(rendered.contains("<pre class=\"m-0 whitespace-pre-wrap\">function(value) {\n  return value * 2;\n}</pre>"), rendered);
+        assertTrue(rendered.contains(">'Bob'</td>"), rendered);
+        assertFalse(rendered.contains("onclick=\"KarateReport.toggleStep(this)\""), rendered);
+    }
+
+    @Test
     void testJsonEmbedStaysInline(@TempDir Path tempDir) throws Exception {
         // A structured-JSON embed must stay inline (carry `data`, not an externalized `file`):
         // the report renders off the filesystem (file://), where a content read of an externalized

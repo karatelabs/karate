@@ -390,6 +390,23 @@ const KarateReport = {
         html += `<div class="${muted} ml-2 w-20 text-right shrink-0"><span class="text-xs tabular-nums">${step.durationMillis} ms</span></div>`;
         html += `</div>`; // end step-row
 
+        // Doc string / data table: part of the step's source, so always shown, like the
+        // comments above it; indented to line up with the step text
+        if (step.docString != null) {
+            html += `<div class="ml-16 mr-3 my-1 p-2 rounded bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 font-mono text-xs ${muted}"><pre class="m-0 whitespace-pre-wrap">${this._esc(step.docString)}</pre></div>`;
+        }
+        if (step.table && step.table.length) {
+            html += `<div class="ml-16 mr-3 my-1 overflow-x-auto"><table class="font-mono text-xs ${muted} border-collapse">`;
+            step.table.forEach((row, ri) => {
+                html += `<tr>`;
+                row.forEach(cell => {
+                    html += `<td class="px-2 py-0.5 border border-slate-200 dark:border-slate-700${ri === 0 ? ' font-bold' : ''}">${this._esc(cell)}</td>`;
+                });
+                html += `</tr>`;
+            });
+            html += `</table></div>`;
+        }
+
         // Detail section (hidden by default)
         if (hasDetail) {
             html += `<div class="k-step-detail" style="display: none;">`;
