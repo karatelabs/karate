@@ -53,6 +53,10 @@ permissions: read-all
 
 jobs:
   release:
+    # a Windows test failure blocks the release; with tests disabled the windows job is
+    # skipped, and a skipped need would otherwise skip this job too
+    needs: windows
+    if: ${{ !cancelled() && (needs.windows.result == 'success' || needs.windows.result == 'skipped') }}
     timeout-minutes: 60
     runs-on: ubuntu-latest
     permissions:
@@ -114,7 +118,7 @@ jobs:
           path: target/karate-${{ steps.version.outputs.version }}.zip
 
   # Windows-only path handling (drive letters, ':' and '\' in paths) is not covered by the
-  # Linux CI, so a release runs the same build and tests on Windows alongside. Nothing is
+  # Linux CI, so a release runs the same build and tests on Windows first. Nothing is
   # deployed from here, and no release secrets reach this job.
   windows:
     if: github.event.inputs.tests == 'enabled'
