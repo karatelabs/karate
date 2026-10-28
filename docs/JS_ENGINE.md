@@ -1326,6 +1326,18 @@ unexpected Java leaks surface as generic `Error` + an IDE-clickable cause
 chain in the host log, treating principle 2 ("errors must look like JS,
 not Java") as a bug-finding signal rather than papering over it.
 
+**A Java `StackOverflowError` becomes `RangeError: Maximum call stack size
+exceeded`** (`JsErrorException.stackExceeded`) at the nearest of two seams:
+`JsFunctionNode.bindArgsAndExecute` (JS recursion, including expression-bodied
+arrows that run no statement) and `Interpreter.evalStatement` (a recursive
+built-in — `JSON.stringify`/`parse`, array `join`/`toString`, `structuredClone`
+— on a deep structure, which runs no JS frame at all). Either way the error is
+an ordinary throw that the innermost JS `catch` sees. The error path runs on an
+almost exhausted stack where first-use linkage fails for the life of the JVM,
+so `Interpreter`'s class init builds one `stackExceeded()` up front. Generator
+recursion cannot overflow — each nested step runs on its own vthread — so
+`GeneratorActivation.step` counts nested steps instead (`MAX_STEP_DEPTH`).
+
 **`Test262Error` / user-defined error classes** are classified via
 `constructor.name` fallback in `Interpreter.evalProgram` when the thrown
 `JsObject` has no `.name` on its prototype. Function-name inference in
@@ -1399,9 +1411,10 @@ never shadowed), so closures that captured it — a hoisted function, a probe
 created in a `for` head — observe the value from then on. Only the declaration
 initializes: `CoreContext.update` / `updateSlot` throw on an uninitialized
 binding (§9.1.1.1.5), and `const` reassignment stays a `TypeError`. The one
-TDZ error factory is `JsErrorException.uninitialized` (a distinct subclass, so
-`evalTypeofExpr` can let it through while still mapping an unresolvable name
-to `"undefined"`).
+TDZ error factory is `JsErrorException.uninitialized`. `evalTypeofExpr` needs
+no special case for it: `isUnresolvableReference` answers `"undefined"` only
+for a bare identifier that names no binding, and every other operand —
+a TDZ read, `null.x`, a throwing call — evaluates normally and throws.
 
 **Frame `UNDECLARED` vs `TDZ`.** `UNDECLARED` now means "not yet bound in this
 frame": a `var` before its statement runs, and a body-level let/const while the

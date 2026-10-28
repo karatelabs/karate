@@ -285,12 +285,13 @@ class PropertyAccess {
             // Recurse via getCallable on the inner property-access expression; for
             // anything else the parens just pass the value through with no receiver.
             case PAREN_EXPR -> getCallableParenInner(node, context);
-            case FN_CALL_EXPR, FN_TAGGED_TEMPLATE_EXPR, FN_EXPR, FN_ARROW_EXPR -> {
+            // any other callee (`null?.()`, a literal) is a plain value: no receiver,
+            // and the caller decides whether it is callable
+            default -> {
                 Object c = Interpreter.eval(node, context);
                 context.callReceiver = null;
                 yield c;
             }
-            default -> throw JsErrorException.notAFunction(node);
         };
     }
 

@@ -2146,4 +2146,21 @@ class SpecPinTest extends EvalBase {
         sb.append("  log = 'ran'\n}\nf(null)\nlog");
         assertEquals("none", eval(sb.toString()));
     }
+
+    @Test
+    void typeof_onlyAnUnresolvableReferenceReadsAsUndefined() {
+        assertEquals("undefined", eval("typeof undeclaredVar"));
+        assertEquals("undefined", eval("typeof (undeclaredVar)"));
+        assertEquals("undefined", eval("typeof ({}).missing"));
+        assertEquals("undefined", eval("(() => typeof arguments)()"));
+        assertEquals("object", eval("function f() { return typeof arguments } f()"));
+        // every other operand evaluates normally, and its abrupt completion propagates
+        assertEquals("TypeError", eval("try { typeof null.x; 'no throw' } catch (e) { e.name }"));
+        assertEquals("TypeError", eval("try { typeof undefined.x; 'no throw' } catch (e) { e.name }"));
+        assertEquals("TypeError", eval("var a = {}; try { typeof a.b.c; 'no throw' } catch (e) { e.name }"));
+        assertEquals(1, eval("try { typeof (() => { throw 1 })(); 'no throw' } catch (e) { e }"));
+        assertEquals("ReferenceError", eval("try { typeof (0, undeclaredVar); 'no throw' } catch (e) { e.name }"));
+        EngineException ex = assertThrows(EngineException.class, () -> eval("typeof null.x"));
+        assertEquals("TypeError", ex.getJsErrorName());
+    }
 }

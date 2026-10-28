@@ -500,24 +500,19 @@ race with a thenable job is nondeterministic. See
 
 Added 2026-08-16:
 
-*(Both engine-side items shipped the same day. Deep recursion:
-`JsFunctionNode.bindArgsAndExecute` — the one seam every JS-to-JS call
-funnels through, `call` and the Interpreter's inlined call/construct/super
-paths alike — catches `StackOverflowError` and rethrows
-`RangeError: Maximum call stack size exceeded`. A depth counter was
-rejected: no fixed ceiling is portable (the surefire JVM blows at ~450
-nested JS frames, run to run, where a default main thread takes far more).
-The catch is free on the hot path and self-correcting on the cold one — a
-second overflow while building the error lands in the caller's identical
-catch, one JS frame further out. The one real hazard is a class
-initializer running on the exhausted stack, which fails permanently, so
-`JsFunctionNode`'s static block builds one throwaway RangeError to warm
-the path. `.stack`: `JsError.captureStack` records `at <source>:<line>:<col>`
-frames at construction and renders the `"<name>: <message>"` header on
-first read; a non-enumerable writable intrinsic, so it stays out of
-`toMap()` and `Object.keys`. Engine-raised errors are stamped where they
-become JS values in `evalTryStmt`; `class X extends Error` carries it via
-the copy-shim.)*
+*(Stack overflow is a RangeError everywhere: JS recursion, recursive
+built-ins on deep structures (`JSON.stringify`/`parse`, array
+`join`/`toString`/`flat(Infinity)`, `structuredClone`) and runaway `yield*`
+recursion all throw a catchable `RangeError: Maximum call stack size
+exceeded`. The seams and the exhausted-stack warm-up hazard are in
+[JS_ENGINE.md § Error routing & shape](../docs/JS_ENGINE.md#error-routing--shape);
+a depth counter stays rejected for ordinary calls (no portable ceiling) and is
+used only for generators, whose nested steps never share a stack. `.stack`:
+`JsError.captureStack` records `at <source>:<line>:<col>` frames at
+construction and renders the `"<name>: <message>"` header on first read; a
+non-enumerable writable intrinsic, so it stays out of `toMap()` and
+`Object.keys`. Engine-raised errors are stamped where they become JS values
+in `evalTryStmt`; `class X extends Error` carries it via the copy-shim.)*
 
 *(Harness `ThrownValue` bucket shipped 2026-09-01: an `EngineException` with
 a JS message but no JS error name — a thrown non-Error value — now classifies

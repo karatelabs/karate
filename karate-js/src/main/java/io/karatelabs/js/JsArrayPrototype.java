@@ -915,11 +915,10 @@ class JsArrayPrototype extends Prototype {
     private Object flat(Context context, Object[] args) {
         List<Object> thisArray = rawList(context);
         int depth = 1;
-        if (args.length > 0 && args[0] != null) {
-            Number depthNum = Terms.objectToNumber(args[0]);
-            if (!Double.isNaN(depthNum.doubleValue()) && !Double.isInfinite(depthNum.doubleValue())) {
-                depth = depthNum.intValue();
-            }
+        if (args.length > 0 && args[0] != Terms.UNDEFINED) {
+            // ToIntegerOrInfinity: NaN is 0, and Infinity saturates — flat(Infinity) flattens fully
+            double d = Terms.objectToNumber(args[0]).doubleValue();
+            depth = Double.isNaN(d) ? 0 : (int) d;
         }
         List<Object> result = new ArrayList<>();
         flatten(thisArray, result, depth);

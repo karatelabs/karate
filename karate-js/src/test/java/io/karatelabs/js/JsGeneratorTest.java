@@ -1,6 +1,7 @@
 package io.karatelabs.js;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.List;
 
@@ -338,6 +339,18 @@ class JsGeneratorTest extends EvalBase {
                 + "var it = g();\nit.next();\nvar caught;\n"
                 + "try { it.throw('sent') } catch (e) { caught = e }\n"
                 + "caught === 'original' && touched === 0"));
+    }
+
+    @Test
+    @Timeout(60) // the failure mode is a hang
+    void testRunawayYieldStarRecursionIsARangeError() {
+        // each nested step runs on its own vthread, so no Java stack ever overflows
+        assertEquals("RangeError|Maximum call stack size exceeded", eval("function* g() { yield* g() }\n"
+                + "try { g().next(); 'no throw' } catch (e) { e.name + '|' + e.message }"));
+        assertEquals("RangeError", eval("function* g() { for (const x of g()) yield x }\n"
+                + "try { [...g()]; 'no throw' } catch (e) { e.name }"));
+        // legitimate recursion well short of the limit still runs, and the engine is usable after
+        assertEquals(501, eval("function* w(n) { if (n < 500) yield* w(n + 1); yield n }\n[...w(0)].length"));
     }
 
     @Test

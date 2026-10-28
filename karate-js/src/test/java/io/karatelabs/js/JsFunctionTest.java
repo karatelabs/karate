@@ -133,6 +133,10 @@ class JsFunctionTest extends EvalBase {
     @Test
     void testFunctionNewNoBrackets() {
         assertEquals("foo", eval("var a = function(){ this.b = 'foo' }; c = new a; c.b"));
+        // any member expression, not just a name: the operand is never an argument list
+        assertEquals("foo", eval("var o = {a: function(){ this.b = 'foo' }}; c = new o.a; c.b"));
+        assertEquals(true, eval("class C {}; new (C) instanceof C"));
+        assertEquals("TypeError", eval("try { new (() => {}); 'no throw' } catch (e) { e.name }"));
     }
 
     @Test

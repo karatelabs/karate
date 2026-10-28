@@ -40,6 +40,18 @@ class Interpreter {
 
     static final Logger logger = LoggerFactory.getLogger(Interpreter.class);
 
+    static {
+        // Build one throwaway stack-exceeded RangeError now. The overflow guards
+        // (evalStatement, JsFunctionNode.bindArgsAndExecute, GeneratorActivation)
+        // build one on a thread whose stack is already exhausted, and first-use
+        // work there fails for good: a class initializer that overflows is a
+        // NoClassDefFoundError for the life of the JVM, and so is an
+        // invokedynamic site (JsError.toString's concat) whose first link
+        // overflows — which is why it is the real message. This class loads
+        // before any script runs, so the path is warm by the time it is needed.
+        JsErrorException.stackExceeded();
+    }
+
     /**
      * Spec §10.2.1.2 OrdinaryCallBindThis: a regular function called as
      * {@code f()} (no receiver, no {@code f.call(...)}, no {@code new}) gets
@@ -608,8 +620,8 @@ class Interpreter {
         Node fnArgsNode;
         if (newKeyword) {
             node = node.getFirst();
-            // check for new keyword with no parentheses for the constructor
-            if (node.size() == 1) {
+            // `new X` with no argument list: X is any member expression (`new a.B`, `new (C)`)
+            if (node.type != NodeType.FN_CALL_EXPR) {
                 fnArgsNode = null;
             } else {
                 fnArgsNode = node.get(2);
@@ -2715,7 +2727,15 @@ class Interpreter {
         }
 
         try {
-            Object statementResult = eval(node, context);
+            Object statementResult;
+            try {
+                statementResult = eval(node, context);
+            } catch (StackOverflowError e) {
+                // a recursive built-in (JSON, array join, structuredClone) on a deep
+                // structure; the unwound stack has room for the RangeError, and a JS
+                // catch around this statement sees it like any other throw
+                throw JsErrorException.stackExceeded();
+            }
             if (logger.isTraceEnabled() || Engine.DEBUG) {
                 NodeType nodeType = node.type;
                 if (nodeType != NodeType.EXPR && nodeType != NodeType.BLOCK) {
@@ -3281,16 +3301,39 @@ class Interpreter {
     }
 
     private static Object evalTypeofExpr(Node node, CoreContext context) {
-        try {
-            Object value = eval(node.get(1), context);
-            return Terms.typeOf(value);
-        } catch (JsErrorException.Uninitialized e) {
-            // §13.5.3: only an UNRESOLVABLE reference reads as "undefined"; a binding
-            // that exists but is still in its temporal dead zone throws
-            throw e;
-        } catch (Exception e) {
-            return Terms.UNDEFINED.toString();
+        Node operand = node.get(1);
+        if (isUnresolvableReference(operand, context)) {
+            return "undefined";
         }
+        return Terms.typeOf(eval(operand, context));
+    }
+
+    // §13.5.3: only an unresolvable Reference reads as "undefined" — a bare identifier,
+    // through any parens, that names no binding. Every other operand evaluates normally
+    // and its abrupt completion propagates (`typeof null.x`, `typeof f()`, a TDZ read).
+    private static boolean isUnresolvableReference(Node n, CoreContext context) {
+        while (true) {
+            if (n.type == NodeType.PAREN_EXPR) {
+                n = n.get(1);
+            } else if ((n.type == NodeType.EXPR || n.type == NodeType.EXPR_LIST) && n.size() == 1) {
+                n = n.getFirst();
+            } else {
+                break;
+            }
+        }
+        if (n.type != NodeType.REF_EXPR || n.getFirst().type == NodeType.FN_ARROW_EXPR) {
+            return false;
+        }
+        int slot = n.slot;
+        if (slot >= 0 && context.frame != null && context.frame[slot] != SlotTable.UNDECLARED) {
+            return false;
+        }
+        String name = n.getText();
+        if ("this".equals(name)
+                || (context.callArgs != null && "arguments".equals(name) && context.argumentsForRead() != null)) {
+            return false;
+        }
+        return context.resolve(name) == null;
     }
 
     private static Object evalUnaryExpr(Node node, CoreContext context) {

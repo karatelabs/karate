@@ -333,6 +333,27 @@ class EngineExceptionTest {
         }
     }
 
+    @Test
+    void testDeepStructureInARecursiveBuiltInIsARangeError() {
+        String nest = "var a = []; for (var i = 0; i < 100000; i++) a = [a];\n";
+        String obj = "var o = {}; for (var i = 0; i < 100000; i++) o = {o: o};\n";
+        String[] calls = {nest + "JSON.stringify(a)", obj + "JSON.stringify(o)", obj + "structuredClone(o)",
+                nest + "String(a)", nest + "a.join()", nest + "a.flat(Infinity)",
+                "JSON.parse('['.repeat(100000) + ']'.repeat(100000))"};
+        for (String call : calls) {
+            int nl = call.lastIndexOf('\n') + 1;
+            String caught = call.substring(0, nl) + "try { " + call.substring(nl)
+                    + "; 'no throw' } catch (e) { e.name + '|' + e.message }";
+            assertEquals("RangeError|Maximum call stack size exceeded", new Engine().eval(caught), call);
+            // and inside a function: the catch there sees it, not the function's caller
+            String inFn = call.substring(0, nl) + "function f() { try { " + call.substring(nl)
+                    + "; return 'no throw' } catch (e) { return e.name } } f()";
+            assertEquals("RangeError", new Engine().eval(inFn), call);
+            EngineException ex = assertThrows(EngineException.class, () -> new Engine().eval(call));
+            assertEquals("RangeError", ex.getJsErrorName(), call);
+        }
+    }
+
     private static Object evalAtDepth(int depth, String script) {
         return depth == 0 ? new Engine().eval(script) : evalAtDepth(depth - 1, script);
     }

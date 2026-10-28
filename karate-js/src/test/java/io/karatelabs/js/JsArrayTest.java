@@ -226,7 +226,9 @@ class JsArrayTest extends EvalBase {
         match(eval("[1, 2, [3, 4]].flat()"), "[1, 2, 3, 4]");
         match(eval("[1, 2, [3, [4, 5]]].flat()"), "[1, 2, 3, [4, 5]]");
         match(eval("[1, 2, [3, [4, 5]]].flat(2)"), "[1, 2, 3, 4, 5]");
-        // match(eval("[1, 2, [3, [4, [5, 6]]]].flat(Infinity)"), "[1, 2, 3, 4, 5, 6]");
+        match(eval("[1, 2, [3, [4, [5, 6]]]].flat(Infinity)"), "[1, 2, 3, 4, 5, 6]");
+        match(eval("[1, [2]].flat(NaN)"), "[1, [2]]");
+        match(eval("[1, [2]].flat(-Infinity)"), "[1, [2]]");
         match(eval("[1, 2, [3, 4]].flat(0)"), "[1, 2, [3, 4]]");
         match(eval("[].flat()"), "[]");
         match(eval("[1, 2, null, undefined, [3, 4]].flat()"), "[1, 2, null, undefined, 3, 4]");

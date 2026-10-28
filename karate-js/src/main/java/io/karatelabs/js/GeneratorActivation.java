@@ -59,6 +59,10 @@ final class GeneratorActivation implements Runnable {
 
     private static final ThreadLocal<GeneratorActivation> CURRENT = new ThreadLocal<>();
 
+    /** Node's V8 overflows at ~3,900 nested {@code yield*} levels; a parked
+     *  step costs a vthread, so stop well short of that. */
+    static final int MAX_STEP_DEPTH = 1000;
+
     enum State {NOT_STARTED, RUNNING, SUSPENDED, DONE}
 
     enum ResumeKind {NEXT, THROW, RETURN}
@@ -105,6 +109,9 @@ final class GeneratorActivation implements Runnable {
      *  reads it. Written under jsLock by the driver. */
     private AsyncScope stepScope;
     private volatile boolean resumeReady;
+    /** Generator steps nested on the driver chain, this one included. Written
+     *  by the driver under jsLock before the gen runs, like the fields above. */
+    private int stepDepth;
     private volatile Thread thread;
     private volatile Thread driver;
 
@@ -154,6 +161,14 @@ final class GeneratorActivation implements Runnable {
             // raced with a concurrent completion — treat as done
             return new StepOutcome(OutcomeKind.RETURNED, Terms.UNDEFINED);
         }
+        // Each nested step runs on a fresh vthread stack, so runaway generator
+        // recursion (`function* g() { yield* g() }`) never overflows a stack —
+        // it parks vthreads until the heap gives out. Count the chain instead.
+        GeneratorActivation outer = current();
+        int depth = outer == null ? 1 : outer.stepDepth + 1;
+        if (depth > MAX_STEP_DEPTH) {
+            throw JsErrorException.stackExceeded();
+        }
         if (!state.compareAndSet(s, State.RUNNING)) {
             // a concurrent host caller won the step; spec answer is the same
             // "already running" TypeError
@@ -163,6 +178,7 @@ final class GeneratorActivation implements Runnable {
         stepCell = cell;
         resumeKind = kind;
         resumeValue = value;
+        stepDepth = depth;
         driver = Thread.currentThread();
         // register-only-if-open: a RUNNING step is scope-owned, cancellable
         // work; a closed scope must not accept it
@@ -327,7 +343,7 @@ final class GeneratorActivation implements Runnable {
             }
         } catch (StackOverflowError e) {
             publishFinal(OutcomeKind.THREW,
-                    JsErrorException.rangeError("Maximum call stack size exceeded").payload);
+                    JsErrorException.stackExceeded().payload);
         } catch (Throwable e) {
             if (e instanceof FlowControlSignal || AsyncSupport.isHostCancellation(e)) {
                 // host cancellation never becomes a catchable JS error

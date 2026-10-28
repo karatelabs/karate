@@ -77,6 +77,14 @@ class JsErrorException extends RuntimeException {
         return new JsErrorException(build(JsErrorPrototype.RANGE_ERROR, message, null));
     }
 
+    /**
+     * The RangeError a Java {@link StackOverflowError} becomes. Built on an almost
+     * exhausted stack, so {@link Interpreter}'s class init builds one first — see there.
+     */
+    static JsErrorException stackExceeded() {
+        return rangeError("Maximum call stack size exceeded");
+    }
+
     static JsErrorException syntaxError(String message) {
         return new JsErrorException(build(JsErrorPrototype.SYNTAX_ERROR, message, null));
     }
@@ -99,20 +107,11 @@ class JsErrorException extends RuntimeException {
     /**
      * The ReferenceError for reading or writing a {@code let} / {@code const} / {@code class}
      * binding in its temporal dead zone — the one factory for it, so every storage path
-     * (slot frame, store, closure capture) throws the same shape. A distinct subclass only so
-     * {@code typeof}, which turns an <i>unresolvable</i> reference into {@code "undefined"},
-     * can tell this apart and let it propagate (§13.5.3: GetValue on a resolved binding
-     * still throws).
+     * (slot frame, store, closure capture) throws the same shape.
      */
     static JsErrorException uninitialized(String name) {
-        return new Uninitialized(build(JsErrorPrototype.REFERENCE_ERROR,
+        return new JsErrorException(build(JsErrorPrototype.REFERENCE_ERROR,
                 "cannot access '" + name + "' before initialization", null));
-    }
-
-    static final class Uninitialized extends JsErrorException {
-        Uninitialized(JsError payload) {
-            super(payload);
-        }
     }
 
     /**
