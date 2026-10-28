@@ -567,6 +567,10 @@ public class KarateConfig implements SimpleObject {
                     this.auth.put("accessTokenUrl", toString(map.get("accessTokenUrl")));
                     this.auth.put("clientId", toString(map.get("clientId")));
                     this.auth.put("clientSecret", toString(map.get("clientSecret")));
+                    if ("password".equals(this.auth.get("grantType"))) {
+                        this.auth.put("username", toString(map.get("username")));
+                        this.auth.put("password", toString(map.get("password")));
+                    }
                     if (map.containsKey("scope")) {
                         this.auth.put("scope", toString(map.get("scope")));
                     }

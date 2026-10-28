@@ -623,7 +623,7 @@ public class HttpRequestBuilder implements SimpleObject {
                 } else {
                     // Auth handler wants to use Authorization header
                     // For preview, apply it unless it requires network
-                    if (!(authHandler instanceof ClientCredentialsAuthHandler)) {
+                    if (!(authHandler instanceof OAuth2AuthHandler)) {
                         // Safe to apply - doesn't need network
                         authHandler.apply(this);
                     }
@@ -659,8 +659,7 @@ public class HttpRequestBuilder implements SimpleObject {
 
         // In preview mode with OAuth that needs network, add placeholder header
         if (preview && authHandler != null && authArgument == null) {
-            // Check if it's ClientCredentialsAuthHandler
-            if (authHandler instanceof ClientCredentialsAuthHandler) {
+            if (authHandler instanceof OAuth2AuthHandler) {
                 sb.append(lineContinuation).append("  ");
                 sb.append("-H ").append(StringUtils.shellEscapeForPlatform("Authorization: Bearer <your-oauth2-access-token>", effectivePlatform));
             }

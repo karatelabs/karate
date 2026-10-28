@@ -411,6 +411,24 @@ class HttpRequestBuilderCurlTest {
     }
 
     @Test
+    void testPreviewModeWithPasswordGrant() {
+        HttpRequestBuilder http = new HttpRequestBuilder(null);
+        http.url("https://api.example.com/resource");
+        http.method("GET");
+
+        Map<String, Object> config = new HashMap<>();
+        config.put("url", "https://oauth.example.com/token");
+        config.put("client_id", "my-client");
+        config.put("username", "alice");
+        config.put("password", "pw");
+        http.auth(new PasswordAuthHandler(config));
+
+        String curl = http.toCurlCommandPreview();
+        assertTrue(curl.contains("-H 'Authorization: Bearer <your-oauth2-access-token>'"), curl);
+        assertFalse(curl.contains("pw"), curl);
+    }
+
+    @Test
     void testPreviewModeWithBearerAuth() {
         HttpRequestBuilder http = new HttpRequestBuilder(null);
         http.url("https://api.example.com/secure");

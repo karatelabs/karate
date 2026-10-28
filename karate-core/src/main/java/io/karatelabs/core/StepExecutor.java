@@ -42,6 +42,7 @@ import io.karatelabs.http.DigestAuthHandler;
 import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.http.HttpResponse;
+import io.karatelabs.http.PasswordAuthHandler;
 import io.karatelabs.gherkin.GherkinParser;
 import io.karatelabs.js.EngineException;
 import io.karatelabs.js.JavaCallable;
@@ -2049,6 +2050,11 @@ public class StepExecutor {
                 oauth2Config.put("client_secret", auth.get("clientSecret"));
                 if (auth.containsKey("scope")) {
                     oauth2Config.put("scope", auth.get("scope"));
+                }
+                if ("password".equals(auth.get("grantType"))) {
+                    oauth2Config.put("username", auth.get("username"));
+                    oauth2Config.put("password", auth.get("password"));
+                    yield new PasswordAuthHandler(oauth2Config);
                 }
                 yield new ClientCredentialsAuthHandler(oauth2Config);
             }

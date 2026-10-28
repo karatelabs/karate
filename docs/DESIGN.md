@@ -230,10 +230,13 @@ Categories: names, contact, location, numbers, text, business, timestamps. See `
 ```gherkin
 * configure auth = { type: 'basic', username: 'user', password: 'pass' }
 * configure auth = { type: 'bearer', token: '#(accessToken)' }
-* configure auth = { type: 'oauth2', grantType: 'client_credentials', tokenUrl: '...', clientId: '...', clientSecret: '...' }
+* configure auth = { type: 'oauth2', grantType: 'client_credentials', accessTokenUrl: '...', clientId: '...', clientSecret: '...' }
+* configure auth = { type: 'oauth2', grantType: 'password', accessTokenUrl: '...', username: '...', password: '...', clientId: '...', clientSecret: '...' }
 * configure auth = { type: 'digest', username: 'user', password: 'pass' }
 * configure auth = { type: 'aws', accessKey: '...', secretKey: '...', sessionToken: '...', region: 'us-east-1', service: 's3' }
 ```
+
+`oauth2` (`ClientCredentialsAuthHandler`, or `PasswordAuthHandler` for `grantType: 'password'`) fetches its token on the first request and sends `Authorization: Bearer <token>`; `scope` is optional, `clientId`/`clientSecret` too for the password grant, and a relative `accessTokenUrl` resolves against the request's host. The password grant refreshes an expired token with its refresh token, or signs in again. A cURL preview shows `<your-oauth2-access-token>` and fetches nothing.
 
 `digest` answers the server's `401` Digest challenge (qop `auth`, MD5 or SHA-256) in `ApacheHttpClient` and never answers a Basic challenge with the password; a wrong password surfaces as the server's `401`. The credentials (NTLM's too) are scoped to the request's own scheme, host and port and to that challenge scheme, so a proxy's `407` or a host reached by redirect never receives them; proxy credentials are scoped to the proxy.
 

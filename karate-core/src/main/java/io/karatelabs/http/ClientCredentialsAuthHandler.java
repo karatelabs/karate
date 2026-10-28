@@ -19,7 +19,8 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
         this.config = config;
     }
 
-    static Map<String, Object> requestToken(HttpRequestBuilder builder, Map<String, Object> config, String mainRequestUrl) {
+    /** The config's token {@code url}, a relative one resolved against the main request's scheme and authority. */
+    static String tokenUrl(Map<String, Object> config, String mainRequestUrl) {
         String tokenUrl = (String) config.get("url");
 
         // If token URL is relative, resolve it using the main request's protocol and host
@@ -38,7 +39,11 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
                 }
             }
         }
+        return tokenUrl;
+    }
 
+    static Map<String, Object> requestToken(HttpRequestBuilder builder, Map<String, Object> config, String mainRequestUrl) {
+        String tokenUrl = tokenUrl(config, mainRequestUrl);
         builder.url(tokenUrl);
         builder.formField("grant_type", "client_credentials");
         builder.formField("client_id", config.get("client_id"));

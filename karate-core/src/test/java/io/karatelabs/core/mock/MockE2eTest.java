@@ -309,6 +309,12 @@ class MockE2eTest {
               * def valid = clientId == 'test-client' && clientSecret == 'test-secret' && grantType == 'client_credentials'
               * def responseStatus = valid ? 200 : 401
               * def response = valid ? { access_token: 'test-access-token-12345', token_type: 'Bearer', expires_in: 3600 } : { error: 'invalid_client' }
+
+            Scenario: pathMatches('/oauth/password-token') && methodIs('post')
+              * def p = function(n){ return requestParams[n] ? requestParams[n][0] : null }
+              * def valid = p('grant_type') == 'password' && p('username') == 'alice' && p('password') == 'pw' && p('client_id') == 'test-client'
+              * def responseStatus = valid ? 200 : 401
+              * def response = valid ? { access_token: 'password-token', token_type: 'Bearer', expires_in: 3600 } : { error: 'invalid_grant' }
             """)
             .port(0)
             .start();
@@ -1819,6 +1825,23 @@ class MockE2eTest {
             * status 200
             # OAuth2 obtains token 'test-access-token-12345' from token endpoint
             * match response.authorization == 'Bearer test-access-token-12345'
+            """.formatted(port));
+
+        assertPassed(sr);
+    }
+
+    @Test
+    void testConfigureAuthOAuth2Password() {
+        ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+            Feature: Test OAuth2 password grant via configure
+
+            Scenario: OAuth2 password grant should obtain token and set Authorization header
+            * url 'http://localhost:%d'
+            * configure auth = { type: 'oauth2', grantType: 'password', accessTokenUrl: '/oauth/password-token', clientId: 'test-client', username: 'alice', password: 'pw' }
+            * path '/auth/check'
+            * method get
+            * status 200
+            * match response.authorization == 'Bearer password-token'
             """.formatted(port));
 
         assertPassed(sr);
