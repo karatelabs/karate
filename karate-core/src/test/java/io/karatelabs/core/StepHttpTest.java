@@ -354,6 +354,21 @@ class StepHttpTest {
     }
 
     @Test
+    void testPathKeepsPcharRaw() {
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> json("{ \"ok\": true }"));
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test/v1:x'
+            * path 'users/john@example.com/items:search'
+            * param q = 'a&b'
+            * method get
+            * status 200
+            * match karate.prevRequest.url == 'http://test/v1:x/users/john@example.com/items:search?q=a%26b'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testPrevRequestBodyIsBytes() {
         // V1 compatibility: karate.prevRequest.body returns byte[], not parsed body
         InMemoryHttpClient client = new InMemoryHttpClient(req -> json("{ \"ok\": true }"));

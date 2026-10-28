@@ -34,6 +34,7 @@ import io.netty.handler.codec.http.QueryStringEncoder;
 
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -165,6 +166,27 @@ public class HttpUtils {
             uri = "/" + uri;
         }
         return uri;
+    }
+
+    private static final char[] HEX = "0123456789ABCDEF".toCharArray();
+
+    /**
+     * Percent-encode a single path segment, leaving RFC 3986 pchar raw:
+     * unreserved, sub-delims, ':' and '@'. Everything else (including '/') is encoded as UTF-8 bytes.
+     */
+    public static String encodePathSegment(String segment) {
+        byte[] bytes = segment.getBytes(StandardCharsets.UTF_8);
+        StringBuilder sb = new StringBuilder(bytes.length);
+        for (byte b : bytes) {
+            int c = b & 0xFF;
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+                    || "-._~!$&'()*+,;=:@".indexOf(c) != -1) {
+                sb.append((char) c);
+            } else {
+                sb.append('%').append(HEX[c >> 4]).append(HEX[c & 0x0F]);
+            }
+        }
+        return sb.toString();
     }
 
     public static Pair<String> parseUriIntoUrlBaseAndPath(String rawUri) {

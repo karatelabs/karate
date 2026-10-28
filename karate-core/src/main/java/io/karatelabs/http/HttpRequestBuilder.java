@@ -439,6 +439,28 @@ public class HttpRequestBuilder implements SimpleObject {
                         segments.addAll(StringUtils.split(item, '/', true));
                     }
                 }
+                if (!segments.isEmpty()) {
+                    // URIBuilder's default policy over-encodes sub-delims, ':' and '@' in the path,
+                    // and its RFC_3986 policy would under-encode the query, so build the path here
+                    URI uri = builder.build();
+                    StringBuilder sb = new StringBuilder();
+                    if (uri.getScheme() != null) {
+                        sb.append(uri.getScheme()).append(':');
+                    }
+                    if (uri.getRawAuthority() != null) {
+                        sb.append("//").append(uri.getRawAuthority());
+                    }
+                    for (String segment : segments) {
+                        sb.append('/').append(HttpUtils.encodePathSegment(segment));
+                    }
+                    if (uri.getRawQuery() != null) {
+                        sb.append('?').append(uri.getRawQuery());
+                    }
+                    if (uri.getRawFragment() != null) {
+                        sb.append('#').append(uri.getRawFragment());
+                    }
+                    return new URI(sb.toString()).toASCIIString();
+                }
                 builder.setPathSegments(segments);
             }
             URI uri = builder.build();
