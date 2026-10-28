@@ -156,6 +156,33 @@ class OverlayRunTest {
         assertEquals(sha256(Files.readAllBytes(featureFile)), fr.toJson().get("sourceHash"));
     }
 
+    // Windows refuses a "classpath:..." string as a filesystem path (the ':' is illegal there), so
+    // the overlay lookup must not turn every path into a Path. A NUL is illegal on every OS, which
+    // lets this run the same check here.
+    @Test
+    void aPathTheFileSystemCannotParseIsNotAnOverlayLookup() throws Exception {
+        String unparseable = "classpath:checks\u0000missing";
+        SuiteResult plain = Runner.path(featureFile.toString(), unparseable)
+                .workingDir(tempDir)
+                .configDir(tempDir.toString())
+                .outputDir(tempDir.resolve("reports"))
+                .outputHtmlReport(false)
+                .outputConsoleSummary(false)
+                .parallel(1);
+        assertEquals("from disk", scenarioName(top(plain)));
+
+        Path created = featureFile.resolveSibling("created.feature");
+        SuiteResult withOverlay = Runner.path(created.toString(), unparseable)
+                .workingDir(tempDir)
+                .configDir(tempDir.toString())
+                .outputDir(tempDir.resolve("reports2"))
+                .outputHtmlReport(false)
+                .outputConsoleSummary(false)
+                .overlay(created, OVERLAY.getBytes(StandardCharsets.UTF_8))
+                .parallel(1);
+        assertEquals("from overlay", scenarioName(top(withOverlay)));
+    }
+
     @Test
     void overlayOfAFileNotYetOnDisk() throws Exception {
         Path created = featureFile.resolveSibling("created.feature");

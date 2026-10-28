@@ -31,6 +31,7 @@ import io.karatelabs.output.ResultListener;
 
 import java.io.File;
 import java.lang.reflect.Method;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1205,8 +1206,7 @@ public final class Runner {
 
             if (file.isDirectory()) {
                 resolveDirectory(file, target, root, classpathRoot);
-            } else if ((file.exists() || overlays.containsKey(file.toPath().toAbsolutePath().normalize()))
-                    && file.getName().endsWith(".feature")) {
+            } else if ((file.exists() || isOverlay(file)) && file.getName().endsWith(".feature")) {
                 Feature feature = readFeature(file.toPath(), root, classpathRoot);
                 target.add(feature);
                 // Store line filter for this feature
@@ -1256,6 +1256,19 @@ public final class Runner {
                     Feature feature = readFeature(file.toPath(), root, classpathRoot);
                     target.add(feature);
                 }
+            }
+        }
+
+        // A path string need not be a legal filesystem path: on Windows "classpath:..." has an
+        // illegal ':', and toPath() throws. Such a string is never an overlay key.
+        private boolean isOverlay(File file) {
+            if (overlays.isEmpty()) {
+                return false;
+            }
+            try {
+                return overlays.containsKey(file.toPath().toAbsolutePath().normalize());
+            } catch (InvalidPathException e) {
+                return false;
             }
         }
 
