@@ -190,6 +190,15 @@ public class FeatureResult {
         return (int) scenarioResults.stream().filter(ScenarioResult::isSkipped).count();
     }
 
+    public int getCancelledCount() {
+        return (int) scenarioResults.stream().filter(ScenarioResult::isCancelled).count();
+    }
+
+    /** True when any scenario of this feature was cut short by {@link Suite#cancel}. */
+    public boolean isCancelled() {
+        return scenarioResults.stream().anyMatch(ScenarioResult::isCancelled);
+    }
+
     /**
      * Pass rate as an integer percentage 0–100, or null when no scenarios executed.
      * Denominator is {@code passedCount + failedCount} — mirrors the HTML report's
@@ -219,8 +228,9 @@ public class FeatureResult {
         return rate;
     }
 
+    /** No scenario failed and none was cancelled: a cancelled feature is not passed. */
     public boolean isPassed() {
-        return scenarioResults.stream().noneMatch(ScenarioResult::isFailed);
+        return scenarioResults.stream().noneMatch(sr -> sr.isFailed() || sr.isCancelled());
     }
 
     /**
@@ -378,10 +388,14 @@ public class FeatureResult {
         // Metrics
         map.put("passed", isPassed());
         map.put("failed", isFailed());
+        if (isCancelled()) {
+            map.put("cancelled", true);
+        }
         map.put("durationMillis", getDurationMillis());
         map.put("passedCount", getPassedCount());
         map.put("failedCount", getFailedCount());
         map.put("skippedCount", getSkippedCount());
+        map.put("cancelledCount", getCancelledCount());
         map.put("passedRate", getPassedRate());
 
         // Path fields

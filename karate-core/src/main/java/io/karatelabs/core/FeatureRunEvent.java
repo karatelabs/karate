@@ -33,15 +33,16 @@ public record FeatureRunEvent(
         RunEventType type,
         FeatureRuntime source,
         FeatureResult result,  // null for ENTER
-        long timeStamp
+        long timeStamp,
+        long sequence
 ) implements RunEvent {
 
     public static FeatureRunEvent enter(FeatureRuntime fr) {
-        return new FeatureRunEvent(RunEventType.FEATURE_ENTER, fr, null, System.currentTimeMillis());
+        return new FeatureRunEvent(RunEventType.FEATURE_ENTER, fr, null, System.currentTimeMillis(), 0);
     }
 
     public static FeatureRunEvent exit(FeatureRuntime fr, FeatureResult result) {
-        return new FeatureRunEvent(RunEventType.FEATURE_EXIT, fr, result, System.currentTimeMillis());
+        return new FeatureRunEvent(RunEventType.FEATURE_EXIT, fr, result, System.currentTimeMillis(), 0);
     }
 
     @Override
@@ -52,6 +53,16 @@ public record FeatureRunEvent(
     @Override
     public long getTimeStamp() {
         return timeStamp;
+    }
+
+    @Override
+    public long getSequence() {
+        return sequence;
+    }
+
+    @Override
+    public FeatureRunEvent withSequence(long sequence) {
+        return new FeatureRunEvent(type, source, result, timeStamp, sequence);
     }
 
     @Override

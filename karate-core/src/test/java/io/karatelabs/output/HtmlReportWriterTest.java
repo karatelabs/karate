@@ -764,9 +764,12 @@ class HtmlReportWriterTest {
         }
         assertTrue(hasFeatureExit, "Should have FEATURE_EXIT event");
 
-        // Last line should be SUITE_EXIT
-        assertTrue(lines[lines.length - 1].contains("\"type\":\"SUITE_EXIT\""));
+        // SUITE_EXIT closes execution; RUN_COMPLETE, after every cleanup and report write, is the last line
+        assertTrue(lines[lines.length - 2].contains("\"type\":\"SUITE_EXIT\""));
+        assertTrue(lines[lines.length - 2].contains("\"summary\""));
+        assertTrue(lines[lines.length - 1].contains("\"type\":\"RUN_COMPLETE\""));
         assertTrue(lines[lines.length - 1].contains("\"summary\""));
+        assertTrue(lines[lines.length - 1].contains("\"runId\""));
     }
 
     @Test

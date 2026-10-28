@@ -64,6 +64,9 @@ import java.util.List;
  *   "listenerFactories": ["com.example.MyListenerFactory"]
  * }
  * </pre>
+ * Unknown keys are ignored. {@code xplorer} is reserved: Karate Xplorer keeps its project settings
+ * under it, and a file holding no run key — no paths, no output settings — behaves as no file, so
+ * the CLI still resolves the report dir from the build tool and a bare {@code karate} prints help.
  */
 public class KaratePom {
 
@@ -85,7 +88,8 @@ public class KaratePom {
      * Output configuration nested object.
      */
     public static class OutputPom {
-        private String dir = "target/karate-reports";
+        // null = the build tool's dir (FileUtils.getBuildDir), as with no pom file at all
+        private String dir;
         private boolean html = true;
         private boolean junitXml;
         private boolean cucumberJson;
@@ -275,7 +279,9 @@ public class KaratePom {
         builder.dryRun(dryRun);
 
         // Output settings
-        builder.outputDir(output.dir);
+        if (output.dir != null) {
+            builder.outputDir(output.dir);
+        }
         builder.outputHtmlReport(output.html);
         builder.outputJunitXml(output.junitXml);
         builder.outputCucumberJson(output.cucumberJson);

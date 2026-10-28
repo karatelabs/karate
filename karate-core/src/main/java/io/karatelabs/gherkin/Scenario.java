@@ -36,6 +36,9 @@ public class Scenario {
     private final Feature feature;
     private final FeatureSection section;
     private final int exampleIndex;
+    // the Examples table this row came from, 0-based within the outline; -1 when not an outline example.
+    // exampleIndex restarts at 0 for each table, so the pair is what makes a row's identity unique.
+    private int exampleTableIndex = -1;
 
     private int line;
     private SourceSpan span;
@@ -107,6 +110,7 @@ public class Scenario {
     // only called for dynamic scenarios
     public Scenario copy(int exampleIndex) {
         Scenario s = new Scenario(feature, section, exampleIndex);
+        s.exampleTableIndex = exampleTableIndex;
         s.name = name;
         s.description = description;
         s.tags = tags;
@@ -295,6 +299,14 @@ public class Scenario {
 
     public int getExampleIndex() {
         return exampleIndex;
+    }
+
+    public int getExampleTableIndex() {
+        return exampleTableIndex;
+    }
+
+    public void setExampleTableIndex(int exampleTableIndex) {
+        this.exampleTableIndex = exampleTableIndex;
     }
 
     @Override

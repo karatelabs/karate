@@ -96,6 +96,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private BasicCookieStore cookieStore;
     private volatile ClassicHttpRequest currentRequest;
     private volatile boolean aborted;
+    private volatile boolean cancelled;
     Runnable beforeAssign; // test seam: runs just before the request is published to abort()
 
     private int readTimeout = 30000;
@@ -537,6 +538,9 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     @Override
     public HttpResponse invoke(HttpRequest request) {
+        if (cancelled) {
+            throw new RuntimeException("http request refused: the run was cancelled");
+        }
         this.request = request;
         try {
             // an HttpUriRequestBase, not ClassicRequestBuilder's BasicClassicHttpRequest: only it can be aborted in flight
@@ -629,6 +633,12 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             currentRequest = null;
             aborted = false;
         }
+    }
+
+    @Override
+    public void cancel() {
+        cancelled = true;
+        abort();
     }
 
     /** Aborts the call in flight, or the next one if none has been published yet; cleared when that call ends. */

@@ -58,7 +58,8 @@ public record HttpRunEvent(
         HttpRequest request,
         HttpResponse response,  // null for ENTER
         ScenarioRuntime scenarioRuntime,
-        long timeStamp
+        long timeStamp,
+        long sequence
 ) implements RunEvent {
 
     /**
@@ -66,7 +67,7 @@ public record HttpRunEvent(
      * Return false from listener to skip the request.
      */
     public static HttpRunEvent enter(HttpRequest request, ScenarioRuntime sr) {
-        return new HttpRunEvent(RunEventType.HTTP_ENTER, request, null, sr, System.currentTimeMillis());
+        return new HttpRunEvent(RunEventType.HTTP_ENTER, request, null, sr, System.currentTimeMillis(), 0);
     }
 
     /**
@@ -74,7 +75,7 @@ public record HttpRunEvent(
      * Always fires, even for skipped requests (response.isSkipped() == true).
      */
     public static HttpRunEvent exit(HttpRequest request, HttpResponse response, ScenarioRuntime sr) {
-        return new HttpRunEvent(RunEventType.HTTP_EXIT, request, response, sr, System.currentTimeMillis());
+        return new HttpRunEvent(RunEventType.HTTP_EXIT, request, response, sr, System.currentTimeMillis(), 0);
     }
 
     @Override
@@ -85,6 +86,16 @@ public record HttpRunEvent(
     @Override
     public long getTimeStamp() {
         return timeStamp;
+    }
+
+    @Override
+    public long getSequence() {
+        return sequence;
+    }
+
+    @Override
+    public HttpRunEvent withSequence(long sequence) {
+        return new HttpRunEvent(type, request, response, scenarioRuntime, timeStamp, sequence);
     }
 
     @Override

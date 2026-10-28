@@ -105,6 +105,10 @@ public class Suite {
     public final boolean skipTagFiltering;
     public final Map<String, Set<Integer>> lineFilters;
     public final String scenarioName;
+    /** {@code Runner.Builder.runId}, else a random UUID: the id every event envelope of this run carries. */
+    public final String runId;
+    /** {@code Runner.Builder.ideEvents} — see {@link #fireEvent}. */
+    public final boolean ideEvents;
 
     // Debug support (for IDE debugging)
     public final io.karatelabs.js.RunInterceptor<?> debugInterceptor;
@@ -142,6 +146,28 @@ public class Suite {
     // Abort flag for abortSuiteOnFailure support
     private final AtomicBoolean aborted = new AtomicBoolean();
 
+    // cancel(): the flag every step boundary reads, the latch a poll sleeps on, and the scenarios
+    // whose HTTP client an in-flight cancel aborts (registered at construction, removed at release)
+    private final AtomicBoolean cancelled = new AtomicBoolean();
+    private volatile String cancelReason;
+    // RUN_COMPLETE waits for a cancel that is publishing, and a cancel after it is refused
+    private final Object completionLock = new Object();
+    private boolean completed;
+    private boolean cancelPublishing;
+    private final CountDownLatch cancelLatch = new CountDownLatch(1);
+    private final Set<ScenarioRuntime> liveRuntimes = ConcurrentHashMap.newKeySet();
+
+    // the IDE event profile's sequence: assigned and delivered under one lock, so the number is the delivery order;
+    // an event fired from inside a listener (a cancel) queues until the current one has reached every listener
+    private final Object dispatchLock = new Object();
+    private long sequence;
+    private boolean dispatching;
+    private final ArrayDeque<RunEvent> pending = new ArrayDeque<>();
+
+    // PROGRESS: top-level scenarios finished, against the static pre-count taken at run start
+    private final java.util.concurrent.atomic.AtomicInteger scenariosCompleted = new java.util.concurrent.atomic.AtomicInteger();
+    private volatile int scenarioTotal = -1;
+
     // Servers karate.start() opened under this Suite, stopped when its run ends unless a host detached them.
     private final List<MockServer> servers = new CopyOnWriteArrayList<>();
     // A host-injected callSingle cache outlives this Suite, and so must what callSingle started.
@@ -175,8 +201,8 @@ public class Suite {
     private volatile Queue<Integer> availableLanes;
     private final ThreadLocal<Integer> currentLane = new ThreadLocal<>();
 
-    // Results
-    private SuiteResult result;
+    // Results (volatile: cancel() reads it from another thread)
+    private volatile SuiteResult result;
 
     // Performance testing hook (for Gatling integration)
     private PerfHook perfHook;
@@ -279,6 +305,8 @@ public class Suite {
                 : rawScenarioName.trim();
         this.debugInterceptor = builder.getDebugInterceptor();
         this.debugPointFactory = builder.getDebugPointFactory();
+        this.runId = builder.getRunId() != null ? builder.getRunId() : UUID.randomUUID().toString();
+        this.ideEvents = builder.isIdeEvents();
 
         // THE root — computed BEFORE config discovery and boot, from the explicit configDir /
         // a classloader probe / the explicit workingDir / the CWD. Deliberately never derived
@@ -536,10 +564,14 @@ public class Suite {
         result.setReportDir(outputDir);
         result.setHtmlReportEnabled(outputHtmlReport);
         result.setDryRun(dryRun);
+        if (cancelled.get()) {
+            result.setCancelled(cancelReason);
+        }
 
         // Clear any per-Scenario selection cache from a prior run against the same
         // parsed Feature objects. The pre-filter below will repopulate for this run.
         clearScenarioSelectionCache();
+        scenarioTotal = countScenarios();
 
         // Backup existing report directory if enabled
         if (backupReportDir) {
@@ -618,16 +650,31 @@ public class Suite {
             fireEvent(SuiteRunEvent.exit(this, result));
         } finally {
             try {
-                teardown(jsonlWriter);
+                teardown();
             } finally {
                 stopServers();
+            }
+            // after every cleanup and report write: the last event of the run, and the JSONL stream's last line
+            finalizeRun();
+            try {
+                fireEvent(SuiteRunEvent.complete(this, result));
+            } catch (RuntimeException e) {
+                logger.error("RUN_COMPLETE listener failed: {}", e.getMessage());
+            }
+            if (jsonlWriter != null) {
+                try {
+                    removeJsonlListener(jsonlWriter);
+                    jsonlWriter.close();
+                } catch (Exception e) {
+                    logger.warn("Failed to close JSONL event stream: {}", e.getMessage());
+                }
             }
         }
 
         return result;
     }
 
-    private void teardown(JsonLinesEventWriter jsonlWriter) {
+    private void teardown() {
         if (result.getEndTime() == 0) {
             result.setEndTime(System.currentTimeMillis());
         }
@@ -635,16 +682,6 @@ public class Suite {
         // Shutdown driver provider if one exists
         if (driverProvider != null) {
             driverProvider.shutdown();
-        }
-
-        // Close JSONL event writer
-        if (jsonlWriter != null) {
-            try {
-                removeJsonlListener(jsonlWriter);
-                jsonlWriter.close();
-            } catch (Exception e) {
-                logger.warn("Failed to close JSONL event stream: {}", e.getMessage());
-            }
         }
 
         // Ext onShutdown — best-effort; exceptions are logged + dropped per K43.
@@ -877,7 +914,7 @@ public class Suite {
         initThreadListeners();
         try {
             for (Feature feature : features) {
-                if (isAborted() || isFeatureIgnored(feature)) {
+                if ((isAborted() && !isCancelled()) || isFeatureIgnored(feature)) {
                     continue;
                 }
                 FeatureResult featureResult = runFeatureSafely(feature);
@@ -938,7 +975,7 @@ public class Suite {
             List<Future<FeatureResult>> futures = new ArrayList<>();
 
             for (Feature feature : features) {
-                if (isAborted() || isFeatureIgnored(feature)) {
+                if ((isAborted() && !isCancelled()) || isFeatureIgnored(feature)) {
                     continue;
                 }
                 Future<FeatureResult> future = executor.submit(() -> {
@@ -1094,6 +1131,33 @@ public class Suite {
         return new TagSelector(tags).evaluate(tagSelector, env);
     }
 
+    /**
+     * The pre-count PROGRESS reports against and a cancelled run records: every scenario each feature
+     * that will run would select ({@link FeatureRuntime#countSelected()}), without running anything.
+     */
+    private int countScenarios() {
+        int total = 0;
+        for (Feature feature : features) {
+            if (!isFeatureIgnored(feature)) {
+                total += new FeatureRuntime(this, feature).countSelected();
+            }
+        }
+        return total;
+    }
+
+    /** The scenario count PROGRESS reports against (see {@link #countScenarios}); -1 before the run starts. For a
+     *  cancelled run it equals passed + failed + cancelled, a skipped scenario counting as passed. */
+    public int getScenarioTotal() {
+        return scenarioTotal;
+    }
+
+    /** A top-level scenario ended: fires PROGRESS. Counted under the dispatch lock so the count is delivered in order. */
+    void scenarioCompleted() {
+        synchronized (dispatchLock) {
+            fireEvent(ProgressRunEvent.of(this, scenariosCompleted.incrementAndGet(), scenarioTotal));
+        }
+    }
+
     private void clearScenarioSelectionCache() {
         for (Feature feature : features) {
             List<FeatureSection> sections = feature.getSections();
@@ -1150,7 +1214,52 @@ public class Suite {
         return true;
     }
 
+    /**
+     * Delivers {@code event} to every listener. Under the IDE event profile ({@code Runner.Builder.ideEvents})
+     * each event is first stamped with the run-wide sequence and dispatch is serialized, so the sequence a
+     * listener observes is strictly increasing and gap-free across threads — a listener that blocks then
+     * blocks every thread's next event, and one that waits for another producer's event deadlocks. An event
+     * a listener fires from inside its {@code onEvent} is delivered after the current event has reached every
+     * listener (its veto, if any, is lost: only ENTER events are vetoable and none is fired that way).
+     */
     public boolean fireEvent(RunEvent event) {
+        if (!ideEvents) {
+            return dispatch(event);
+        }
+        synchronized (dispatchLock) {
+            if (dispatching) {
+                pending.add(event);
+                return true;
+            }
+            dispatching = true;
+            try {
+                // a listener's failure does not strand what it queued: every pending event is delivered
+                // first, the first failure rethrown after
+                boolean proceed = true;
+                RuntimeException failed = null;
+                try {
+                    proceed = dispatch(event.withSequence(++sequence));
+                } catch (RuntimeException e) {
+                    failed = e;
+                }
+                for (RunEvent queued = pending.poll(); queued != null; queued = pending.poll()) {
+                    try {
+                        dispatch(queued.withSequence(++sequence));
+                    } catch (RuntimeException e) {
+                        failed = failed == null ? e : failed;
+                    }
+                }
+                if (failed != null) {
+                    throw failed;
+                }
+                return proceed;
+            } finally {
+                dispatching = false;
+            }
+        }
+    }
+
+    private boolean dispatch(RunEvent event) {
         // Externalize embed bytes to embeds/ BEFORE any listener serializes the result, so neither the
         // JSONL event stream nor the HTML data JSON inlines base64 — large screenshots stay on-disk files
         // the report references off a folder / file:// (D136). One shared counter, done once on the
@@ -1303,12 +1412,96 @@ public class Suite {
         return lane != null ? String.valueOf(lane) : null;
     }
 
+    /** The failure stop ({@code abortSuiteOnFailure}): the running scenario finishes, nothing after it starts. */
     public void abort() {
         aborted.set(true);
     }
 
     public boolean isAborted() {
         return aborted.get();
+    }
+
+    /**
+     * Cancels this run. Idempotent: true the first time, false after. Unlike {@link #abort()} it reaches
+     * work in flight: every running scenario, nested call and loop stops at its next step boundary, an
+     * HTTP call in flight is aborted rather than awaited, a {@code retry until} poll wakes, config and
+     * {@code callonce} setup stop, and queued parallel scenarios and features never start. Each
+     * unfinished scenario is recorded cancelled — never passed — and the suite result carries the
+     * reason. Fires RUN_CANCEL on the calling thread; the run then tears down and fires RUN_COMPLETE.
+     */
+    public boolean cancel(String reason) {
+        synchronized (completionLock) {
+            if (completed || !cancelled.compareAndSet(false, true)) {
+                return false;
+            }
+            cancelPublishing = true;
+        }
+        try {
+            cancelReason = reason == null ? "cancelled" : reason;
+            if (result != null) {
+                result.setCancelled(cancelReason);
+            }
+            cancelLatch.countDown();
+            // a runtime registering after this loop reads the flag on registration (see register)
+            for (ScenarioRuntime rt : liveRuntimes) {
+                rt.cancel();
+            }
+            fireEvent(SuiteRunEvent.cancel(this));
+        } finally {
+            synchronized (completionLock) {
+                cancelPublishing = false;
+                completionLock.notifyAll();
+            }
+        }
+        return true;
+    }
+
+    /** Closes the run to cancellation once a publishing cancel has fired; RUN_COMPLETE follows. An interrupt
+     *  does not shorten the wait: it is restored once the barrier is passed. */
+    private void finalizeRun() {
+        boolean interrupted = false;
+        synchronized (completionLock) {
+            while (cancelPublishing) {
+                try {
+                    completionLock.wait();
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                }
+            }
+            completed = true;
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    public boolean isCancelled() {
+        return cancelled.get();
+    }
+
+    /** The reason given to {@link #cancel}, or null. */
+    public String getCancelReason() {
+        return cancelReason;
+    }
+
+    /** Waits up to {@code millis}, or until the run is cancelled: the sleep a poll uses. True when cancelled. */
+    public boolean awaitCancel(long millis) {
+        try {
+            return cancelLatch.await(millis, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return true;
+        }
+    }
+
+    /** A scenario runtime that may hold an HTTP call when cancel arrives. True when already cancelled. */
+    boolean register(ScenarioRuntime rt) {
+        liveRuntimes.add(rt);
+        return cancelled.get();
+    }
+
+    void unregister(ScenarioRuntime rt) {
+        liveRuntimes.remove(rt);
     }
 
     /** A server {@code karate.start()} opened under this Suite: stopped when the run ends (or earlier, by the scenario

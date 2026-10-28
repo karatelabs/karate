@@ -219,6 +219,15 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             karate.http.charset(config.getCharset().name());
         }
 
+        // Before config evaluates: its output and calls carry this scenario's index, and a cancel that lands
+        // during karate-config.js must find this runtime
+        if (suite != null) {
+            result.setExecutionIndex(suite.nextExecutionIndex());
+            if (suite.register(this)) {
+                cancel();
+            }
+        }
+
         // Set up debug support from Suite if configured (needed for config evaluation)
         if (suite != null && suite.debugInterceptor != null && suite.debugPointFactory != null) {
             @SuppressWarnings("unchecked")
@@ -287,11 +296,14 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // In dry-run mode, skip config JS for non-@setup scenarios - @setup scenarios
         // still run fully so scenario outlines can resolve their example data (V1 parity).
         if (featureRuntime != null && featureRuntime.getSuite() != null && featureRuntime.isTopLevel()) {
-            if (!isDryRunSkip()) {
+            if (!isDryRunSkip() && !suiteCancelled()) {
                 // Config runs before call() makes this runtime current, so what it does on the thread (a
                 // mock it starts) would count for whatever scenario is current — a nesting Suite's.
                 ScenarioRuntime outerRuntime = CURRENT.get();
                 CURRENT.set(this);
+                if (featureRuntime.getSuite().ideEvents) {
+                    LogContext.get().setSink(text -> fireStepLog(null, text));
+                }
                 try {
                     evalConfig();
                 } catch (Exception e) {
@@ -383,6 +395,22 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     boolean isDryRunSkip() {
         Suite suite = featureRuntime != null ? featureRuntime.getSuite() : null;
         return suite != null && suite.dryRun && !scenario.isSetup();
+    }
+
+    private boolean suiteCancelled() {
+        Suite suite = featureRuntime != null ? featureRuntime.getSuite() : null;
+        return suite != null && suite.isCancelled();
+    }
+
+    /** {@link Suite#cancel} reaching this scenario: the HTTP call in flight is aborted and every later one refused. */
+    void cancel() {
+        if (karate != null && karate.client != null) {
+            karate.client.cancel();
+        }
+    }
+
+    private void fireStepLog(Step step, String text) {
+        featureRuntime.getSuite().fireEvent(StepLogRunEvent.of(this, step, text));
     }
 
     /** The merged config map (karate-base.js + karate-config.js + env config) produced by
@@ -577,6 +605,10 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         ScenarioRuntime sr = new ScenarioRuntime(featureRuntime, setupScenario, this);
         sr.setSkipBackground(true);
         sr.call();
+        if (sr.getResult().isCancelled()) {
+            // its variables are whatever the cancel left: not a setup result
+            throw new RuntimeException("setup cancelled: " + featureRuntime.getSuite().getCancelReason());
+        }
         // The setup runtime re-evaluates config, and a failure there is now captured rather than
         // thrown from the constructor. call()'s failed result is discarded here, so without this the
         // caller gets an empty variable map and the config error resurfaces as a baffling
@@ -1163,6 +1195,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         Suite suite = featureRuntime != null ? featureRuntime.getSuite() : null;
         if (suite != null) {
             LogContext.get().setCapture(suite.isCaptureStepLogs());
+            if (suite.ideEvents) {
+                LogContext.get().setSink(text -> fireStepLog(currentStep, text));
+            }
         }
         // Repopulate the fresh LogContext from this scenario's KarateConfig — which is
         // the source of truth for mask + pretty. Without this, anything that
@@ -1214,11 +1249,19 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         if (suite != null && result.getExecutionIndex() == 0) {
             result.setExecutionIndex(suite.nextExecutionIndex());
         }
-        // If suite has been aborted (abortSuiteOnFailure), skip this scenario
-        if (suite != null && suite.isAborted() && featureRuntime.isTopLevel()) {
+        // Cancelled, or the suite aborted (abortSuiteOnFailure): this scenario does not start
+        if (suite != null && (suite.isCancelled() || (suite.isAborted() && featureRuntime.isTopLevel()))) {
             stopped = true;
-            result.setAborted(true);
             result.setEndTime(System.currentTimeMillis());
+            if (suite.isCancelled()) {
+                // the verdict a never-started scenario still gets: its ENTER and EXIT fire back to back
+                result.setCancelled(true);
+                result.setStableId(resolveStableId());
+                suite.fireEvent(ScenarioRunEvent.enter(this));
+                suite.fireEvent(ScenarioRunEvent.exit(this, result));
+            } else {
+                result.setAborted(true);
+            }
             restoreLogContext(loggingSnapshot, outerLogContext, nestedCall, outerRuntime);
             // Returns before the try/finally below, so the client (and a mock config started) has to go back here.
             stopServers();
@@ -1296,8 +1339,12 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             int count = steps.size();
             stepIndex = 0;
             while (stepIndex < count) {
-                if (stopped || aborted
+                boolean cancelledNow = suite != null && suite.isCancelled();
+                if (stopped || aborted || cancelledNow
                         || (suite != null && suite.isAborted() && featureRuntime.isTopLevel())) {
+                    if (cancelledNow && !stopped && !aborted) {
+                        result.setCancelled(true);
+                    }
                     // Mark remaining steps as skipped
                     while (stepIndex < count) {
                         StepResult sr = StepResult.skipped(steps.get(stepIndex), System.currentTimeMillis());
@@ -1330,7 +1377,10 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                     }
                 }
 
-                if (sr.isFailed()) {
+                if (sr.isCancelled()) {
+                    stopped = true;
+                    result.setCancelled(true);
+                } else if (sr.isFailed()) {
                     boolean softAssert = runStepFailurePipeline(sr);
                     if (softAssert) {
                         // Log the failure but continue execution
@@ -1349,6 +1399,12 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             if (hasIgnoredFailure && error == null) {
                 error = firstIgnoredError;
             }
+            // the verdict: a scenario whose run was cancelled is cancelled unless it had already failed
+            if (suite != null && suite.isCancelled() && !result.isFailed()) {
+                result.setCancelled(true);
+            }
+            // hook and teardown output belongs to the scenario, not to the step that already exited
+            currentStep = null;
 
             // Evaluate backtick scenario name for reports (e.g., `result is ${1+1}`)
             // Must happen BEFORE SCENARIO_EXIT so the event contains the evaluated name
@@ -1439,8 +1495,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // them was ever closed.
             releaseHttpClient();
 
-            // Handle @fail tag - invert pass/fail result
-            if (scenario.isFail()) {
+            // Handle @fail tag - invert pass/fail result; a cancelled scenario has no verdict to invert
+            if (scenario.isFail() && !result.isCancelled()) {
                 result.applyFailTag();
             }
             // endTime is set before SCENARIO_EXIT event above; set here only if not yet set (exception path)
@@ -2544,6 +2600,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      * client that nothing ever hands back.
      */
     void releaseHttpClient() {
+        if (featureRuntime != null && featureRuntime.getSuite() != null) {
+            featureRuntime.getSuite().unregister(this);
+        }
         if (!ownsHttpClient || httpClientReleased || karate == null || karate.client == null) {
             return;
         }

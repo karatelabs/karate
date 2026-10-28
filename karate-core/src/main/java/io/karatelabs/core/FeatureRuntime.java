@@ -203,7 +203,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                                 feature.getName(), suite.getScenarioExecutor() != null, suite.getScenarioSemaphore() != null);
                     }
                     for (Scenario scenario : selectedScenarios()) {
-                        if (suite != null && suite.isAborted()) {
+                        if (suite != null && suite.isAborted() && !suite.isCancelled()) {
                             break;
                         }
                         maybeFireOutlineEnter(scenario);
@@ -276,7 +276,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         // Dispatch scenarios to executor as they are produced by the iterator
         // Dynamic scenarios (from @setup) are evaluated lazily during iteration
         for (Scenario scenario : selectedScenarios()) {
-            if (suite.isAborted()) {
+            if (suite.isAborted() && !suite.isCancelled()) {
                 break;
             }
             // Fire OUTLINE_ENTER (if first example of its outline) in this
@@ -362,6 +362,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         ScenarioResult completed = scenarioResult;
         notifyListeners(listener -> listener.onScenarioEnd(completed));
         releaseCallResultsIfUnwatched(completed);
+        suite.scenarioCompleted();
 
         return scenarioResult;
     }
@@ -408,6 +409,62 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         ScenarioResult completed = scenarioResult;
         notifyListeners(listener -> listener.onScenarioEnd(completed));
         releaseCallResultsIfUnwatched(completed);
+        if (suite != null && isTopLevel()) {
+            suite.scenarioCompleted();
+        }
+    }
+
+    /**
+     * How many scenarios a run of this feature selects, counted without running anything — the pre-count
+     * behind {@link Suite#getScenarioTotal()}, and what a cancelled run records: static Examples rows one
+     * by one, a dynamic Examples table as one (its rows exist only once its expression runs).
+     */
+    int countSelected() {
+        List<FeatureSection> sections = feature.getSections();
+        if (sections == null) {
+            return 0;
+        }
+        ScenarioIterator selector = new ScenarioIterator(false);
+        boolean explicitlyTargeted = callTagSelector != null
+                || (callLineFilters != null && !callLineFilters.isEmpty());
+        int total = 0;
+        for (FeatureSection section : sections) {
+            if (!section.isOutline()) {
+                Scenario scenario = section.getScenario();
+                if ((!scenario.isSetup() || explicitlyTargeted) && selector.shouldSelect(scenario)) {
+                    total++;
+                }
+                continue;
+            }
+            ScenarioOutline outline = section.getScenarioOutline();
+            List<ExamplesTable> tables = outline.getExamplesTables();
+            if (tables == null) {
+                continue;
+            }
+            for (ExamplesTable table : tables) {
+                if (table.getTable().isDynamic()) {
+                    if (selector.shouldSelect(outline.previewScenario(table.getTable().getDynamicExpression(), -1,
+                            table.getLine(), table.getTags()))) {
+                        total++;
+                    }
+                    continue;
+                }
+                int rows = table.getTable().getRows().size() - 1;
+                for (int i = 0; i < rows; i++) {
+                    Scenario scenario = outline.previewScenario(null, i, table.getLine(), table.getTags());
+                    Map<String, String> rawData = table.getTable().getRawExampleData(i);
+                    for (Map.Entry<String, String> entry : rawData.entrySet()) {
+                        String resolved = entry.getValue() == null ? "" : entry.getValue();
+                        scenario.replace("<" + entry.getKey() + ">", resolved);
+                        scenario.replace("${" + entry.getKey() + "}", resolved);
+                    }
+                    if (selector.shouldSelect(scenario)) {
+                        total++;
+                    }
+                }
+            }
+        }
+        return total;
     }
 
     /**
@@ -568,8 +625,15 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         private Scenario dynamicTemplateScenario = null;
 
         ScenarioIterator() {
+            this(true);
+        }
+
+        // advance=false: a selector for countSelected(), which must not evaluate a dynamic table
+        ScenarioIterator(boolean advance) {
             this.sections = feature.getSections();
-            advance();
+            if (advance) {
+                advance();
+            }
         }
 
         @Override
@@ -613,9 +677,37 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                                     table.getLine(),
                                     table.getTags()
                             );
+                            templateScenario.setExampleTableIndex(exampleTableIndex);
+
+                            // Cancelled: the rows exist only once the expression runs, so the one
+                            // result recorded for the table is the outline's own (see countSelected)
+                            if (suite != null && suite.isCancelled()) {
+                                exampleTableIndex++;
+                                exampleRowIndex = 0;
+                                if (shouldSelect(templateScenario)) {
+                                    nextScenario = templateScenario;
+                                    return;
+                                }
+                                continue;
+                            }
 
                             // Evaluate the dynamic expression
-                            List<?> data = evaluateDynamicExpression(templateScenario);
+                            List<?> data;
+                            try {
+                                data = evaluateDynamicExpression(templateScenario);
+                            } catch (RuntimeException e) {
+                                if (suite == null || !suite.isCancelled()) {
+                                    throw e;
+                                }
+                                // the cancel landed inside the expression (a setup's call): the placeholder stands
+                                exampleTableIndex++;
+                                exampleRowIndex = 0;
+                                if (shouldSelect(templateScenario)) {
+                                    nextScenario = templateScenario;
+                                    return;
+                                }
+                                continue;
+                            }
                             if (data != null && !data.isEmpty()) {
                                 dynamicData = data;
                                 dynamicTemplateScenario = templateScenario;
@@ -654,6 +746,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                                     table.getLine(),
                                     table.getTags()
                             );
+                            scenario.setExampleTableIndex(exampleTableIndex);
                             scenario.setExampleData(exampleData);
 
                             // Substitute placeholders in steps and name

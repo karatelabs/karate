@@ -46,7 +46,7 @@ class RunListenerTest {
     void testRunEventTypeValues() {
         // Verify all expected event types exist
         RunEventType[] types = RunEventType.values();
-        assertEquals(14, types.length);  // Added OUTLINE_ENTER, MATCH_EXIT
+        assertEquals(17, types.length);  // Added OUTLINE_ENTER, MATCH_EXIT, STEP_LOG, RUN_CANCEL, RUN_COMPLETE
 
         // Verify specific types
         assertNotNull(RunEventType.SUITE_ENTER);

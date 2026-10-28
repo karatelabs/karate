@@ -66,7 +66,8 @@ public record MatchRunEvent(
         Object expected,
         Result result,
         ScenarioRuntime scenarioRuntime,
-        long timeStamp
+        long timeStamp,
+        long sequence
 ) implements RunEvent {
 
     /**
@@ -76,12 +77,23 @@ public record MatchRunEvent(
     public static MatchRunEvent exit(Match.Type matchType, String actualExpr, String expectedExpr,
                                      Object actual, Object expected, Result result, ScenarioRuntime sr) {
         return new MatchRunEvent(RunEventType.MATCH_EXIT, matchType, actualExpr, expectedExpr,
-                actual, expected, result, sr, System.currentTimeMillis());
+                actual, expected, result, sr, System.currentTimeMillis(), 0);
     }
 
     @Override
     public RunEventType getType() {
         return type;
+    }
+
+    @Override
+    public long getSequence() {
+        return sequence;
+    }
+
+    @Override
+    public MatchRunEvent withSequence(long sequence) {
+        return new MatchRunEvent(type, matchType, actualExpr, expectedExpr, actual, expected, result,
+                scenarioRuntime, timeStamp, sequence);
     }
 
     @Override

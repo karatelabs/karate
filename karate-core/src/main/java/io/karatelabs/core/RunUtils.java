@@ -104,6 +104,9 @@ public final class RunUtils {
         data.put("line", scenario.getLine());
         data.put("sectionIndex", scenario.getSection().getIndex());
         data.put("exampleIndex", scenario.getExampleIndex());
+        if (scenario.isOutlineExample()) {
+            data.put("exampleTableIndex", scenario.getExampleTableIndex());
+        }
         Map<String, Object> exampleData = scenario.getExampleData();
         if (exampleData != null) {
             data.put("exampleData", exampleData);

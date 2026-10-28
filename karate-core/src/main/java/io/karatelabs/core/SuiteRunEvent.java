@@ -27,21 +27,30 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Suite-level events (SUITE_ENTER, SUITE_EXIT).
+ * Suite-level events (SUITE_ENTER, SUITE_EXIT, RUN_CANCEL, RUN_COMPLETE).
  */
 public record SuiteRunEvent(
         RunEventType type,
         Suite source,
-        SuiteResult result,  // null for ENTER
-        long timeStamp
+        SuiteResult result,  // null for ENTER and CANCEL
+        long timeStamp,
+        long sequence
 ) implements RunEvent {
 
     public static SuiteRunEvent enter(Suite suite) {
-        return new SuiteRunEvent(RunEventType.SUITE_ENTER, suite, null, System.currentTimeMillis());
+        return new SuiteRunEvent(RunEventType.SUITE_ENTER, suite, null, System.currentTimeMillis(), 0);
     }
 
     public static SuiteRunEvent exit(Suite suite, SuiteResult result) {
-        return new SuiteRunEvent(RunEventType.SUITE_EXIT, suite, result, System.currentTimeMillis());
+        return new SuiteRunEvent(RunEventType.SUITE_EXIT, suite, result, System.currentTimeMillis(), 0);
+    }
+
+    public static SuiteRunEvent cancel(Suite suite) {
+        return new SuiteRunEvent(RunEventType.RUN_CANCEL, suite, null, System.currentTimeMillis(), 0);
+    }
+
+    public static SuiteRunEvent complete(Suite suite, SuiteResult result) {
+        return new SuiteRunEvent(RunEventType.RUN_COMPLETE, suite, result, System.currentTimeMillis(), 0);
     }
 
     @Override
@@ -55,8 +64,32 @@ public record SuiteRunEvent(
     }
 
     @Override
+    public long getSequence() {
+        return sequence;
+    }
+
+    @Override
+    public SuiteRunEvent withSequence(long sequence) {
+        return new SuiteRunEvent(type, source, result, timeStamp, sequence);
+    }
+
+    @Override
     public Map<String, Object> toJson() {
         Map<String, Object> map = new LinkedHashMap<>();
+        if (type == RunEventType.RUN_CANCEL) {
+            map.put("reason", source == null ? null : source.getCancelReason());
+            return map;
+        }
+        if (type == RunEventType.RUN_COMPLETE && result != null) {
+            map.put("summary", result.summaryJson());
+            map.put("reportDir", result.getReportDir() == null ? null : result.getReportDir().toString());
+            // the summary page is the last report file written, so its presence is report readiness
+            java.nio.file.Path summaryPage = result.getReportDir() == null ? null
+                    : result.getReportDir().resolve("karate-summary.html");
+            map.put("htmlReport", summaryPage != null && java.nio.file.Files.exists(summaryPage)
+                    ? summaryPage.toString() : null);
+            return map;
+        }
         if (type == RunEventType.SUITE_EXIT && result != null) {
             // The counters, not the whole suite. This used to be result.toJson(), which carried a
             // `features` array holding every scenario and every step a second time — contradicting

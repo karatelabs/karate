@@ -51,6 +51,17 @@ public interface HttpClient extends Closeable {
      */
     void apply(KarateConfig config);
 
+    /** Aborts the call in flight, or the next one if none is in flight; the one after that proceeds. */
     void abort();
+
+    /**
+     * {@link io.karatelabs.core.Suite#cancel} reaching this client: aborts the call in flight as {@link #abort()}
+     * and, unlike it, is sticky — every later {@link #invoke} is refused, so a script that catches the aborted
+     * request cannot send another. The default is the one-shot {@link #abort()} only; an implementation that
+     * wraps another client must delegate {@code cancel()} to it, or the wrapped client keeps accepting calls.
+     */
+    default void cancel() {
+        abort();
+    }
 
 }

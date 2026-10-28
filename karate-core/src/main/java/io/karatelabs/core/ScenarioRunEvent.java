@@ -36,15 +36,16 @@ public record ScenarioRunEvent(
         RunEventType type,
         ScenarioRuntime source,
         ScenarioResult result,  // null for ENTER
-        long timeStamp
+        long timeStamp,
+        long sequence
 ) implements RunEvent {
 
     public static ScenarioRunEvent enter(ScenarioRuntime sr) {
-        return new ScenarioRunEvent(RunEventType.SCENARIO_ENTER, sr, null, System.currentTimeMillis());
+        return new ScenarioRunEvent(RunEventType.SCENARIO_ENTER, sr, null, System.currentTimeMillis(), 0);
     }
 
     public static ScenarioRunEvent exit(ScenarioRuntime sr, ScenarioResult result) {
-        return new ScenarioRunEvent(RunEventType.SCENARIO_EXIT, sr, result, System.currentTimeMillis());
+        return new ScenarioRunEvent(RunEventType.SCENARIO_EXIT, sr, result, System.currentTimeMillis(), 0);
     }
 
     @Override
@@ -55,6 +56,16 @@ public record ScenarioRunEvent(
     @Override
     public long getTimeStamp() {
         return timeStamp;
+    }
+
+    @Override
+    public long getSequence() {
+        return sequence;
+    }
+
+    @Override
+    public ScenarioRunEvent withSequence(long sequence) {
+        return new ScenarioRunEvent(type, source, result, timeStamp, sequence);
     }
 
     /**
@@ -112,13 +123,17 @@ public record ScenarioRunEvent(
             if (scenario.isOutlineExample()) {
                 map.put("isOutlineExample", true);
                 map.put("exampleIndex", scenario.getExampleIndex());
+                map.put("exampleTableIndex", scenario.getExampleTableIndex());
                 map.put("outlineSlug", RunUtils.outlineSlug(
                         RunUtils.parentOutline(scenario), feature));
             }
         }
         if (type == RunEventType.SCENARIO_EXIT && result != null) {
-            map.put("passed", !result.isFailed());
+            map.put("passed", result.isPassed());
             map.put("skipped", result.isSkipped());
+            if (result.isCancelled()) {
+                map.put("cancelled", true);
+            }
             map.put("durationMillis", result.getDurationMillis());
             if (result.isFailed()) {
                 // @report=false: emit only the redacted message in the JSONL stream so

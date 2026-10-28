@@ -164,15 +164,25 @@ public class Main implements Callable<Integer> {
             Console.setColorsEnabled(false);
         }
 
-        // No args at all - look for karate-pom.json in current directory
-        if (Files.exists(Path.of(RunCommand.DEFAULT_POM_FILE))) {
+        // No args at all - a karate-pom.json in the current directory that names paths is the run
+        Path pomPath = Path.of(RunCommand.DEFAULT_POM_FILE);
+        if (Files.exists(pomPath) && pomNamesPaths(pomPath)) {
             RunCommand runCommand = new RunCommand();
             return runCommand.call();
         }
 
-        // No subcommand, no args, no karate-pom.json - show help
+        // No subcommand, no args, no karate-pom.json (or one holding no paths) - show help
         CommandLine.usage(this, System.out);
         return 0;
+    }
+
+    // an unreadable pom is RunCommand's to report, so it counts as naming paths
+    private static boolean pomNamesPaths(Path pomPath) {
+        try {
+            return !io.karatelabs.core.KaratePom.load(pomPath).getPaths().isEmpty();
+        } catch (Exception e) {
+            return true;
+        }
     }
 
     /**

@@ -57,4 +57,18 @@ public interface RunEvent {
      */
     Map<String, Object> toJson();
 
+    /**
+     * Under the IDE event profile ({@code Runner.Builder.ideEvents}) the run-wide ordinal this event was
+     * dispatched with: 1-based, strictly increasing and gap-free across threads. 0 when the profile is off,
+     * and for an event type that does not carry one.
+     */
+    default long getSequence() {
+        return 0;
+    }
+
+    /** A copy carrying {@code sequence}; the event itself when the type does not carry one. */
+    default RunEvent withSequence(long sequence) {
+        return this;
+    }
+
 }

@@ -57,7 +57,9 @@
         </div>
         <template x-for="scenario in filteredSidebar" :key="scenario.refId">
             <a class="block px-3 py-1.5 text-xs border-l-2 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-accent"
-               :class="scenario.skipped
+               :class="scenario.cancelled
+                   ? 'text-slate-500 dark:text-slate-400'
+                   : scenario.skipped
                    ? 'text-amber-600 dark:text-amber-400'
                    : (scenario.passed ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400')"
                :href="'#' + scenario.refId"
@@ -89,6 +91,7 @@
                 <span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4"><use href="#icon-check-circle"/></svg> <span x-text="heroCounts.passed"></span> passed</span>
                 <span x-show="heroCounts.failed > 0" class="inline-flex items-center gap-1.5 text-red-600 dark:text-red-400"><svg class="w-4 h-4"><use href="#icon-x-circle"/></svg> <span x-text="heroCounts.failed"></span> failed</span>
                 <span x-show="heroCounts.skipped > 0" class="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400"><svg class="w-4 h-4"><use href="#icon-minus-circle"/></svg> <span x-text="heroCounts.skipped"></span> skipped</span>
+                <span x-show="heroCounts.cancelled > 0" class="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400"><svg class="w-4 h-4"><use href="#icon-minus-circle"/></svg> <span x-text="heroCounts.cancelled"></span> cancelled</span>
                 <span x-show="data.durationMillis" class="inline-flex items-center gap-1.5"><svg class="w-4 h-4"><use href="#icon-clock"/></svg> <span x-text="data.durationMillis"></span> ms</span>
             </div>
         </section>
@@ -97,7 +100,9 @@
         <template x-for="scenario in data.scenarios" :key="scenario.refId">
             <div class="rounded-lg border border-slate-200 dark:border-slate-700 mb-4 overflow-hidden" :id="scenario.refId">
                 <div class="flex justify-between items-center px-3 py-2"
-                     :class="scenario.skipped
+                     :class="scenario.cancelled
+                         ? 'bg-slate-100 dark:bg-slate-800/60 border-b border-slate-300 dark:border-slate-700'
+                         : scenario.skipped
                          ? 'bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900'
                          : (scenario.passed
                              ? 'bg-green-50 dark:bg-green-950/30 border-b border-green-200 dark:border-green-900'

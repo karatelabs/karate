@@ -43,8 +43,25 @@ public class SuiteResult {
      *  skipped, and a skip counts toward {@code passed} (nothing failed) — so the summary MUST say so
      *  rather than print "all passed" for a run that never touched the system under test. */
     private boolean dryRun;
+    /** Set by {@link Suite#cancel}: the run was cut short, so a scenario count here is not the suite's. */
+    private volatile String cancelReason;
+    private volatile boolean cancelled;
 
     public SuiteResult() {
+    }
+
+    public void setCancelled(String reason) {
+        this.cancelled = true;
+        this.cancelReason = reason;
+    }
+
+    public boolean isCancelled() {
+        return cancelled;
+    }
+
+    /** The reason given to {@link Suite#cancel}, or null when the run was not cancelled. */
+    public String getCancelReason() {
+        return cancelReason;
     }
 
     public void setStartTime(long startTime) {
@@ -126,6 +143,10 @@ public class SuiteResult {
         return featureResults.stream().mapToInt(FeatureResult::getSkippedCount).sum();
     }
 
+    public int getScenarioCancelledCount() {
+        return featureResults.stream().mapToInt(FeatureResult::getCancelledCount).sum();
+    }
+
     /**
      * Pass rate as an integer percentage 0–100, or null when no scenarios executed.
      * Denominator is {@code scenariosPassed + scenariosFailed} — matches
@@ -135,8 +156,9 @@ public class SuiteResult {
         return FeatureResult.passedRate(getScenarioPassedCount(), getScenarioFailedCount());
     }
 
+    /** No feature failed and the run was not cancelled. */
     public boolean isPassed() {
-        return featureResults.stream().noneMatch(FeatureResult::isFailed);
+        return !cancelled && featureResults.stream().allMatch(FeatureResult::isPassed);
     }
 
     public boolean isFailed() {
@@ -182,11 +204,16 @@ public class SuiteResult {
         summary.put("scenariosPassed", getScenarioPassedCount());
         summary.put("scenariosFailed", getScenarioFailedCount());
         summary.put("scenariosSkipped", getScenarioSkippedCount());
+        summary.put("scenariosCancelled", getScenarioCancelledCount());
         summary.put("passedRate", getScenarioPassedRate());
         summary.put("startTime", startTime);
         summary.put("endTime", endTime);
         summary.put("durationMillis", getDurationMillis());
-        summary.put("passed", !isFailed());
+        summary.put("passed", isPassed());
+        if (cancelled) {
+            summary.put("cancelled", true);
+            summary.put("cancelReason", cancelReason);
+        }
         return summary;
     }
 
@@ -313,11 +340,17 @@ public class SuiteResult {
         int scenarioPassed = getScenarioPassedCount();
         int scenarioFailed = getScenarioFailedCount();
         int scenarioSkipped = getScenarioSkippedCount();
+        int scenarioCancelled = getScenarioCancelledCount();
         String scenarioStatus = scenarioFailed > 0
                 ? Console.fail(scenarioFailed + " failed")
-                : dryRun ? Console.warn("DRY RUN — nothing was executed") : Console.pass("all passed");
+                : dryRun ? Console.warn("DRY RUN — nothing was executed")
+                : cancelled ? Console.warn("CANCELLED" + (cancelReason == null ? "" : " — " + cancelReason))
+                : Console.pass("all passed");
 
-        if (scenarioSkipped > 0) {
+        if (scenarioCancelled > 0) {
+            Console.println(String.format("scenarios: %3d | passed: %4d | cancelled: %2d | %s",
+                    scenarioTotal, scenarioPassed, scenarioCancelled, scenarioStatus));
+        } else if (scenarioSkipped > 0) {
             Console.println(String.format("scenarios: %3d | passed: %4d | skipped: %4d | %s",
                     scenarioTotal, scenarioPassed, scenarioSkipped, scenarioStatus));
         } else {

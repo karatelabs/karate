@@ -24,6 +24,7 @@
 package io.karatelabs.core;
 
 import io.karatelabs.common.Json;
+import io.karatelabs.gherkin.Step;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +49,10 @@ import java.util.function.UnaryOperator;
  * {"type":"SCENARIO_EXIT","timeStamp":1703500000100,"threadId":"worker-1","data":{...}}
  * {"type":"FEATURE_EXIT","timeStamp":1703500000200,"threadId":"worker-1","data":{...}}
  * {"type":"SUITE_EXIT","timeStamp":1703500010000,"threadId":null,"data":{...}}
+ * {"type":"RUN_COMPLETE","timeStamp":1703500010200,"threadId":null,"data":{...}}
  * </pre>
+ * Every line also carries {@code runId} and, where they apply, {@code executionIndex}, {@code parentExecutionIndex},
+ * {@code parentStepLine} and {@code sequence} — see {@link #envelope(RunEvent)}.
  * <p>
  * Use cases:
  * <ul>
@@ -114,23 +118,19 @@ public class JsonLinesEventWriter implements RunListener, Closeable {
         // Commercial listeners can capture HTTP / match data and add to step embeds,
         // which will appear in FEATURE_EXIT results.
         RunEventType type = event.getType();
-        if (type == RunEventType.STEP_ENTER || type == RunEventType.STEP_EXIT
+        if (type == RunEventType.STEP_ENTER || type == RunEventType.STEP_EXIT || type == RunEventType.STEP_LOG
                 || type == RunEventType.HTTP_ENTER || type == RunEventType.HTTP_EXIT
                 || type == RunEventType.MATCH_EXIT) {
             return true;
         }
 
         try {
-            Map<String, Object> envelope = new LinkedHashMap<>();
-            envelope.put("type", event.getType().name());
-            envelope.put("timeStamp", event.getTimeStamp());
-            envelope.put("threadId", getThreadId(event));
-
-            // Build data payload
-            Map<String, Object> data = event.toJson();
+            Map<String, Object> envelope = envelope(event);
 
             // Add schema version to SUITE_ENTER
             if (event.getType() == RunEventType.SUITE_ENTER) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) envelope.get("data");
                 data.put("schemaVersion", SCHEMA_VERSION);
                 data.put("version", Globals.KARATE_VERSION);
                 if (env != null && !env.isEmpty()) {
@@ -138,8 +138,6 @@ public class JsonLinesEventWriter implements RunListener, Closeable {
                 }
                 data.put("threads", threadCount);
             }
-
-            envelope.put("data", data);
 
             writeLine(Json.stringifyStrict(envelope));
 
@@ -151,14 +149,75 @@ public class JsonLinesEventWriter implements RunListener, Closeable {
     }
 
     /**
+     * The wire form of one event: {@code type}, {@code timeStamp}, {@code threadId}, {@code runId},
+     * {@code sequence} (under the IDE event profile), {@code executionIndex} (the scenario an event belongs
+     * to), {@code parentExecutionIndex} and {@code parentStepLine} (the scenario and step that called it,
+     * for a nested feature, outline or scenario and everything inside one), then {@code data}. Shared with
+     * any listener that streams events elsewhere.
+     */
+    public static Map<String, Object> envelope(RunEvent event) {
+        Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("type", event.getType().name());
+        envelope.put("timeStamp", event.getTimeStamp());
+        envelope.put("threadId", getThreadId(event));
+        ScenarioRuntime own = scenarioOf(event);
+        FeatureRuntime fr = own != null ? own.getFeatureRuntime() : featureOf(event);
+        Suite suite = fr != null ? fr.getSuite()
+                : event instanceof SuiteRunEvent sre ? sre.source()
+                : event instanceof ProgressRunEvent pre ? pre.suite() : null;
+        if (suite != null) {
+            envelope.put("runId", suite.runId);
+        }
+        if (event.getSequence() > 0) {
+            envelope.put("sequence", event.getSequence());
+        }
+        if (own != null && own.getResult().getExecutionIndex() > 0) {
+            envelope.put("executionIndex", own.getResult().getExecutionIndex());
+        }
+        ScenarioRuntime caller = fr != null ? fr.getCallerScenario() : null;
+        if (caller != null) {
+            envelope.put("parentExecutionIndex", caller.getResult().getExecutionIndex());
+            Step step = caller.getCurrentStep();
+            if (step != null) {
+                envelope.put("parentStepLine", step.getLine());
+            }
+        }
+        envelope.put("data", event.toJson());
+        return envelope;
+    }
+
+    /** The scenario an event belongs to; null for a feature-, outline- or suite-level event. */
+    private static ScenarioRuntime scenarioOf(RunEvent event) {
+        return switch (event) {
+            case ScenarioRunEvent e -> e.source();
+            case StepRunEvent e -> e.scenarioRuntime();
+            case StepLogRunEvent e -> e.scenarioRuntime();
+            case HttpRunEvent e -> e.scenarioRuntime();
+            case MatchRunEvent e -> e.scenarioRuntime();
+            case ErrorRunEvent e -> e.scenarioRuntime();
+            default -> null;
+        };
+    }
+
+    private static FeatureRuntime featureOf(RunEvent event) {
+        return switch (event) {
+            case FeatureRunEvent e -> e.source();
+            case OutlineRunEvent e -> e.source();
+            default -> null;
+        };
+    }
+
+    /**
      * Get the thread ID for the event envelope.
      * Suite-level events have null threadId.
      */
-    private String getThreadId(RunEvent event) {
+    private static String getThreadId(RunEvent event) {
         RunEventType type = event.getType();
         if (type == RunEventType.SUITE_ENTER
                 || type == RunEventType.SUITE_EXIT
-                || type == RunEventType.PROGRESS) {
+                || type == RunEventType.PROGRESS
+                || type == RunEventType.RUN_CANCEL
+                || type == RunEventType.RUN_COMPLETE) {
             return null;
         }
         Thread thread = Thread.currentThread();

@@ -125,9 +125,10 @@ const KarateReport = {
     /**
      * Return {label, cls} for a scenario/feature based on flags. Used by both
      * Alpine templates (`x-text="statusOf(scenario).label"`) and the JS renderer.
-     * Order of checks matches the existing UI: skipped > passed > failed.
+     * Order of checks matches the existing UI: cancelled > skipped > passed > failed.
      */
     statusOf(item) {
+        if (item.cancelled) return { label: 'CANCELLED', cls: 'bg-slate-500' };
         if (item.skipped) return { label: 'SKIP', cls: 'bg-amber-500' };
         if (item.passed)  return { label: 'PASS', cls: 'bg-green-600' };
         return                       { label: 'FAIL', cls: 'bg-red-600' };
@@ -139,6 +140,7 @@ const KarateReport = {
      */
     statusOfFeature(f) {
         if (f.failed) return { label: 'FAILED', cls: 'bg-red-600' };
+        if (f.cancelled) return { label: 'CANCELLED', cls: 'bg-slate-500' };
         if (f.passed) return { label: 'PASSED', cls: 'bg-green-600' };
         return null;
     },
@@ -164,11 +166,19 @@ const KarateReport = {
     heroStatus(counts) {
         const failed = counts.failed || 0;
         const skipped = counts.skipped || 0;
+        const cancelled = counts.cancelled || 0;
         if (failed > 0) {
             return {
                 label: failed + (failed === 1 ? ' FAILURE' : ' FAILURES'),
                 dotCls: 'bg-red-500',
                 pillCls: 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-900'
+            };
+        }
+        if (cancelled > 0) {
+            return {
+                label: cancelled + ' CANCELLED',
+                dotCls: 'bg-slate-500',
+                pillCls: 'bg-slate-50 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
             };
         }
         if (skipped > 0) {
@@ -322,7 +332,9 @@ const KarateReport = {
                     ? 'text-red-700 dark:text-red-400'
                     : step.status === 'skipped'
                         ? 'text-amber-700 dark:text-amber-400'
-                        : '';
+                        : step.status === 'cancelled'
+                            ? 'text-slate-500 dark:text-slate-400'
+                            : '';
         const muted = 'text-slate-500 dark:text-slate-400';
         const badgeBase = this._BADGE_BASE;
         const keywordColor = this._keywordColor(step.keyword);
@@ -720,11 +732,12 @@ const KarateReport = {
             get heroCounts() {
                 const scenarios = data.scenarios || [];
                 return scenarios.reduce((acc, s) => {
-                    if (s.skipped) acc.skipped++;
+                    if (s.cancelled) acc.cancelled++;
+                    else if (s.skipped) acc.skipped++;
                     else if (s.passed) acc.passed++;
                     else acc.failed++;
                     return acc;
-                }, { passed: 0, failed: 0, skipped: 0 });
+                }, { passed: 0, failed: 0, skipped: 0, cancelled: 0 });
             },
 
             get heroStatus() { return self.heroStatus(this.heroCounts); },
@@ -732,7 +745,7 @@ const KarateReport = {
             get filteredSidebar() {
                 const scenarios = data.scenarios || [];
                 if (this.sidebarFilter === 'failed') {
-                    return scenarios.filter(s => !s.passed && !s.skipped);
+                    return scenarios.filter(s => !s.passed && !s.skipped && !s.cancelled);
                 }
                 return scenarios;
             },
@@ -797,6 +810,7 @@ const KarateReport = {
                     passed: s.scenario_passed || 0,
                     failed: s.scenario_failed || 0,
                     skipped: s.scenario_skipped || 0,
+                    cancelled: s.scenario_cancelled || 0,
                 });
             },
 
@@ -855,7 +869,7 @@ const KarateReport = {
                 const out = [];
                 (data.features || []).forEach(f => {
                     (f.scenarios || []).forEach(s => {
-                        if (!s.passed && !s.skipped) {
+                        if (!s.passed && !s.skipped && !s.cancelled) {
                             out.push({
                                 refId: s.refId,
                                 name: s.name,
@@ -909,9 +923,10 @@ const KarateReport = {
                     acc.passed += (f.passedCount || 0);
                     acc.failed += (f.failedCount || 0);
                     acc.skipped += (f.skippedCount || 0);
+                    acc.cancelled += (f.cancelledCount || 0);
                     acc.durationMillis += (f.durationMillis || 0);
                     return acc;
-                }, { scenarios: 0, passed: 0, failed: 0, skipped: 0, durationMillis: 0 });
+                }, { scenarios: 0, passed: 0, failed: 0, skipped: 0, cancelled: 0, durationMillis: 0 });
                 t.passedRate = self.passedRate(t.passed, t.failed);
                 return t;
             },
@@ -970,6 +985,7 @@ const KarateReport = {
                     passed: s.scenario_passed || 0,
                     failed: s.scenario_failed || 0,
                     skipped: s.scenario_skipped || 0,
+                    cancelled: s.scenario_cancelled || 0,
                 });
             },
 

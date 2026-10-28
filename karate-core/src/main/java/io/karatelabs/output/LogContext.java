@@ -94,6 +94,12 @@ public class LogContext {
     // scenario from the Suite (see Runner.Builder.captureStepLogs): on everywhere except
     // under Gatling, where there is no HTML report and nothing reads what is collected.
     private boolean capture = true;
+    // Receives each line as it lands in the buffer: the live STEP_LOG feed. Null when nothing streams.
+    private java.util.function.Consumer<String> sink;
+
+    public void setSink(java.util.function.Consumer<String> sink) {
+        this.sink = sink;
+    }
 
     // ========== Thread-Local Access ==========
 
@@ -387,6 +393,9 @@ public class LogContext {
             return; // Filtered
         }
         buffer.append(message).append('\n');
+        if (sink != null) {
+            sink.accept(message);
+        }
     }
 
     /**
@@ -398,6 +407,9 @@ public class LogContext {
         }
         String message = format(format, args);
         buffer.append(message).append('\n');
+        if (sink != null) {
+            sink.accept(message);
+        }
     }
 
     /**
@@ -621,6 +633,9 @@ public class LogContext {
             LogContext ctx = get();
             if (ctx.capture && level.isEnabled(threshold)) {
                 ctx.buffer.append(message).append('\n');
+                if (ctx.sink != null) {
+                    ctx.sink.accept(message);
+                }
             }
         }
     }

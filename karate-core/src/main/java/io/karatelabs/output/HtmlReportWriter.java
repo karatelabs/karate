@@ -392,8 +392,12 @@ public final class HtmlReportWriter {
         summary.put("scenario_passed", result.getScenarioPassedCount());
         summary.put("scenario_failed", result.getScenarioFailedCount());
         summary.put("scenario_skipped", result.getScenarioSkippedCount());
+        summary.put("scenario_cancelled", result.getScenarioCancelledCount());
         summary.put("duration_millis", result.getDurationMillis());
-        summary.put("status", result.isFailed() ? "failed" : "passed");
+        summary.put("status", result.isFailed() ? "failed" : result.isCancelled() ? "cancelled" : "passed");
+        if (result.isCancelled()) {
+            summary.put("cancel_reason", result.getCancelReason());
+        }
         suiteData.put("summary", summary);
 
         // Build feature summary list for display
@@ -818,6 +822,7 @@ public final class HtmlReportWriter {
             data.put("tags", tagNames);
         }
         data.put("skipped", sr.isSkipped());
+        data.put("cancelled", sr.isCancelled());
 
         // @report=false: render the scenario row with status + counts but suppress
         // step detail entirely. Failures show only a redacted message so secrets
@@ -935,6 +940,7 @@ public final class HtmlReportWriter {
 
             summary.put("passed", Boolean.TRUE.equals(feature.get("passed")));
             summary.put("failed", Boolean.TRUE.equals(feature.get("failed")));
+            summary.put("cancelled", Boolean.TRUE.equals(feature.get("cancelled")));
             Object duration = feature.get("durationMillis");
             summary.put("durationMillis", duration instanceof Number ? ((Number) duration).longValue() : 0);
 
@@ -944,13 +950,17 @@ public final class HtmlReportWriter {
             int passed = 0;
             int failed = 0;
             int skipped = 0;
+            int cancelled = 0;
             List<Map<String, Object>> scenarioSummaries = new ArrayList<>();
             if (scenarioResults != null) {
                 for (Map<String, Object> s : scenarioResults) {
                     boolean scenarioPassed = Boolean.TRUE.equals(s.get("passed"));
                     boolean scenarioSkipped = Boolean.TRUE.equals(s.get("skipped"));
+                    boolean scenarioCancelled = Boolean.TRUE.equals(s.get("cancelled"));
                     if (scenarioPassed) {
                         passed++;
+                    } else if (scenarioCancelled) {
+                        cancelled++;
                     } else {
                         failed++;
                     }
@@ -962,6 +972,7 @@ public final class HtmlReportWriter {
                     scenarioSummary.put("refId", s.get("refId"));
                     scenarioSummary.put("passed", scenarioPassed);
                     scenarioSummary.put("skipped", scenarioSkipped);
+                    scenarioSummary.put("cancelled", scenarioCancelled);
                     scenarioSummary.put("durationMillis", s.get("durationMillis"));
                     // The result map carries @-less machine-form tags (matching the event stream);
                     // re-prefix '@' here so the HTML report's summary shows tags in the same display
@@ -984,6 +995,7 @@ public final class HtmlReportWriter {
             summary.put("passedCount", passed);
             summary.put("failedCount", failed);
             summary.put("skippedCount", skipped);
+            summary.put("cancelledCount", cancelled);
             summary.put("passedRate", FeatureResult.passedRate(passed, failed));
             summary.put("scenarios", scenarioSummaries);
 
@@ -1075,8 +1087,12 @@ public final class HtmlReportWriter {
         summary.put("scenario_passed", result.getScenarioPassedCount());
         summary.put("scenario_failed", result.getScenarioFailedCount());
         summary.put("scenario_skipped", result.getScenarioSkippedCount());
+        summary.put("scenario_cancelled", result.getScenarioCancelledCount());
         summary.put("duration_millis", result.getDurationMillis());
-        summary.put("status", result.isFailed() ? "failed" : "passed");
+        summary.put("status", result.isFailed() ? "failed" : result.isCancelled() ? "cancelled" : "passed");
+        if (result.isCancelled()) {
+            summary.put("cancel_reason", result.getCancelReason());
+        }
         data.put("summary", summary);
 
         // Build groups (one per thread) and items (one per scenario)

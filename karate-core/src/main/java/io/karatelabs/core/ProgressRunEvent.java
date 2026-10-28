@@ -33,11 +33,13 @@ public record ProgressRunEvent(
         Suite suite,
         int completed,
         int total,
-        long timeStamp
+        long timeStamp,
+        long sequence
 ) implements RunEvent {
 
+    /** Fired after each top-level scenario ends; {@code total} is the static pre-count ({@link Suite#getScenarioTotal}). */
     public static ProgressRunEvent of(Suite suite, int completed, int total) {
-        return new ProgressRunEvent(suite, completed, total, System.currentTimeMillis());
+        return new ProgressRunEvent(suite, completed, total, System.currentTimeMillis(), 0);
     }
 
     @Override
@@ -48,6 +50,16 @@ public record ProgressRunEvent(
     @Override
     public long getTimeStamp() {
         return timeStamp;
+    }
+
+    @Override
+    public long getSequence() {
+        return sequence;
+    }
+
+    @Override
+    public ProgressRunEvent withSequence(long sequence) {
+        return new ProgressRunEvent(suite, completed, total, timeStamp, sequence);
     }
 
     @Override

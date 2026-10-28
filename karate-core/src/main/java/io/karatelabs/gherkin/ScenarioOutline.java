@@ -47,6 +47,12 @@ public class ScenarioOutline {
     }
 
     public Scenario toScenario(String dynamicExpression, int exampleIndex, int updateLine, List<Tag> tagsForExamples) {
+        numScenarios++;
+        return previewScenario(dynamicExpression, exampleIndex, updateLine, tagsForExamples);
+    }
+
+    /** A scenario built for selection only: not counted among this outline's generated scenarios. */
+    public Scenario previewScenario(String dynamicExpression, int exampleIndex, int updateLine, List<Tag> tagsForExamples) {
         Scenario s = new Scenario(feature, section, exampleIndex);
         s.setName(name);
         s.setDescription(description);
@@ -79,7 +85,6 @@ public class ScenarioOutline {
             step.setSpan(original.getSpan());
             step.setCommentSpans(original.getCommentSpans());
         }
-        numScenarios++;
         return s;
     }
 

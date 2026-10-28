@@ -381,14 +381,27 @@ SUITE_ENTER
 │   ├── OUTLINE_ENTER            (once per Scenario Outline section, before its examples)
 │   ├── SCENARIO_ENTER
 │   │   ├── STEP_ENTER
+│   │   │   ├── STEP_LOG         (IDE profile only: a chunk of the step's output, as written)
 │   │   │   ├── HTTP_ENTER → HTTP_EXIT
 │   │   └── STEP_EXIT
 │   └── SCENARIO_EXIT
+│   PROGRESS                     (after each top-level scenario)
 └── FEATURE_EXIT
 SUITE_EXIT
+RUN_COMPLETE                     (after every cleanup and report write — the last event)
 ```
 
-`OUTLINE_ENTER` fires once per outline section, the first time one of its generated examples is about to run. There's no `OUTLINE_EXIT` — outline completion is implied by the last outline-example's `SCENARIO_EXIT`. Outline-example scenarios reference their parent outline via `outlineSlug` on the SCENARIO_ENTER/EXIT data.
+`OUTLINE_ENTER` fires once per outline section, the first time one of its generated examples is about to run. There's no `OUTLINE_EXIT` — outline completion is implied by the last outline-example's `SCENARIO_EXIT`. Outline-example scenarios reference their parent outline via `outlineSlug` on the SCENARIO_ENTER/EXIT data, and carry `exampleTableIndex` beside `exampleIndex` (the row index restarts per `Examples:` table).
+
+`SUITE_EXIT` closes execution (the result is final); `RUN_COMPLETE` follows the driver and mock teardown, ext shutdown and every `ResultListener.onSuiteEnd` (the report writers), so a consumer that opens the report waits for it. `RUN_CANCEL` fires once, on the thread that called `Suite.cancel(reason)`, and never after `RUN_COMPLETE`: completion waits for a cancel that is publishing, and a cancel after completion returns false.
+
+### IDE event profile
+
+`Runner.Builder.ideEvents(true)` is the profile an IDE streaming a run turns on: every event is dispatched under one lock and stamped with a run-wide `sequence` (`RunEvent.getSequence()` — 1-based, gap-free across threads, in delivery order) and `STEP_LOG` chunks fire as each step's output is written, before that step's `STEP_EXIT`. Listeners run under that lock: one that blocks stalls every producer, and one that waits for another producer's event deadlocks. An event a listener fires from inside `onEvent` (a `Suite.cancel` from a listener) is queued and delivered — with its sequence — once the current event has reached every listener, so no listener sees N+1 before N; a listener that throws does not strand what it queued (the queue is drained, the first failure rethrown after). A step's output outside any step (karate-config.js, a hook) is a `STEP_LOG` with no step; the execution index is allocated before config evaluates, so config-time output and calls resolve to their scenario. `JsonLinesEventWriter.envelope(event)` is the wire form every consumer shares: `runId` (`Runner.Builder.runId`, else a UUID), `sequence`, `executionIndex` (the scenario an event belongs to) and `parentExecutionIndex` + `parentStepLine` (the scenario and step that called a nested feature, outline or scenario).
+
+### Cancel
+
+`Suite.cancel(reason)` — idempotent, distinct from `Suite.abort()` (the `abortSuiteOnFailure` stop, which lets the running scenario finish) — stops work in flight: every scenario, nested call and `call` loop at its next step boundary, an HTTP call in flight by aborting it (`HttpClient.abort()` on every live scenario's client), a `retry until` poll by waking its sleep, config and `callonce` setup through the nested call they make. An unfinished scenario is recorded **cancelled** (`ScenarioResult.isCancelled()`, the step in flight `StepResult.Status.CANCELLED` — whether it threw or returned after the cancel landed — the rest skipped), never passed; a scenario that had already failed stays failed, otherwise cancelled is the whole verdict (`isFailed()` false, no `@fail` inversion), so `FeatureResult`/`SuiteResult.isPassed()` are false and each scenario counts once. The scenario's HTTP client refuses every call after the cancel (`HttpClient.cancel()`, sticky where `abort()` is one-shot; a client that wraps another must delegate it), so a script that catches the aborted request cannot send another. Cancel outranks `abortSuiteOnFailure`: an abort already in force does not stop the enumeration. A scenario or feature not yet started when cancel lands still gets its cancelled result, with `SCENARIO_ENTER`/`SCENARIO_EXIT` fired back to back (config is not evaluated, no step runs): the run enumerates exactly what it would have selected — the same count `Suite.getScenarioTotal()` pre-computes from `FeatureRuntime.countSelected()` — so for a cancelled run `getScenarioTotal() == passed + failed + cancelled` (a skipped scenario counts as passed). The one exception is a dynamic `Examples:` table, whose rows exist only once its expression runs: it counts as one and records one cancelled result, the outline's own (`exampleIndex` -1, the outline's name). The suite result, the JSONL summary and the HTML report all say cancelled, with the reason.
 
 Return `false` from `SCENARIO_ENTER` / `STEP_ENTER` / `HTTP_ENTER` to skip execution — `SUITE_ENTER` and `FEATURE_ENTER` fire for observation only and their return value is ignored. Events fire for **all** features including `call`ed ones — use `event.source().isTopLevel()` to filter.
 

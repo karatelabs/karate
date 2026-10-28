@@ -32,11 +32,12 @@ import java.util.Map;
 public record ErrorRunEvent(
         ScenarioRuntime scenarioRuntime,
         Throwable error,
-        long timeStamp
+        long timeStamp,
+        long sequence
 ) implements RunEvent {
 
     public static ErrorRunEvent of(Throwable error, ScenarioRuntime sr) {
-        return new ErrorRunEvent(sr, error, System.currentTimeMillis());
+        return new ErrorRunEvent(sr, error, System.currentTimeMillis(), 0);
     }
 
     @Override
@@ -47,6 +48,16 @@ public record ErrorRunEvent(
     @Override
     public long getTimeStamp() {
         return timeStamp;
+    }
+
+    @Override
+    public long getSequence() {
+        return sequence;
+    }
+
+    @Override
+    public ErrorRunEvent withSequence(long sequence) {
+        return new ErrorRunEvent(scenarioRuntime, error, timeStamp, sequence);
     }
 
     @Override

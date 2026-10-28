@@ -278,7 +278,10 @@ public class StepExecutor {
             }
 
             long elapsedNanos = System.nanoTime() - startNanos;
-            StepResult result = StepResult.passed(step, startTime, elapsedNanos);
+            // a step that ran to its end after the cancel landed is not a pass: the scenario is unfinished
+            StepResult result = suite != null && suite.isCancelled()
+                    ? StepResult.cancelled(step, startTime, elapsedNanos, null)
+                    : StepResult.passed(step, startTime, elapsedNanos);
             collectLogsAndEmbeds(result);
 
             // Notify interceptor of successful step execution
@@ -305,7 +308,11 @@ public class StepExecutor {
             // on a raw ReferenceError (the ##() optional-embedded skip). Any other failure passes through
             // untouched.
             Throwable failure = ExtHint.decorate(e, suite);
-            StepResult result = StepResult.failed(step, startTime, elapsedNanos, failure);
+            // once the run is cancelled a throw here is the cancel arriving (an aborted call, a stopped
+            // nested feature), not a verdict on the test
+            StepResult result = suite != null && suite.isCancelled()
+                    ? StepResult.cancelled(step, startTime, elapsedNanos, failure)
+                    : StepResult.failed(step, startTime, elapsedNanos, failure);
             collectLogsAndEmbeds(result);
 
             // Notify interceptor of failed step execution
@@ -581,7 +588,11 @@ public class StepExecutor {
     List<Map<String, Object>> callFeatureLoop(Feature calledFeature, List<?> argList, String tagSelector, Set<Integer> lineFilters) {
         List<Map<String, Object>> results = new ArrayList<>();
         int loopIndex = 0;
+        Suite suite = getSuite();
         for (Object item : argList) {
+            if (suite != null && suite.isCancelled()) {
+                throw new RuntimeException("run cancelled: " + suite.getCancelReason());
+            }
             Map<String, Object> callArg = item instanceof Map ? (Map<String, Object>) item : null;
             // Always isolated scope for array loop
             Map<String, Object> vars = lastVars(runNestedFeature(calledFeature, callArg, false, tagSelector, lineFilters, loopIndex));
@@ -594,6 +605,9 @@ public class StepExecutor {
     }
 
     void checkFeatureResult(FeatureResult featureResult) {
+        if (featureResult.isCancelled()) {
+            throw new RuntimeException("called feature cancelled: " + featureResult.getDisplayName());
+        }
         if (featureResult.isFailed()) {
             String msg = featureResult.getFailureMessage();
             throw new RuntimeException("called feature failed: "
@@ -2428,12 +2442,18 @@ public class StepExecutor {
                 throw new RuntimeException("retry failed after " + maxRetries + " attempts: " + retryUntil);
             }
             if (retryCount > 0) {
-                try {
-                    logger.debug("sleeping {} ms before retry #{}", sleepInterval, retryCount);
-                    Thread.sleep(sleepInterval);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException("retry interrupted", e);
+                logger.debug("sleeping {} ms before retry #{}", sleepInterval, retryCount);
+                if (suite != null) {
+                    if (suite.awaitCancel(sleepInterval)) {
+                        throw new RuntimeException("run cancelled: " + suite.getCancelReason());
+                    }
+                } else {
+                    try {
+                        Thread.sleep(sleepInterval);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("retry interrupted", e);
+                    }
                 }
             }
 

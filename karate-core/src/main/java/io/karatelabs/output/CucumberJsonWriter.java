@@ -460,7 +460,7 @@ public final class CucumberJsonWriter {
         return switch (status) {
             case PASSED -> "passed";
             case FAILED -> "failed";
-            case SKIPPED -> "skipped";
+            case SKIPPED, CANCELLED -> "skipped";
         };
     }
 

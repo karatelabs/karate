@@ -39,11 +39,12 @@ import java.util.Map;
 public record OutlineRunEvent(
         FeatureRuntime source,
         ScenarioOutline outline,
-        long timeStamp
+        long timeStamp,
+        long sequence
 ) implements RunEvent {
 
     public static OutlineRunEvent enter(FeatureRuntime fr, ScenarioOutline outline) {
-        return new OutlineRunEvent(fr, outline, System.currentTimeMillis());
+        return new OutlineRunEvent(fr, outline, System.currentTimeMillis(), 0);
     }
 
     @Override
@@ -54,6 +55,16 @@ public record OutlineRunEvent(
     @Override
     public long getTimeStamp() {
         return timeStamp;
+    }
+
+    @Override
+    public long getSequence() {
+        return sequence;
+    }
+
+    @Override
+    public OutlineRunEvent withSequence(long sequence) {
+        return new OutlineRunEvent(source, outline, timeStamp, sequence);
     }
 
     @Override

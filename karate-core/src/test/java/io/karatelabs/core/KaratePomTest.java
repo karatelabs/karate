@@ -54,8 +54,8 @@ class KaratePomTest {
         assertFalse(config.isDryRun());
         assertFalse(config.isClean());
 
-        // Default output settings
-        assertEquals("target/karate-reports", config.getOutput().getDir());
+        // Default output settings: no dir, so the CLI falls through to the build tool's
+        assertNull(config.getOutput().getDir());
         assertTrue(config.getOutput().isHtml());
         assertFalse(config.getOutput().isJunitXml());
         assertFalse(config.getOutput().isCucumberJson());
@@ -317,7 +317,7 @@ class KaratePomTest {
         KaratePom config = new KaratePom();
         config.setOutput(null);
         assertNotNull(config.getOutput());
-        assertEquals("target/karate-reports", config.getOutput().getDir());
+        assertNull(config.getOutput().getDir());
     }
 
     @Test

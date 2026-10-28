@@ -39,6 +39,9 @@ public enum RunEventType {
     SCENARIO_ENTER,
     SCENARIO_EXIT,
     STEP_ENTER,
+    // STEP_LOG carries one chunk of a step's captured output as it is written, before that step's
+    // STEP_EXIT; fired only under the IDE event profile (Runner.Builder.ideEvents).
+    STEP_LOG,
     STEP_EXIT,
     HTTP_ENTER,
     HTTP_EXIT,
@@ -46,5 +49,10 @@ public enum RunEventType {
     // before the step throws, so a failed assertion still reaches its listeners.
     MATCH_EXIT,
     ERROR,
-    PROGRESS
+    PROGRESS,
+    // RUN_CANCEL fires once, from the thread that called Suite.cancel(). RUN_COMPLETE fires after
+    // SUITE_EXIT once every cleanup (hooks, driver and mock teardown, executor shutdown) and every
+    // report write has finished: the last event of a run.
+    RUN_CANCEL,
+    RUN_COMPLETE
 }

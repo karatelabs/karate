@@ -288,6 +288,8 @@ public final class Runner {
         private boolean skipTagFiltering;
         private int poolSize = -1; // -1 means auto-detect from parallel count
         private java.util.function.Consumer<Suite> suiteConsumer;
+        private String runId;
+        private boolean ideEvents;
         private io.karatelabs.js.RunInterceptor<?> debugInterceptor;
         private io.karatelabs.js.DebugPointFactory<?> debugPointFactory;
 
@@ -696,6 +698,23 @@ public final class Runner {
          * needs for cooperative mid-run control: {@link Suite#abort()} lets the executing scenario
          * finish and skips everything after it (the same flag abortSuiteOnFailure sets).
          */
+        /** The id every event envelope of this run carries ({@code runId}); a random UUID when unset. */
+        public Builder runId(String runId) {
+            this.runId = runId;
+            return this;
+        }
+
+        /**
+         * The IDE event profile: every event is dispatched under one lock and stamped with a run-wide
+         * sequence ({@link RunEvent#getSequence()}), and STEP_LOG chunks stream each step's captured
+         * output as it is written. Off by default — the lock serializes every listener call across
+         * threads, which an IDE streaming a run wants and a throughput run does not.
+         */
+        public Builder ideEvents(boolean enabled) {
+            this.ideEvents = enabled;
+            return this;
+        }
+
         public Builder onSuite(java.util.function.Consumer<Suite> consumer) {
             this.suiteConsumer = consumer;
             return this;
@@ -978,6 +997,8 @@ public final class Runner {
         boolean isRetainStepLogs() { return retainStepLogs; }
         /** null when unset — the Suite decides from perf mode. */
         Boolean getCaptureStepLogs() { return captureStepLogs; }
+        String getRunId() { return runId; }
+        boolean isIdeEvents() { return ideEvents; }
         Map<String, String> getSystemProperties() { return systemProperties; }
         Map<String, String> getSystemEnv() { return systemEnv; }
         UnaryOperator<String> getOutputMask() { return outputMask; }

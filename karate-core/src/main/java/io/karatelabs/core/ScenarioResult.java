@@ -46,6 +46,8 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     private String threadName;
     private boolean failTagApplied;
     private boolean aborted;
+    // Set when Suite.cancel() cut this scenario short: an outcome of its own, never passed, skipped or failed.
+    private boolean cancelled;
     // True when the scenario carried @report=false (or inherited it from a calling
     // scenario). Step detail is suppressed in HTML/Cucumber-JSON/JUnit/JSONL writers;
     // failures surface only a redacted message so secrets don't leak into CI artifacts.
@@ -106,6 +108,14 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         this.aborted = aborted;
     }
 
+    public boolean isCancelled() {
+        return cancelled;
+    }
+
+    public void setCancelled(boolean cancelled) {
+        this.cancelled = cancelled;
+    }
+
     public boolean isReportDisabled() {
         return reportDisabled;
     }
@@ -146,6 +156,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     }
 
     public boolean isPassed() {
+        if (cancelled) {
+            return false;
+        }
         if (failTagApplied) {
             // When @fail tag is applied, check if the last (fake) step passed
             if (!stepResults.isEmpty()) {
@@ -156,6 +169,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     }
 
     public boolean isFailed() {
+        if (cancelled) {
+            return false;
+        }
         if (failTagApplied) {
             // When @fail tag is applied, check if the last (fake) step failed
             if (!stepResults.isEmpty()) {
@@ -172,7 +188,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
      * count semantics). Surfaces in reports via a synthetic {@code @skipped} tag.
      */
     public boolean isSkipped() {
-        if (failTagApplied || isFailed()) {
+        if (cancelled || failTagApplied || isFailed()) {
             return false;
         }
         if (aborted) {
@@ -556,6 +572,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         map.put("passed", isPassed());
         map.put("failed", isFailed());
         map.put("skipped", isSkipped());
+        if (cancelled) {
+            map.put("cancelled", true);
+        }
         map.put("durationMillis", getDurationMillis());
         if (isFailed()) {
             // @report=false redacts the failure message so secrets don't leak into HTML /
@@ -592,6 +611,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         }
         if (isSkipped() && !tagNames.contains("skipped")) {
             tagNames.add("skipped");
+        }
+        if (cancelled && !tagNames.contains("cancelled")) {
+            tagNames.add("cancelled");
         }
         if (!tagNames.isEmpty()) {
             map.put("tags", tagNames);

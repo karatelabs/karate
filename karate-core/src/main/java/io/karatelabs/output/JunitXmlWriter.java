@@ -143,7 +143,7 @@ public final class JunitXmlWriter {
         xml.append(" tests=\"").append(result.getScenarioCount()).append("\"");
         xml.append(" failures=\"").append(result.getFailedCount()).append("\"");
         xml.append(" time=\"").append(formatter.format(result.getDurationMillis() / 1000.0)).append("\"");
-        xml.append(" skipped=\"0\"");
+        xml.append(" skipped=\"").append(result.getCancelledCount()).append("\"");
         xml.append(">");
 
         // Each scenario becomes a testcase
@@ -201,6 +201,9 @@ public final class JunitXmlWriter {
             }
         }
 
+        if (sr.isCancelled()) {
+            xml.append("<skipped message=\"cancelled\"/>");
+        }
         if (sr.isReportDisabled()) {
             // @report=false: don't leak step text or logs into the JUnit artifact (often
             // uploaded to CI). Failures get a redacted message; passes get an empty body.

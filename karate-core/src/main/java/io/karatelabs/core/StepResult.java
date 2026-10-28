@@ -35,7 +35,9 @@ import java.util.Map;
 public class StepResult {
 
     public enum Status {
-        PASSED, FAILED, SKIPPED
+        PASSED, FAILED, SKIPPED,
+        /** The step was in flight when {@link Suite#cancel} arrived: not passed, not a failure of the test. */
+        CANCELLED
     }
 
     private final Step step;
@@ -67,6 +69,10 @@ public class StepResult {
 
     public static StepResult skipped(Step step, long startTime) {
         return new StepResult(step, Status.SKIPPED, startTime, 0, null);
+    }
+
+    public static StepResult cancelled(Step step, long startTime, long durationNanos, Throwable error) {
+        return new StepResult(step, Status.CANCELLED, startTime, durationNanos, error);
     }
 
     /**
@@ -230,6 +236,10 @@ public class StepResult {
 
     public boolean isSkipped() {
         return status == Status.SKIPPED;
+    }
+
+    public boolean isCancelled() {
+        return status == Status.CANCELLED;
     }
 
     public String getErrorMessage() {
