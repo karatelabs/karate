@@ -108,7 +108,9 @@ public class Token {
     }
 
     public String getPositionDisplay() {
-        return (line + 1) + ":" + (col + 1);
+        // StringBuilder, not +: a JS catch deep in runaway recursion can make this the first
+        // call, and a concat call site whose first link overflows is broken for the life of the JVM
+        return new StringBuilder().append(line + 1).append(':').append(col + 1).toString();
     }
 
     public List<Token> getComments() {

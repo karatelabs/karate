@@ -25,6 +25,9 @@ package io.karatelabs.js;
 
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -332,6 +335,32 @@ class EngineExceptionTest {
 
     private static Object evalAtDepth(int depth, String script) {
         return depth == 0 ? new Engine().eval(script) : evalAtDepth(depth - 1, script);
+    }
+
+    @Test
+    void testDeepCatchOfRunawayRecursionDoesNotBreakLaterErrors() throws Exception {
+        // A catch inside the recursion runs on an almost exhausted stack, and first-use
+        // linkage that overflows there is broken for the life of the JVM. Only a fresh JVM
+        // shows it (this one linked everything long ago), each starting a little deeper.
+        List<Process> runs = new ArrayList<>();
+        for (int depth = 0; depth < 8; depth++) {
+            runs.add(new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                    "-cp", System.getProperty("java.class.path"), DeepCatch.class.getName(), String.valueOf(depth))
+                    .redirectErrorStream(true).start());
+        }
+        for (Process run : runs) {
+            String out = new String(run.getInputStream().readAllBytes());
+            assertTrue(out.contains("result: RangeError|TypeError"), out);
+        }
+    }
+
+    static class DeepCatch {
+        public static void main(String[] args) {
+            Object first = evalAtDepth(Integer.parseInt(args[0]),
+                    "function f(){ try { return f() } catch (e) { throw e } }; try { f() } catch (e) { e.name }");
+            Object later = new Engine().eval("try { null.x } catch (e) { e.name }");
+            System.out.println("result: " + first + "|" + later);
+        }
     }
 
     @Test
