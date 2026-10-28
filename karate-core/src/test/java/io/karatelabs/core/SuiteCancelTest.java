@@ -66,6 +66,94 @@ class SuiteCancelTest {
         }
     }
 
+    /** Holds its first connection open without answering ({@code held} counts down); answers every later one 200. */
+    static final class HoldingStub implements AutoCloseable {
+        final ServerSocket server = new ServerSocket(0);
+        final CountDownLatch held = new CountDownLatch(1);
+
+        HoldingStub() throws IOException {
+            Thread acceptor = new Thread(() -> {
+                while (!server.isClosed()) {
+                    try {
+                        Socket socket = server.accept();
+                        Thread holder = new Thread(() -> {
+                            try (socket) {
+                                InputStream in = socket.getInputStream();
+                                byte[] buf = new byte[4096];
+                                if (in.read(buf) <= 0) {
+                                    return; // no request: holds nothing
+                                }
+                                if (held.getCount() == 0) {
+                                    OutputStream out = socket.getOutputStream();
+                                    out.write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+                                            .getBytes(StandardCharsets.US_ASCII));
+                                    out.flush();
+                                    return;
+                                }
+                                held.countDown();
+                                while (in.read(buf) != -1) {
+                                    // the client holds the connection until it aborts
+                                }
+                            } catch (IOException ignored) {
+                                // closed
+                            }
+                        });
+                        holder.setDaemon(true);
+                        holder.start();
+                    } catch (IOException ignored) {
+                        // closed
+                    }
+                }
+            });
+            acceptor.setDaemon(true);
+            acceptor.start();
+        }
+
+        String url() {
+            return "http://localhost:" + server.getLocalPort();
+        }
+
+        @Override
+        public void close() throws IOException {
+            server.close();
+        }
+    }
+
+    /** Answers each request with 200 once {@code after} has counted down. */
+    static final class GatedStub implements AutoCloseable {
+        final ServerSocket server = new ServerSocket(0);
+
+        GatedStub(CountDownLatch after) throws IOException {
+            Thread thread = new Thread(() -> {
+                while (!server.isClosed()) {
+                    try (Socket socket = server.accept()) {
+                        socket.getInputStream().read(new byte[4096]);
+                        if (!after.await(15, TimeUnit.SECONDS)) {
+                            continue;
+                        }
+                        OutputStream out = socket.getOutputStream();
+                        out.write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+                                .getBytes(StandardCharsets.US_ASCII));
+                        out.flush();
+                    } catch (IOException | InterruptedException ignored) {
+                        // closed
+                    }
+                }
+            });
+            thread.setDaemon(true);
+            thread.start();
+        }
+
+        String url() {
+            return "http://localhost:" + server.getLocalPort();
+        }
+
+        @Override
+        public void close() throws IOException {
+            server.close();
+        }
+    }
+
     /** Answers every request with 200 at once. */
     static final class OkStub implements AutoCloseable {
         final ServerSocket server = new ServerSocket(0);
@@ -127,6 +215,14 @@ class SuiteCancelTest {
             return cancelNow();
         }
 
+        /** For a run a listener cancels: waits for the end and returns the millis since the cancel in {@code cancelledAt}. */
+        long endedAfter(long[] cancelledAt) throws Exception {
+            future.get(15, TimeUnit.SECONDS);
+            executor.shutdown();
+            assertTrue(cancelledAt[0] != 0, "the listener cancelled");
+            return (System.nanoTime() - cancelledAt[0]) / 1_000_000;
+        }
+
         private long cancelNow() throws Exception {
             long t0 = System.nanoTime();
             assertTrue(suite.cancel("test cancel"));
@@ -142,8 +238,12 @@ class SuiteCancelTest {
     }
 
     private static Runner.Builder builder(Path dir) {
+        return builder(dir, "main.feature");
+    }
+
+    private static Runner.Builder builder(Path dir, String first) {
         return Runner.builder()
-                .path(dir.resolve("main.feature").toString())
+                .path(dir.resolve(first).toString())
                 .configDir(dir.toString())
                 .workingDir(dir)
                 .outputDir(dir.resolve("reports"))
@@ -587,43 +687,71 @@ class SuiteCancelTest {
 
     @Test
     void aCancelAfterAnAbortOnFailureStillEnumeratesEveryScenario(@TempDir Path dir) throws Exception {
+        // Cancel outranks an abort already in force. Two threads: the second feature's first call
+        // is held by the stub, the failing scenario's own call is answered only once that hold
+        // exists, so it fails and puts the abort in force with a call in flight, and the cancel
+        // follows the observed abort — the held call is aborted and whatever had not started is
+        // enumerated. One thread: nothing runs after the failure, so the cancel comes from the
+        // failing scenario's own exit event, before the abort it leaves behind lands — the two
+        // scenarios that never started still read cancelled.
         Files.writeString(dir.resolve("karate-config.js"), """
                 function fn() { karate.configure('abortSuiteOnFailure', true); return {}; }
                 """);
-        Files.writeString(dir.resolve("main.feature"), """
+        Files.writeString(dir.resolve("single.feature"), """
                 Feature: first
                 Scenario: fails
                 * assert false
                 """);
-        Files.writeString(dir.resolve("second.feature"), """
-                Feature: second
-                Scenario: a
-                * karate.pause(300)
-                Scenario: b
-                * karate.pause(300)
-                """);
-        for (int threads : new int[]{1, 2}) {
-            CountDownLatch trigger = new CountDownLatch(1);
-            Suite suite = builder(dir).path(dir.resolve("second.feature").toString()).listener(event -> {
-                if (event instanceof ScenarioRunEvent e && e.type() == RunEventType.SCENARIO_EXIT
-                        && "fails".equals(e.source().getScenario().getName())) {
-                    trigger.countDown();
-                }
-                return true;
-            }).buildSuite(threads);
+        try (HoldingStub stub = new HoldingStub(); GatedStub gate = new GatedStub(stub.held)) {
+            Files.writeString(dir.resolve("main.feature"), """
+                    Feature: first
+                    Scenario: fails
+                    * url '%s'
+                    * method get
+                    * assert false
+                    """.formatted(gate.url()));
+            Files.writeString(dir.resolve("second.feature"), """
+                    Feature: second
+                    Scenario: a
+                    * url '%s'
+                    * method get
+                    Scenario: b
+                    * url '%s'
+                    * method get
+                    """.formatted(stub.url(), stub.url()));
+            Suite suite = builder(dir).path(dir.resolve("second.feature").toString()).buildSuite(2);
             Run run = new Run(suite);
-            long elapsed = run.cancelWhen(trigger);
+            long elapsed = run.cancelWhen(suite::isAborted);
             assertCancelledOutcome(run, elapsed);
             SuiteResult result = run.result();
             assertEquals(3, suite.getScenarioTotal());
-            assertEquals(1, result.getScenarioFailedCount(), "threads " + threads);
-            assertEquals(2, result.getFeatureResults().size(), "threads " + threads);
-            if (threads == 1) {
-                assertEquals(2, result.getScenarioCancelledCount(), "nothing after the failure ran");
-            } else {
-                // the second feature runs beside the first: what finished before the cancel passed, the rest is cancelled
-                assertEquals(2, result.getScenarioPassedCount() + result.getScenarioCancelledCount());
-            }
+            assertEquals(2, result.getFeatureResults().size());
+            assertEquals(1, result.getScenarioFailedCount());
+            // the held call is cancelled; the other scenario passed before the abort, or never started under it
+            assertEquals(2, result.getScenarioPassedCount() + result.getScenarioCancelledCount());
+
+            Suite[] holder = new Suite[1];
+            long[] cancelledAt = new long[1];
+            suite = builder(dir, "single.feature").path(dir.resolve("second.feature").toString())
+                    .listener(event -> {
+                        if (event instanceof ScenarioRunEvent e && e.type() == RunEventType.SCENARIO_EXIT
+                                && "fails".equals(e.source().getScenario().getName())) {
+                            cancelledAt[0] = System.nanoTime();
+                            assertTrue(holder[0].cancel("test cancel"));
+                        }
+                        return true;
+                    }).buildSuite(1);
+            holder[0] = suite;
+            run = new Run(suite);
+            elapsed = run.endedAfter(cancelledAt);
+            assertFalse(suite.cancel("second"), "idempotent");
+            assertCancelledOutcome(run, elapsed);
+            assertTrue(suite.isAborted(), "the failure still put the abort in force, after the cancel");
+            result = run.result();
+            assertEquals(3, suite.getScenarioTotal());
+            assertEquals(2, result.getFeatureResults().size());
+            assertEquals(1, result.getScenarioFailedCount());
+            assertEquals(2, result.getScenarioCancelledCount(), "nothing after the failure ran");
         }
     }
 
