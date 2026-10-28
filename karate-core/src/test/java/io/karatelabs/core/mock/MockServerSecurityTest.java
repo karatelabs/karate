@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -678,7 +679,10 @@ class MockServerSecurityTest {
             Map<String, Object> expected = Map.of(
                     "file", Map.of("greeting", "hi", "inline", "Hello bob!"),
                     "text", "Hello bob!\n", "inline", "Hello x", "whole", "x");
-            assertEquals(expected, res.getBodyConverted());
+            @SuppressWarnings("unchecked")
+            Map<String, Object> actual = new HashMap<>((Map<String, Object>) res.getBodyConverted());
+            actual.computeIfPresent("text", (k, v) -> v.toString().replace("\r\n", "\n"));
+            assertEquals(expected, actual);
         } finally {
             server.stopAsync();
         }

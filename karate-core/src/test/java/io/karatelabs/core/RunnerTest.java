@@ -885,7 +885,7 @@ class RunnerTest {
             Scenario:
             * def result = resolveScenarios({ path: "${subDir}", tags: "@smoke" })
             * match result == ["${subDir}/a.feature:5"]
-            """.replace("${subDir}", subDir.toString()));
+            """.replace("${subDir}", subDir.toString().replace('\\', '/')));
 
         SuiteResult result = Runner.path(feature.toString())
                 .workingDir(tempDir)

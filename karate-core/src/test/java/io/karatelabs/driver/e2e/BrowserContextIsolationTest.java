@@ -48,6 +48,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * @see CdpDriver#connectNewContext
  */
+@org.testcontainers.junit.jupiter.Testcontainers(disabledWithoutDocker = true)
 class BrowserContextIsolationTest {
 
     private static SharedChromeContainer shared;

@@ -86,8 +86,14 @@ public class SharedChromeContainer {
         logger.info("shared test page server started on port: {}", testServer.getPort());
 
         // Start Chrome container AFTER port exposure is set up
-        chrome = new ChromeContainer();
-        chrome.start();
+        try {
+            chrome = new ChromeContainer();
+            chrome.start();
+        } catch (RuntimeException e) {
+            // free the fixed port, or every later test class fails with a BindException instead
+            testServer.stopAndWait();
+            throw e;
+        }
         logger.info("shared Chrome container started: {}", chrome.getCdpUrl());
 
         // Register shutdown hook to clean up

@@ -48,7 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * of trying to acquire a fresh one from the pool. Pool size 1 + parallel(1)
  * makes the deadlock deterministic if the inheritance is broken.
  */
-@org.testcontainers.junit.jupiter.Testcontainers
+@org.testcontainers.junit.jupiter.Testcontainers(disabledWithoutDocker = true)
 class CallMultiScenarioTest {
 
     private static final Logger logger = LoggerFactory.getLogger(CallMultiScenarioTest.class);

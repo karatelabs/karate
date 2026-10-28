@@ -54,7 +54,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * — the feature under test contains scenarios that fail by design, tagged
  * {@code @expect-failure} so {@link DriverFeatureTest} excludes them.
  */
-@org.testcontainers.junit.jupiter.Testcontainers
+@org.testcontainers.junit.jupiter.Testcontainers(disabledWithoutDocker = true)
 class StepFailureFeatureTest {
 
     private static final Logger logger = LoggerFactory.getLogger(StepFailureFeatureTest.class);

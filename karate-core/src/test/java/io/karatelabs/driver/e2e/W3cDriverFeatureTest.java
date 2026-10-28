@@ -56,7 +56,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * <p>Runs as part of the cicd profile ({@code mvn verify -Pcicd}).
  * Excluded from default builds (lives in e2e package).</p>
  */
-@org.testcontainers.junit.jupiter.Testcontainers
+@org.testcontainers.junit.jupiter.Testcontainers(disabledWithoutDocker = true)
 class W3cDriverFeatureTest {
 
     private static final Logger logger = LoggerFactory.getLogger(W3cDriverFeatureTest.class);

@@ -64,7 +64,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * @see ChromeContainer
  * @see SharedChromeContainer
  */
-@org.testcontainers.junit.jupiter.Testcontainers
+@org.testcontainers.junit.jupiter.Testcontainers(disabledWithoutDocker = true)
 class DriverFeatureTest {
 
     private static final Logger logger = LoggerFactory.getLogger(DriverFeatureTest.class);

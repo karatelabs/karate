@@ -53,6 +53,7 @@ import java.nio.file.Path;
  * @see SharedChromeContainer
  * @see ChromeContainer
  */
+@org.testcontainers.junit.jupiter.Testcontainers(disabledWithoutDocker = true)
 public abstract class DriverTestBase {
 
     protected static final Logger logger = LoggerFactory.getLogger(DriverTestBase.class);

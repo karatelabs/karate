@@ -54,7 +54,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * <p>Disabled by default. Enable with {@code -Dkarate.w3c.test=true}.</p>
  */
-@org.testcontainers.junit.jupiter.Testcontainers
+@org.testcontainers.junit.jupiter.Testcontainers(disabledWithoutDocker = true)
 class W3cFrameFeatureTest {
 
     private static final Logger logger = LoggerFactory.getLogger(W3cFrameFeatureTest.class);

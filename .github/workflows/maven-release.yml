@@ -133,4 +133,4 @@ jobs:
           cache: maven
 
       - name: Build and test
-        run: mvn -B -ntp clean install -Pcicd
+        run: mvn -B -ntp -fae clean install -Pcicd

@@ -71,6 +71,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>Runs only in the {@code w3c} Maven profile
  * ({@code mvn verify -Pw3c -pl karate-core}).</p>
  */
+@org.testcontainers.junit.jupiter.Testcontainers(disabledWithoutDocker = true)
 class W3cGridE2eTest {
 
     private static final Logger logger = LoggerFactory.getLogger(W3cGridE2eTest.class);

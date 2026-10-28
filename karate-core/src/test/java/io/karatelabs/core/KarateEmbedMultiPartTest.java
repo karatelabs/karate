@@ -87,7 +87,7 @@ class KarateEmbedMultiPartTest {
                 """);
         assertPassed(sr);
         StepResult.Embed embed = onlyEmbed(sr);
-        assertEquals("hello embed\n", new String(embed.getParts().get(0).getData(), java.nio.charset.StandardCharsets.UTF_8));
+        assertEquals("hello embed\n", new String(embed.getParts().get(0).getData(), java.nio.charset.StandardCharsets.UTF_8).replace("\r\n", "\n"));
     }
 
     @Test

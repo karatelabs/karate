@@ -70,7 +70,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * @see DriverFeatureTest
  */
-@org.testcontainers.junit.jupiter.Testcontainers
+@org.testcontainers.junit.jupiter.Testcontainers(disabledWithoutDocker = true)
 class OopifPooledReuseTest {
 
     private static final Logger logger = LoggerFactory.getLogger(OopifPooledReuseTest.class);
