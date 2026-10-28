@@ -74,6 +74,11 @@ on one, so the release does **not** block on CVEs. `cve.yml` is the gate: it fai
 - [ ] Trigger the **maven-release** job **manually** (`workflow_dispatch`)
 - [ ] Use version `X.Y.Z` (must match the tag exactly), `maven: enabled`, `tests: enabled`
 - [ ] The job sets the pom version itself — it does not rely on the commit from step 1
+- [ ] The `windows` job (full build and tests on `windows-latest`) runs first and **gates the
+      release**: if it fails, the `release` job — and with it the Maven Central deploy — does not
+      run. Fix the failure on `main` (or re-run the job if it was a flake) and re-trigger. The Linux
+      CI does not cover Windows-only path handling, so this is the only Windows check before
+      publishing. `tests: disabled` skips the `windows` job and the gate with it.
 - [ ] Verify artifacts appear on Maven Central
 - [ ] Download the `karate-release-X.Y.Z` artifact — it holds `karate-X.Y.Z.zip`, which unzips to the
       `karate-X.Y.Z.jar` fat jar you attach in step 4
