@@ -504,8 +504,10 @@ Added 2026-08-16:
 built-ins on deep structures (`JSON.stringify`/`parse`, array
 `join`/`toString`/`flat(Infinity)`, `structuredClone`) and runaway `yield*`
 recursion all throw a catchable `RangeError: Maximum call stack size
-exceeded`. The seams and the exhausted-stack warm-up hazard are in
-[JS_ENGINE.md § Error routing & shape](../docs/JS_ENGINE.md#error-routing--shape);
+exceeded`. The conversion happens at the first seam above the overflow with
+stack headroom — a probe, not a depth count — so the `catch` that fires can
+do first-use work; the frames below it are cut (no `catch`, no `finally`),
+see [JS_ENGINE.md § Error routing & shape](../docs/JS_ENGINE.md#error-routing--shape);
 a depth counter stays rejected for ordinary calls (no portable ceiling) and is
 used only for generators, whose nested steps never share a stack. `.stack`:
 `JsError.captureStack` records `at <source>:<line>:<col>` frames at

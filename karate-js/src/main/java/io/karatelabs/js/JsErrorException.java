@@ -82,7 +82,71 @@ class JsErrorException extends RuntimeException {
      * exhausted stack, so {@link Interpreter}'s class init builds one first — see there.
      */
     static JsErrorException stackExceeded() {
-        return rangeError("Maximum call stack size exceeded");
+        return rangeError(STACK_EXCEEDED);
+    }
+
+    static final String STACK_EXCEEDED = "Maximum call stack size exceeded";
+
+    /** The host-facing form, for a boundary that converts without headroom: Engine.eval, a host call. */
+    static EngineException stackExceededAtBoundary() {
+        JsErrorException jex = stackExceeded();
+        return new EngineException(jex.getMessage(), jex, "RangeError", STACK_EXCEEDED);
+    }
+
+    /**
+     * The RangeError for a {@link StackOverflowError} caught at a JS seam — but only once the
+     * stack has unwound far enough for the JS {@code catch} that follows to do first-use work
+     * (a class init, an invokedynamic link), which is not retryable once it has overflowed.
+     * Until then the raw error is rethrown to the next seam out, cutting the frames between.
+     */
+    static JsErrorException stackExceeded(StackOverflowError e) {
+        if (e == failed && ++seamsSinceFailure < SEAMS_BETWEEN_PROBES) {
+            throw e;
+        }
+        if (!hasHeadroom()) {
+            failed = e;
+            seamsSinceFailure = 0;
+            throw e;
+        }
+        failed = null;
+        return stackExceeded();
+    }
+
+    // ~94 KB compiled (144 bytes a level), ~2.7x that interpreted: 2.2x the largest measured
+    // first-use need (a class init reaching JsonPath or Logback, 43 KB)
+    private static final int HEADROOM_LEVELS = 650;
+    // a failed probe costs a StackOverflowError with its trace, so the same error is let
+    // through this many seams before the next one; a race between threads only moves a probe
+    private static final int SEAMS_BETWEEN_PROBES = 16;
+    private static StackOverflowError failed;
+    private static int seamsSinceFailure;
+    private static final long[] SEED = new long[16];
+    private static volatile long sink;
+
+    static {
+        for (int i = 0; i < SEED.length; i++) {
+            SEED[i] = 0x9E3779B97F4A7C15L * (i + 1);
+        }
+    }
+
+    private static boolean hasHeadroom() {
+        try {
+            sink = probe(HEADROOM_LEVELS);
+            return true;
+        } catch (StackOverflowError e) {
+            return false;
+        }
+    }
+
+    // sixteen longs live across the call, so a compiled frame spills them and stays ~144 bytes
+    private static long probe(int n) {
+        long[] s = SEED;
+        long a0 = s[0] ^ n, a1 = s[1] ^ n, a2 = s[2] ^ n, a3 = s[3] ^ n;
+        long a4 = s[4] ^ n, a5 = s[5] ^ n, a6 = s[6] ^ n, a7 = s[7] ^ n;
+        long a8 = s[8] ^ n, a9 = s[9] ^ n, a10 = s[10] ^ n, a11 = s[11] ^ n;
+        long a12 = s[12] ^ n, a13 = s[13] ^ n, a14 = s[14] ^ n, a15 = s[15] ^ n;
+        long r = n == 0 ? 0 : probe(n - 1);
+        return r ^ a0 ^ a1 ^ a2 ^ a3 ^ a4 ^ a5 ^ a6 ^ a7 ^ a8 ^ a9 ^ a10 ^ a11 ^ a12 ^ a13 ^ a14 ^ a15;
     }
 
     static JsErrorException syntaxError(String message) {

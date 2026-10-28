@@ -41,14 +41,10 @@ class Interpreter {
     static final Logger logger = LoggerFactory.getLogger(Interpreter.class);
 
     static {
-        // Build one throwaway stack-exceeded RangeError now. The overflow guards
-        // (evalStatement, JsFunctionNode.bindArgsAndExecute, GeneratorActivation)
-        // build one on a thread whose stack is already exhausted, and first-use
-        // work there fails for good: a class initializer that overflows is a
-        // NoClassDefFoundError for the life of the JVM, and so is an
-        // invokedynamic site (JsError.toString's concat) whose first link
-        // overflows — which is why it is the real message. This class loads
-        // before any script runs, so the path is warm by the time it is needed.
+        // Build one throwaway stack-exceeded RangeError now: a boundary (Engine.eval,
+        // a host call, a vthread base) builds one with whatever stack the host left,
+        // and a class init or invokedynamic link that overflows there fails for the
+        // life of the JVM. This class loads before any script runs.
         JsErrorException.stackExceeded();
     }
 
@@ -2732,9 +2728,10 @@ class Interpreter {
                 statementResult = eval(node, context);
             } catch (StackOverflowError e) {
                 // a recursive built-in (JSON, array join, structuredClone) on a deep
-                // structure; the unwound stack has room for the RangeError, and a JS
-                // catch around this statement sees it like any other throw
-                throw JsErrorException.stackExceeded();
+                // structure has unwound its Java frames, so this statement's JS catch
+                // sees the RangeError; the innermost statements of a JS recursion have
+                // no such headroom and let the raw error pass to a frame that does
+                throw JsErrorException.stackExceeded(e);
             }
             if (logger.isTraceEnabled() || Engine.DEBUG) {
                 NodeType nodeType = node.type;

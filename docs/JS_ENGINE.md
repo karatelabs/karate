@@ -1327,16 +1327,64 @@ chain in the host log, treating principle 2 ("errors must look like JS,
 not Java") as a bug-finding signal rather than papering over it.
 
 **A Java `StackOverflowError` becomes `RangeError: Maximum call stack size
-exceeded`** (`JsErrorException.stackExceeded`) at the nearest of two seams:
-`JsFunctionNode.bindArgsAndExecute` (JS recursion, including expression-bodied
-arrows that run no statement) and `Interpreter.evalStatement` (a recursive
-built-in — `JSON.stringify`/`parse`, array `join`/`toString`, `structuredClone`
-— on a deep structure, which runs no JS frame at all). Either way the error is
-an ordinary throw that the innermost JS `catch` sees. The error path runs on an
-almost exhausted stack where first-use linkage fails for the life of the JVM,
-so `Interpreter`'s class init builds one `stackExceeded()` up front. Generator
-recursion cannot overflow — each nested step runs on its own vthread — so
+exceeded`** (`JsErrorException.stackExceeded`) at the first seam above the
+overflow that has stack headroom. The seams are `JsFunctionNode.bindArgsAndExecute`
+(JS recursion, including expression-bodied arrows that run no statement) and
+`Interpreter.evalStatement` (a recursive built-in — `JSON.stringify`/`parse`,
+array `join`/`toString`, `structuredClone` — on a deep structure, which runs no
+JS frame at all). Each seam that catches the raw error asks
+`JsErrorException.stackExceeded(StackOverflowError)` for the RangeError; it
+answers only when a probe recursion (`HEADROOM_LEVELS` = 650 levels of ~144
+bytes compiled, ≈ 94 KB; ~2.7× that interpreted) fits on the stack, and
+otherwise rethrows the raw error to the next seam; a failed probe costs a
+`StackOverflowError` with its trace, so the same error passes
+`SEAMS_BETWEEN_PROBES` seams before the next probe. First-use work — a class
+initializer, an invokedynamic bootstrap, a lazily compiled regex — is not
+retryable once it has overflowed: a `<clinit>` that overflows is a
+`NoClassDefFoundError` and a concat site whose first link overflows a
+`BootstrapMethodError` for the life of the JVM, and only a fresh JVM shows
+either. Measured needs on JDK 24/aarch64: an indy concat or lambda link
+< 14 KB, a class init that pulls in JsonPath, Logback or the XML encodings
+29–43 KB; the probe is sized at 2.2× the largest. The size is a trade: the
+cut below the converting frame grows with it, and so does the interpreted
+probe the first overflow in a fresh JVM pays (≈ 250 KB, a quarter of a 1 MB
+stack, once); 500 → 650 levels cost the 200-depth sweep test 4.5 → 5.9 s.
+
+**What is guaranteed, and where.** At a JS seam the conversion follows a
+probe that fit, so the handler that sees the RangeError there — the JS
+`catch`, `ContextListener.onError`, `RunInterceptor.afterExecute` — starts
+with the probe's headroom less the few engine frames between (measured 655–717
+probe levels delivered across a direct recursion, a host callback at every
+level, a getter, `toString`, a generator and an async body;
+`EngineExceptionTest.Headroom` asserts ≥ 600). A host built-in calling back
+into JS from inside an eval (`karate.map`, any `fn.call(null, …)`) is not a
+boundary: `JsFunctionNode.call` lets the raw error pass to the next JS seam
+out, so that seam probes with the built-in's frames unwound. A *boundary*
+conversion carries no headroom guarantee — `Engine.evalScoped`, a host call
+from outside any eval, a vthread base (`AsyncActivation.runBody`,
+`GeneratorActivation.run`) convert with whatever stack the host left, which
+is the host's own situation. On a thread with less than ~300 KB of stack the
+interpreted probe may never fit, so whether a JS `catch` fires before the
+boundary converts depends on JIT state (the probe compiles after a few
+overflows); not addressed. The alternatives: a JS-frame depth count cannot
+see the headroom a recursive built-in's unwound Java frames leave (its
+`catch` sits at the same JS depth as the overflow), and a conversion on a
+fresh thread protects only the conversion, not the `catch` body that follows.
+
+The frames between the overflow and the converting seam are *cut*: the raw
+error is an `Error`, so it passes every `catch (Exception)` on the way — a JS
+`catch` there does not fire, and neither does a JS `finally`
+(`evalTryStmt` runs `finally` for completions and `RuntimeException`s, as it
+already does not for a host cancel). Running a handler on the exhausted stack
+is the hazard being removed, so the cut is the rule: observably, the call
+stack is a little shorter, and every handler from the converting frame outward
+sees an ordinary throw. The error hooks fire at the converting statement, not
+in a cut frame. `Interpreter`'s class init still builds one `stackExceeded()`
+up front so the conversion itself is warm. Generator recursion cannot
+overflow — each nested step runs on its own vthread — so
 `GeneratorActivation.step` counts nested steps instead (`MAX_STEP_DEPTH`).
+karate-js compiles with `-XDstringConcat=inline`, so the engine's own concat
+sites cannot be poisoned by a cut frame's cleanup.
 
 **`Test262Error` / user-defined error classes** are classified via
 `constructor.name` fallback in `Interpreter.evalProgram` when the thrown

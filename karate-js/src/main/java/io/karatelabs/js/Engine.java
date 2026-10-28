@@ -545,6 +545,10 @@ public class Engine {
             }
             return toJava(result);
         } catch (Throwable e) {
+            if (e instanceof StackOverflowError) {
+                // no JS seam above the overflow had stack headroom; the boundary converts regardless
+                e = JsErrorException.stackExceededAtBoundary();
+            }
             if (e instanceof FlowControlSignal) {
                 // flow-control signal from a host function — pass through unchanged
                 throw (RuntimeException) e;

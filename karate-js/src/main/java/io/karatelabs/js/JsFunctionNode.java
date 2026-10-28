@@ -198,6 +198,8 @@ class JsFunctionNode extends JsFunction {
             parentContext = declaredContext;
             hostCall = true;
         }
+        // a host caller inside this thread's JS evaluation (a built-in calling back) is not a boundary
+        final boolean nestedInEval = hostCall && Engine.current() != null;
         // Create lightweight function context with captured bindings
         CoreContext functionContext = new CoreContext(parentContext, node, args, declaredContext, capturedBindings);
         functionContext.strict = strict;
@@ -214,16 +216,32 @@ class JsFunctionNode extends JsFunction {
         // same engine's eval) pays one ThreadLocal read and skips the switch.
         Engine declaringEngine = declaredContext == null ? null : declaredContext.getEngine();
         if (declaringEngine == null || declaringEngine == Engine.current()) {
-            Object result = bindArgsAndExecute(functionContext, parentContext, args);
-            return hostCall ? hostResult(functionContext, parentContext, result) : result;
+            return callFrom(functionContext, parentContext, args, hostCall, nestedInEval);
         }
         Engine prevEngine = Engine.enter(declaringEngine);
         try {
-            Object result = bindArgsAndExecute(functionContext, parentContext, args);
-            return hostCall ? hostResult(functionContext, parentContext, result) : result;
+            return callFrom(functionContext, parentContext, args, hostCall, nestedInEval);
         } finally {
             Engine.exit(prevEngine);
         }
+    }
+
+    private Object callFrom(CoreContext functionContext, CoreContext parentContext, Object[] args,
+                            boolean hostCall, boolean nestedInEval) {
+        if (!hostCall) {
+            return bindArgsAndExecute(functionContext, parentContext, args);
+        }
+        Object result;
+        try {
+            result = bindArgsAndExecute(functionContext, parentContext, args);
+        } catch (StackOverflowError e) {
+            if (nestedInEval) {
+                throw e; // the next JS seam out probes, with the host's frames unwound
+            }
+            // no seam inside had headroom; a true host boundary converts regardless, as Engine.eval does
+            throw JsErrorException.stackExceededAtBoundary();
+        }
+        return hostResult(functionContext, parentContext, result);
     }
 
     /**
@@ -260,16 +278,16 @@ class JsFunctionNode extends JsFunction {
      * Java leak (principle #2); the spec answer is a {@code RangeError}. The
      * unwound-and-discarded {@code functionContext} carries no state anyone can
      * observe, so the resulting {@link JsErrorException} then propagates
-     * exactly like any other JS throw.
+     * exactly like any other JS throw — from the first frame out with stack
+     * headroom ({@link JsErrorException#stackExceeded(StackOverflowError)}); the
+     * frames below it are cut, their JS catch and finally never run.
      * <p>
      * A depth counter was the alternative and is worse here: no fixed ceiling
      * is portable — this repo's own surefire JVM blows the Java stack at ~450
      * nested JS frames while a default main thread takes far more — so a limit
      * safe there either fails to protect or rejects legitimate recursion.
      * Catching costs nothing on the hot path (an exception-table entry, no
-     * instructions) and is self-correcting on the cold one: if building the
-     * error exhausts what little stack is left, that second overflow lands in
-     * the caller's identical catch one JS frame out, where there is more room.
+     * instructions).
      */
     Object bindArgsAndExecute(CoreContext functionContext, CoreContext parentContext, Object[] args) {
         functionContext.privateEnv = privateEnv;
@@ -289,7 +307,7 @@ class JsFunctionNode extends JsFunction {
         try {
             return executeBody(functionContext, parentContext, args);
         } catch (StackOverflowError e) {
-            throw JsErrorException.stackExceeded();
+            throw JsErrorException.stackExceeded(e);
         }
     }
 

@@ -14,4 +14,20 @@
     <packaging>jar</packaging>
     <name>${project.artifactId}</name>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <compilerArgs combine.children="append">
+                        <!-- no invokedynamic concat: a site whose first link overflows the stack is
+                             broken for the life of the JVM, and engine code runs on exhausted stacks -->
+                        <arg>-XDstringConcat=inline</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>

@@ -27,6 +27,8 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -359,26 +361,163 @@ class EngineExceptionTest {
     }
 
     @Test
+    void testHandlersBelowTheConvertingFrameAreCut() {
+        // The raw overflow unwinds until a frame with stack headroom converts it. The catch
+        // and finally of the frames below never run; from that frame out both do, as for
+        // any throw — so exactly one finally per frame from the catching one outward. The
+        // cut is several frames: where the overflow lands can account for one at most.
+        List<?> r = (List<?>) new Engine().eval("""
+                var max = 0, caughtAt = -1, fin = 0;
+                function f(n) {
+                  if (n > max) max = n;
+                  try { return f(n + 1) }
+                  catch (e) { if (caughtAt < 0) caughtAt = n; throw e }
+                  finally { fin++ }
+                }
+                try { f(0) } catch (e) {}
+                [max, caughtAt, fin]""");
+        int max = ((Number) r.get(0)).intValue();
+        int caughtAt = ((Number) r.get(1)).intValue();
+        int fin = ((Number) r.get(2)).intValue();
+        assertTrue(caughtAt > 0 && max - caughtAt > 4, r.toString());
+        assertEquals(caughtAt + 1, fin, r.toString());
+    }
+
+    @Test
+    void testAsyncBodyOverflowRejectsWithARangeError() {
+        assertEquals("RangeError", new Engine().eval(
+                "async function f(){ function g(){ return g() } return g() }; f().catch(e => e.name)"));
+    }
+
+    @Test
     void testDeepCatchOfRunawayRecursionDoesNotBreakLaterErrors() throws Exception {
         // A catch inside the recursion runs on an almost exhausted stack, and first-use
         // linkage that overflows there is broken for the life of the JVM. Only a fresh JVM
         // shows it (this one linked everything long ago), each starting a little deeper.
-        List<Process> runs = new ArrayList<>();
-        for (int depth = 0; depth < 8; depth++) {
-            runs.add(new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
-                    "-cp", System.getProperty("java.class.path"), DeepCatch.class.getName(), String.valueOf(depth))
-                    .redirectErrorStream(true).start());
-        }
-        for (Process run : runs) {
-            String out = new String(run.getInputStream().readAllBytes());
+        for (String out : freshRuns(DeepCatch.class)) {
             assertTrue(out.contains("result: RangeError|TypeError"), out);
         }
     }
 
+    @Test
+    void testHandlersGetStackHeadroomWhateverPathTheOverflowTook() {
+        // Whoever sees the RangeError first — the JS catch, a listener's onError, an
+        // interceptor's afterExecute — has at least HEADROOM_FLOOR probe levels of stack:
+        // a direct recursion, one through a host callback at every level (karate.map),
+        // a getter, toString, a generator or async body, a recursive built-in.
+        for (int i = 0; i < 20; i++) { // the engine's probe and this one compile to their final frame size
+            new Engine().eval("function w(){ try { return w() } catch (e) { throw e } }; try { w() } catch (e) {}");
+            Headroom.levels();
+        }
+        Map<String, String> shapes = new LinkedHashMap<>();
+        shapes.put("direct", "function f(n){ try { return f(n + 1) } catch (e) { note(); throw e } }; try { f(0) } catch (e) {}");
+        shapes.put("hostCallback", "function f(n){ try { return viaHost(f, n + 1) } catch (e) { note(); throw e } }; try { f(0) } catch (e) {}");
+        shapes.put("getter", "var o = { get x(){ try { return this.x } catch (e) { note(); throw e } } }; try { o.x } catch (e) {}");
+        shapes.put("toString", "var o = { toString: function(){ try { return '' + this } catch (e) { note(); throw e } } }; try { '' + o } catch (e) {}");
+        shapes.put("generator", "function f(n){ try { return f(n + 1) } catch (e) { note(); throw e } };"
+                + " function* g(){ try { f(0) } catch (e) {} }; g().next()");
+        shapes.put("async", "function f(n){ try { return f(n + 1) } catch (e) { note(); throw e } };"
+                + " async function a(){ try { f(0) } catch (e) {} }; a()");
+        shapes.put("builtin", "var a = {}; var c = a; for (var i = 0; i < 200000; i++) { c.x = {}; c = c.x };"
+                + " try { JSON.stringify(a) } catch (e) { note() }");
+        for (Map.Entry<String, String> shape : shapes.entrySet()) {
+            Headroom at = new Headroom();
+            Engine engine = new Engine();
+            engine.put("note", (JsCallable) (c, args) -> at.note("catch"));
+            engine.put("viaHost", (JsCallable) (c, args) -> ((JsCallable) args[0]).call(null, new Object[]{args[1]}));
+            engine.eval(shape.getValue());
+            at.assertFloor(shape.getKey(), "catch");
+        }
+        Headroom at = new Headroom();
+        Engine engine = new Engine();
+        engine.setListener(new ContextListener() {
+            @Override
+            public ExitResult onError(Event event, Exception e) {
+                at.note("onError");
+                return null;
+            }
+        });
+        engine.setDebugSupport(new RunInterceptor<Object>() {
+            @Override
+            public Action beforeExecute(Object context) {
+                return Action.PROCEED;
+            }
+
+            @Override
+            public void afterExecute(Object context, Object result, Throwable error) {
+                if (error != null) {
+                    at.note("afterExecute");
+                }
+            }
+        }, (type, line, sourcePath, source, jsContext) -> source);
+        assertEquals("RangeError", assertThrows(EngineException.class,
+                () -> engine.eval("function f(){ return f() }; f()")).getJsErrorName());
+        at.assertFloor("uncaught", "onError");
+        at.assertFloor("uncaught", "afterExecute");
+    }
+
+    /** Stack headroom in levels of the engine's own probe shape, recorded once per handler. */
+    static class Headroom {
+        // 2x the largest first-use need measured (43 KB): what the handler can count on
+        static final int HEADROOM_FLOOR = 600;
+        static final long[] SEED = new long[16];
+        static int reached;
+        final Map<String, Integer> seen = new HashMap<>();
+
+        static long dive(int n) {
+            long[] s = SEED;
+            long a0 = s[0] ^ n, a1 = s[1] ^ n, a2 = s[2] ^ n, a3 = s[3] ^ n;
+            long a4 = s[4] ^ n, a5 = s[5] ^ n, a6 = s[6] ^ n, a7 = s[7] ^ n;
+            long a8 = s[8] ^ n, a9 = s[9] ^ n, a10 = s[10] ^ n, a11 = s[11] ^ n;
+            long a12 = s[12] ^ n, a13 = s[13] ^ n, a14 = s[14] ^ n, a15 = s[15] ^ n;
+            reached = n;
+            long r = dive(n + 1);
+            return r ^ a0 ^ a1 ^ a2 ^ a3 ^ a4 ^ a5 ^ a6 ^ a7 ^ a8 ^ a9 ^ a10 ^ a11 ^ a12 ^ a13 ^ a14 ^ a15;
+        }
+
+        static int levels() {
+            try {
+                dive(0);
+                return -1;
+            } catch (StackOverflowError e) {
+                return reached;
+            }
+        }
+
+        Object note(String handler) {
+            seen.putIfAbsent(handler, levels());
+            return null;
+        }
+
+        void assertFloor(String shape, String handler) {
+            Integer levels = seen.get(handler);
+            assertNotNull(levels, shape + ": " + handler + " never ran");
+            assertTrue(levels >= HEADROOM_FLOOR, shape + ": " + handler + " ran with " + levels + " levels");
+        }
+    }
+
+    private static List<String> freshRuns(Class<?> main) throws Exception {
+        List<Process> runs = new ArrayList<>();
+        for (int depth = 0; depth < 8; depth++) {
+            runs.add(new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                    "-cp", System.getProperty("java.class.path"), main.getName(), String.valueOf(depth))
+                    .redirectErrorStream(true).start());
+        }
+        List<String> outs = new ArrayList<>();
+        for (Process run : runs) {
+            outs.add(new String(run.getInputStream().readAllBytes()));
+        }
+        return outs;
+    }
+
     static class DeepCatch {
         public static void main(String[] args) {
+            // the catch body's first string literal, e.stack and JSON.stringify each reach
+            // engine code with a class the JVM has not initialized yet
             Object first = evalAtDepth(Integer.parseInt(args[0]),
-                    "function f(){ try { return f() } catch (e) { throw e } }; try { f() } catch (e) { e.name }");
+                    "function f(){ try { return f() } catch (e) {"
+                            + " e.extra = e.stack.length + JSON.stringify({ m: e.message }); throw e } };"
+                            + " try { f() } catch (e) { e.name }");
             Object later = new Engine().eval("try { null.x } catch (e) { e.name }");
             System.out.println("result: " + first + "|" + later);
         }

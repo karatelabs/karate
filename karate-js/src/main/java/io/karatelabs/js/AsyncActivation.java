@@ -207,6 +207,10 @@ final class AsyncActivation implements Runnable {
                 settle(false, value);
             }
             publish(Outcome.COMPLETED);
+        } catch (StackOverflowError e) {
+            // the body's own frames had no headroom to convert; the vthread base has it all
+            settle(true, JsErrorException.stackExceeded().payload);
+            publish(Outcome.FAILED);
         } catch (Throwable e) {
             if (e instanceof FlowControlSignal || AsyncSupport.isHostCancellation(e)) {
                 // host cancellation must never become a catchable promise
