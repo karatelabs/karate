@@ -413,6 +413,13 @@ public class HttpRequestBuilder implements SimpleObject {
     }
 
     public String getUri() {
+        if (url != null && params == null && paths == null) {
+            try {
+                new URI(url);
+            } catch (URISyntaxException e) {
+                return url; // a path or query URI rejects is sent as given, see ApacheHttpClient.invoke
+            }
+        }
         try {
             URIBuilder builder;
             if (url == null) {
@@ -470,6 +477,20 @@ public class HttpRequestBuilder implements SimpleObject {
         }
     }
 
+    private static final java.util.regex.Pattern MULTIPART_BOUNDARY =
+            java.util.regex.Pattern.compile("(?i)^multipart/[^;]*;.*boundary=(?:\"([^\"]+)\"|([^;\\s]+))");
+
+    static String multipartBoundary(String contentType) {
+        if (contentType == null) {
+            return null;
+        }
+        java.util.regex.Matcher m = MULTIPART_BOUNDARY.matcher(contentType);
+        if (!m.find()) {
+            return null;
+        }
+        return m.group(1) != null ? m.group(1) : m.group(2);
+    }
+
     // Destructive: drains multiPart form fields into URL params when method resolves to GET,
     // and consumes multiPart into body bytes otherwise. Callers must set method() before
     // calling build() on a form/multipart request, or the GET default below will silently
@@ -495,11 +516,15 @@ public class HttpRequestBuilder implements SimpleObject {
         }
         if (multiPart != null) {
             if (body == null) { // this is not-null only for a re-try, don't rebuild multi-part
-                body = multiPart.build();
                 String userContentType = getHeader(HttpUtils.Header.CONTENT_TYPE.key);
+                String userBoundary = multiPart.isMultipart() ? multipartBoundary(userContentType) : null;
+                if (userBoundary != null) {
+                    multiPart.setBoundary(userBoundary);
+                }
+                body = multiPart.build();
                 if (userContentType != null) {
                     String boundary = multiPart.getBoundary();
-                    if (boundary != null) {
+                    if (boundary != null && userBoundary == null) {
                         contentType(userContentType + "; boundary=" + boundary);
                     }
                 } else {

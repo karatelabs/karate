@@ -66,7 +66,7 @@ public class KarateConfig implements SimpleObject {
     // Keys exposed via SimpleObject
     private static final List<String> KEYS = List.of(
             // HTTP client settings
-            "url", "readTimeout", "connectTimeout", "followRedirects", "localAddress", "charset",
+            "url", "readTimeout", "connectTimeout", "followRedirects", "redirectReferer", "localAddress", "charset",
             "strictResponseParsing",
             // Grouped settings (Maps)
             "ssl", "proxy", "auth", "retry", "report", "logging", "callSingleCache",
@@ -87,6 +87,8 @@ public class KarateConfig implements SimpleObject {
     private int readTimeout = 30000;
     private int connectTimeout = 30000;
     private boolean followRedirects = true;
+    // a followed redirect hop sends Referer: <previous hop's URL>, as postman-request does
+    private boolean redirectReferer;
     private String localAddress;
     private Charset charset = StandardCharsets.UTF_8;
     // response body conversion honors the DECLARED Content-Type only (no first-char sniffing);
@@ -198,6 +200,7 @@ public class KarateConfig implements SimpleObject {
         this.readTimeout = other.readTimeout;
         this.connectTimeout = other.connectTimeout;
         this.followRedirects = other.followRedirects;
+        this.redirectReferer = other.redirectReferer;
         this.localAddress = other.localAddress;
         this.charset = other.charset;
         this.strictResponseParsing = other.strictResponseParsing;
@@ -270,6 +273,7 @@ public class KarateConfig implements SimpleObject {
         if (before.readTimeout != after.readTimeout) this.readTimeout = after.readTimeout;
         if (before.connectTimeout != after.connectTimeout) this.connectTimeout = after.connectTimeout;
         if (before.followRedirects != after.followRedirects) this.followRedirects = after.followRedirects;
+        if (before.redirectReferer != after.redirectReferer) this.redirectReferer = after.redirectReferer;
         if (!Objects.equals(before.localAddress, after.localAddress)) this.localAddress = after.localAddress;
         if (!Objects.equals(before.charset, after.charset)) this.charset = after.charset;
         if (before.strictResponseParsing != after.strictResponseParsing) this.strictResponseParsing = after.strictResponseParsing;
@@ -345,6 +349,9 @@ public class KarateConfig implements SimpleObject {
             }
             case "followRedirects" -> {
                 this.followRedirects = toBoolean(value);
+            }
+            case "redirectReferer" -> {
+                this.redirectReferer = toBoolean(value);
             }
             case "strictResponseParsing" -> {
                 this.strictResponseParsing = toBoolean(value);
@@ -595,6 +602,15 @@ public class KarateConfig implements SimpleObject {
                         }
                     }
                 }
+                case "jwt" -> {
+                    // header and payload may be maps; isSecretBase64Encoded a boolean
+                    for (String key : List.of("algorithm", "secret", "privateKey", "payload", "header", "isSecretBase64Encoded",
+                            "addTokenTo", "headerPrefix", "queryParamKey")) {
+                        if (map.containsKey(key)) {
+                            this.auth.put(key, map.get(key));
+                        }
+                    }
+                }
             }
         }
     }
@@ -741,6 +757,7 @@ public class KarateConfig implements SimpleObject {
             case "readTimeout" -> readTimeout;
             case "connectTimeout" -> connectTimeout;
             case "followRedirects" -> followRedirects;
+            case "redirectReferer" -> redirectReferer;
             case "localAddress" -> localAddress;
             case "charset" -> charset != null ? charset.name() : null;
             case "strictResponseParsing" -> strictResponseParsing;
@@ -821,6 +838,10 @@ public class KarateConfig implements SimpleObject {
 
     public boolean isFollowRedirects() {
         return followRedirects;
+    }
+
+    public boolean isRedirectReferer() {
+        return redirectReferer;
     }
 
     public boolean isStrictResponseParsing() {

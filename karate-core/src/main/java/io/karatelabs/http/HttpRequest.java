@@ -84,8 +84,18 @@ public class HttpRequest implements SimpleObject {
         Pair<String> pair = HttpUtils.parseUriIntoUrlBaseAndPath(url);
         urlBase = pair.left;
         QueryStringDecoder qsd = new QueryStringDecoder(pair.right);
-        setPath(qsd.path());
-        setParams(qsd.parameters());
+        try {
+            setPath(qsd.path());
+            setParams(qsd.parameters());
+        } catch (IllegalArgumentException e) {
+            if (urlBase == null) { // a server's request target: malformed is a 400
+                throw e;
+            }
+            // a client URL's bare % the decoder rejects: still sent as given
+            QueryStringDecoder raw = new QueryStringDecoder(pair.right.replace("%", "%25"));
+            setPath(raw.path());
+            setParams(raw.parameters());
+        }
     }
 
     public String getUrlAndPath() {

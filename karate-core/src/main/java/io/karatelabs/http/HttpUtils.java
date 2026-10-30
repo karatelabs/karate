@@ -189,6 +189,49 @@ public class HttpUtils {
         return sb.toString();
     }
 
+    /** Index where the path (or query) of an absolute URL starts, i.e. just past its authority. */
+    public static int pathStart(String url) {
+        int scheme = url.indexOf("://");
+        int from = scheme == -1 ? 0 : scheme + 3;
+        for (int i = from; i < url.length(); i++) {
+            char c = url.charAt(i);
+            if (c == '/' || c == '?' || c == '#') {
+                return i;
+            }
+        }
+        return url.length();
+    }
+
+    /**
+     * Percent-encodes the bytes in a path and query that {@link URI} rejects, a % not starting an escape
+     * included; with {@code requestLine} true only those a request line cannot carry (space, controls, non-ASCII).
+     */
+    public static String escapeForUri(String pathAndQuery, boolean requestLine) {
+        StringBuilder sb = new StringBuilder();
+        byte[] bytes = pathAndQuery.getBytes(StandardCharsets.UTF_8);
+        for (int i = 0; i < bytes.length; i++) {
+            int c = bytes[i] & 0xff;
+            boolean legal;
+            if (requestLine) {
+                legal = c > 0x20 && c < 0x7f;
+            } else {
+                legal = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+                        || "-_.!~*'();/?:@&=+$,".indexOf(c) != -1
+                        || (c == '%' && i + 2 < bytes.length && isHex(bytes[i + 1]) && isHex(bytes[i + 2]));
+            }
+            if (legal) {
+                sb.append((char) c);
+            } else {
+                sb.append('%').append(HEX[c >> 4]).append(HEX[c & 0x0F]);
+            }
+        }
+        return sb.toString();
+    }
+
+    private static boolean isHex(byte b) {
+        return (b >= '0' && b <= '9') || (b >= 'a' && b <= 'f') || (b >= 'A' && b <= 'F');
+    }
+
     public static Pair<String> parseUriIntoUrlBaseAndPath(String rawUri) {
         int pos = rawUri.indexOf('/');
         if (pos == -1) {
@@ -198,7 +241,12 @@ public class HttpUtils {
         try {
             uri = new URI(rawUri);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            // an absolute URL's path or query URI rejects (a bare %, raw | ^ { } ...) is kept as given
+            if (!rawUri.contains("://")) {
+                throw new RuntimeException(e);
+            }
+            int start = pathStart(rawUri);
+            return Pair.of(rawUri.substring(0, start), rawUri.substring(start));
         }
         if (uri.getHost() == null) {
             return Pair.of(null, rawUri);

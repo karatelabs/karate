@@ -36,8 +36,12 @@ import io.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.*;
 
 public class MultiPartBuilder {
@@ -50,15 +54,23 @@ public class MultiPartBuilder {
     private Map<String, Object> formFields; // only for the edge case of GET
     private final StringBuilder bodyForDisplay = new StringBuilder();
 
+    private final List<Part> parts = new ArrayList<>();
+    private String boundary;
     private String contentTypeHeader;
     private byte[] builtBytes; // Cache for retry support
 
+    private record Part(String name, String filename, String contentType, String transferEncoding, File file, byte[] bytes) {
+    }
+
     public String getBoundary() {
-        if (contentTypeHeader == null) {
-            return null;
-        }
-        int pos = contentTypeHeader.lastIndexOf('=');
-        return pos == -1 ? null : contentTypeHeader.substring(pos + 1);
+        return boundary;
+    }
+
+    /**
+     * Use this boundary instead of a generated one, e.g. the one a user-supplied Content-Type header names.
+     */
+    public void setBoundary(String boundary) {
+        this.boundary = boundary;
     }
 
     public Map<String, Object> getFormFields() {
@@ -106,6 +118,7 @@ public class MultiPartBuilder {
         if (contentType == null) {
             contentType = resourceType.contentType;
         }
+        parts.add(new Part(name, filename, withCharset(contentType, map), (String) map.get("transferEncoding"), file, null));
         try {
             encoder.addBodyFileUpload(name, filename, file, contentType, !resourceType.isBinary());
         } catch (Exception e) {
@@ -180,6 +193,11 @@ public class MultiPartBuilder {
                     filename = ""; // will be treated as an inline value, behaves like null
                 }
                 String transferEncoding = (String) map.get("transferEncoding");
+                String partContentType = (String) map.get("contentType");
+                if (partContentType == null && (!filename.isEmpty() || !isPlainValue(value))) {
+                    partContentType = contentType;
+                }
+                parts.add(new Part(name, filename, withCharset(partContentType, map), transferEncoding, null, encoded));
                 final Charset nullable = cs;
                 MemoryFileUpload item = new MemoryFileUpload(name, filename, contentType, transferEncoding, cs, encoded.length) {
                     @Override
@@ -197,6 +215,16 @@ public class MultiPartBuilder {
             }
         }
         return this;
+    }
+
+    // form-data writes no Content-Type for a plain field value
+    private static boolean isPlainValue(Object value) {
+        return !(value instanceof Map || value instanceof List || value instanceof byte[] || value instanceof org.w3c.dom.Node);
+    }
+
+    private static String withCharset(String contentType, Map<String, Object> map) {
+        String charset = (String) map.get("charset");
+        return contentType == null || charset == null ? contentType : contentType + "; charset=" + charset;
     }
 
     public MultiPartBuilder part(String name, Object value) {
@@ -293,6 +321,10 @@ public class MultiPartBuilder {
         for (InterfaceHttpData part : encoder.getBodyListAttributes()) {
             bodyForDisplay.append('\n').append(part.toString()).append('\n');
         }
+        if (multipart) {
+            builtBytes = encodeMultipart();
+            return builtBytes;
+        }
         try {
             io.netty.handler.codec.http.HttpRequest request = encoder.finalizeRequest();
             contentTypeHeader = request.headers().get(HttpUtils.Header.CONTENT_TYPE.key);
@@ -314,6 +346,65 @@ public class MultiPartBuilder {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static final String CRLF = "\r\n";
+
+    // the part layout of the form-data npm package that postman-request uses
+    private byte[] encodeMultipart() {
+        if (boundary == null) {
+            StringBuilder sb = new StringBuilder("--------------------------");
+            Random random = new Random();
+            for (int i = 0; i < 24; i++) {
+                sb.append(random.nextInt(10));
+            }
+            boundary = sb.toString();
+        }
+        contentTypeHeader = "multipart/form-data; boundary=" + boundary;
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        for (Part part : parts) {
+            StringBuilder head = new StringBuilder();
+            head.append("--").append(boundary).append(CRLF);
+            head.append("Content-Disposition: form-data; name=\"").append(part.name).append('"');
+            if (part.filename != null && !part.filename.isEmpty()) {
+                head.append("; filename=\"").append(part.filename).append('"');
+                if (!StandardCharsets.US_ASCII.newEncoder().canEncode(part.filename)) {
+                    head.append("; filename*=UTF-8''").append(encodeHeaderParam(part.filename));
+                }
+            }
+            head.append(CRLF);
+            if (part.contentType != null) {
+                head.append("Content-Type: ").append(part.contentType).append(CRLF);
+            }
+            if (part.transferEncoding != null) {
+                head.append("Content-Transfer-Encoding: ").append(part.transferEncoding).append(CRLF);
+            }
+            head.append(CRLF);
+            out.writeBytes(head.toString().getBytes(StandardCharsets.UTF_8));
+            try {
+                out.writeBytes(part.file == null ? part.bytes : Files.readAllBytes(part.file.toPath()));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            out.writeBytes(CRLF.getBytes(StandardCharsets.US_ASCII));
+        }
+        out.writeBytes(("--" + boundary + "--" + CRLF).getBytes(StandardCharsets.US_ASCII));
+        return out.toByteArray();
+    }
+
+    // RFC 8187 as form-data writes it: encodeURIComponent with ' ( ) * escaped and | ` ^ left raw
+    private static String encodeHeaderParam(String value) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : value.getBytes(StandardCharsets.UTF_8)) {
+            int c = b & 0xff;
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+                    || c == '-' || c == '_' || c == '.' || c == '!' || c == '~' || c == '|' || c == '`' || c == '^') {
+                sb.append((char) c);
+            } else {
+                sb.append('%').append(String.format("%02X", c));
+            }
+        }
+        return sb.toString();
     }
 
 }

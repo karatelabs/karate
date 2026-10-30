@@ -1784,6 +1784,23 @@ class MockE2eTest {
     }
 
     @Test
+    void testConfigureAuthJwt() {
+        ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+            Feature: Test JWT Auth via configure
+
+            Scenario: JWT auth signs the payload and sends it as a Bearer token
+            * url 'http://localhost:%d'
+            * configure auth = { type: 'jwt', algorithm: 'HS256', secret: 'your-256-bit-secret', header: { typ: 'JWT' }, payload: { sub: '1234567890', name: 'John Doe', iat: 1516239022 } }
+            * path '/auth/check'
+            * method get
+            * status 200
+            * match response.authorization == 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.wrJ__8Q_6BcB2ug9370TBuK5JoAjErqsQtYf7aLcFBk'
+            """.formatted(port));
+
+        assertPassed(sr);
+    }
+
+    @Test
     void testConfigureAuthBearer() {
         ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
             Feature: Test Bearer Auth via configure

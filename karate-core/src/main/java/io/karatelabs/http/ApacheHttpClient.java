@@ -48,6 +48,7 @@ import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuil
 import org.apache.hc.client5.http.impl.routing.DefaultRoutePlanner;
 import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.protocol.RedirectLocations;
 import org.apache.hc.client5.http.routing.RoutingSupport;
 import org.apache.hc.client5.http.ssl.DefaultHostnameVerifier;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
@@ -56,7 +57,9 @@ import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.client5.http.ssl.TrustSelfSignedStrategy;
 import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.io.SocketConfig;
+import org.apache.hc.core5.http.message.BasicHttpRequest;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.http.io.entity.HttpEntityWrapper;
 import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.ssl.SSLContexts;
@@ -106,6 +109,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private int connectTimeout = 30000;
 
     private boolean followRedirects = true;
+    private boolean redirectReferer;
     // conversion-side (stamped onto each response, never part of ClientKey) — see apply()
     private boolean strictResponseParsing;
 
@@ -194,7 +198,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             String sslKeyStoreType, String sslTrustStore, String sslTrustStorePassword,
             String sslTrustStoreType, boolean sslTrustAll,
             String proxyUri, String proxyUsername, String proxyPassword, List<String> nonProxyHosts,
-            int readTimeout, int connectTimeout, boolean followRedirects,
+            int readTimeout, int connectTimeout, boolean followRedirects, boolean redirectReferer,
             boolean httpRetryEnabled, int retryCount, int retryInterval,
             Charset charset, String localAddress,
             String ntlmUsername, String ntlmPassword, String ntlmDomain, String ntlmWorkstation,
@@ -218,6 +222,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                     config.getProxyUri(), config.getProxyUsername(), config.getProxyPassword(),
                     nonProxy == null ? null : new ArrayList<>(nonProxy),
                     config.getReadTimeout(), config.getConnectTimeout(), config.isFollowRedirects(),
+                    config.isRedirectReferer(),
                     // The count and interval reach the client only through the retry strategy,
                     // which is only installed when retry is enabled. Keying them unconditionally
                     // would tear down a live client every time a callee set `configure retry` to
@@ -278,6 +283,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         readTimeout = key.readTimeout();
         connectTimeout = key.connectTimeout();
         followRedirects = key.followRedirects();
+        redirectReferer = key.redirectReferer();
         // Retry. The key reports the count and interval as zero while retry is disabled, because
         // the build reads them only through the retry strategy it then does not install. These
         // fields mirror that: when they are zero here, they are not in play.
@@ -344,7 +350,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             clientBuilder.disableAutomaticRetries();
         }
         if (followRedirects) {
-            clientBuilder.setRedirectStrategy(DefaultRedirectStrategy.INSTANCE);
+            clientBuilder.setRedirectStrategy(RawTargetRedirectStrategy.INSTANCE);
         } else {
             clientBuilder.disableRedirectHandling();
         }
@@ -503,6 +509,18 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             });
         }
         requestConfig = configBuilder.build();
+        if (redirectReferer) {
+            clientBuilder.addRequestInterceptorLast((hr, entity, ctx) -> {
+                RedirectLocations hops = HttpClientContext.castOrCreate(ctx).getRedirectLocations();
+                if (hops == null || hops.size() == 0) {
+                    return;
+                }
+                String previous = hops.size() > 1 ? hops.get(hops.size() - 2).toString() : (String) ctx.getAttribute(ORIGINAL_URL);
+                if (previous != null) {
+                    hr.setHeader("Referer", previous);
+                }
+            });
+        }
         clientBuilder
                 .setDefaultRequestConfig(requestConfig)
                 .addRequestInterceptorLast(this);
@@ -513,6 +531,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     }
 
     private AuthScope proxyScope;
+
+    private static final String ORIGINAL_URL = "karate.originalUrl";
 
     /**
      * Proxy credentials scoped to the proxy and, given a target, the NTLM or Digest account scoped
@@ -564,7 +584,26 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         this.request = request;
         try {
             // an HttpUriRequestBase, not ClassicRequestBuilder's BasicClassicHttpRequest: only it can be aborted in flight
-            HttpUriRequestBase requestBuilder = new HttpUriRequestBase(request.getMethod(), URI.create(request.getUrlAndPath()));
+            String urlAndPath = request.getUrlAndPath();
+            URI uri;
+            String rawTarget = null;
+            try {
+                uri = URI.create(urlAndPath);
+            } catch (IllegalArgumentException e) {
+                // sent as given: the URI, escaped, only routes the request
+                int start = HttpUtils.pathStart(urlAndPath);
+                int hash = urlAndPath.indexOf('#', start);
+                rawTarget = urlAndPath.substring(start, hash == -1 ? urlAndPath.length() : hash);
+                if (rawTarget.isEmpty() || rawTarget.charAt(0) != '/') {
+                    rawTarget = "/" + rawTarget;
+                }
+                uri = URI.create(urlAndPath.substring(0, start) + HttpUtils.escapeForUri(rawTarget, false));
+                rawTarget = HttpUtils.escapeForUri(rawTarget, true);
+            }
+            HttpUriRequestBase requestBuilder = new HttpUriRequestBase(request.getMethod(), uri);
+            if (rawTarget != null) {
+                requestBuilder.setPath(rawTarget);
+            }
             if (request.getBody() != null) {
                 EntityBuilder entityBuilder = EntityBuilder.create().setBinary(request.getBody());
                 // Apply charset to content type
@@ -597,7 +636,14 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                     }
                     request.removeHeader(HttpUtils.Header.TRANSFER_ENCODING.key);
                 }
-                requestBuilder.setEntity(entityBuilder.build());
+                HttpEntity entity = entityBuilder.build();
+                // a body sent with no Content-Type header carries none, not the builder's application/octet-stream
+                requestBuilder.setEntity(contentTypeHeader != null ? entity : new HttpEntityWrapper(entity) {
+                    @Override
+                    public String getContentType() {
+                        return null;
+                    }
+                });
             }
             if (request.getHeaders() != null) {
                 request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
@@ -626,6 +672,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             HttpClientContext context = HttpClientContext.create();
             Recorder recorder = new Recorder(cookieStore);
             context.setCookieStore(recorder);
+            context.setAttribute(ORIGINAL_URL, request.getUrlAndPath());
             if (ntlmUsername != null || digestUsername != null) {
                 // the port resolved from the scheme, which is how the challenge's scope will name it
                 HttpHost target = RoutingSupport.normalize(RoutingSupport.determineHost(currentRequest), DefaultSchemePortResolver.INSTANCE);
@@ -657,6 +704,25 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 cookieStore.clear();
             }
         }
+    }
+
+    /** Resolves a relative Location against a request target sent as given, which {@link URI} may reject. */
+    static final class RawTargetRedirectStrategy extends DefaultRedirectStrategy {
+
+        static final RawTargetRedirectStrategy INSTANCE = new RawTargetRedirectStrategy();
+
+        @Override
+        public URI getLocationURI(org.apache.hc.core5.http.HttpRequest request, org.apache.hc.core5.http.HttpResponse response,
+                                  HttpContext context) throws HttpException {
+            try {
+                request.getUri();
+            } catch (URISyntaxException e) {
+                request = new BasicHttpRequest(request.getMethod(), request.getScheme(), request.getAuthority(),
+                        HttpUtils.escapeForUri(request.getPath(), false));
+            }
+            return super.getLocationURI(request, response, context);
+        }
+
     }
 
     /** The store this exchange reads and writes, recording each cookie its responses set, redirect hops included. */
