@@ -70,6 +70,7 @@ public class HttpRequest implements SimpleObject {
     private transient HttpClient httpClient;
     // false pins this request only; true leaves it to the client's configure followRedirects
     private boolean followRedirects = true;
+    private boolean defaultUserAgent = true;
 
     /**
      * Set the {@link HttpClient} used by {@link #proceed(String)} to forward this request.
@@ -235,6 +236,15 @@ public class HttpRequest implements SimpleObject {
 
     public void setFollowRedirects(boolean followRedirects) {
         this.followRedirects = followRedirects;
+    }
+
+    public boolean isDefaultUserAgent() {
+        return defaultUserAgent;
+    }
+
+    /** false sends no User-Agent unless this request carries one, where the client would send its own. */
+    public void setDefaultUserAgent(boolean defaultUserAgent) {
+        this.defaultUserAgent = defaultUserAgent;
     }
 
     public String getBodyDisplay() {

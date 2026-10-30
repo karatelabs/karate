@@ -469,6 +469,8 @@ The pipeline fires only at the **innermost** failure: a `call` step whose callee
 
 Cookies are Karate's to manage (`cookie`, `cookies`, `responseCookies`): the client's own Apache cookie store is cleared after every request, failed ones included, and only the cookies this exchange's redirect hops set are merged into the final response's `Set-Cookie`. `new ApacheHttpClient(cookieStore)` takes a caller's store instead, which `getCookieStore()` returns: it sends its matching cookies, takes every `Set-Cookie`, and is never cleared or replaced by a rebuild. A response's time runs from the request's send to its body fully read.
 
+A request with no `User-Agent` header gets the client's own (`Apache-HttpClient/<version>`). `HttpRequest.setDefaultUserAgent(false)` sends none for that request, its followed redirects included; a `User-Agent` header the request carries is still sent.
+
 ### Inheritance and propagation
 
 Variables and configuration have different scope semantics for `call read(...)`:

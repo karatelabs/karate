@@ -535,6 +535,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private AuthScope proxyScope;
 
     private static final String ORIGINAL_URL = "karate.originalUrl";
+    private static final String NO_USER_AGENT = "karate.noUserAgent";
 
     /**
      * Proxy credentials scoped to the proxy and, given a target, the NTLM or Digest account scoped
@@ -675,6 +676,9 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             Recorder recorder = new Recorder(cookieStore);
             context.setCookieStore(recorder);
             context.setAttribute(ORIGINAL_URL, request.getUrlAndPath());
+            if (!request.isDefaultUserAgent() && request.getHeader(HttpHeaders.USER_AGENT) == null) {
+                context.setAttribute(NO_USER_AGENT, true);
+            }
             if (ntlmUsername != null || digestUsername != null) {
                 // the port resolved from the scheme, which is how the challenge's scope will name it
                 HttpHost target = RoutingSupport.normalize(RoutingSupport.determineHost(currentRequest), DefaultSchemePortResolver.INSTANCE);
@@ -782,6 +786,10 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     @Override
     public void process(org.apache.hc.core5.http.HttpRequest hr, EntityDetails entity, HttpContext context) {
+        // runs after the client's RequestUserAgent has added its default
+        if (context.getAttribute(NO_USER_AGENT) != null) {
+            hr.removeHeaders(HttpHeaders.USER_AGENT);
+        }
         request.setHeaders(toHeaders(hr));
         logger.logRequest(request);
         startTime = System.currentTimeMillis();
