@@ -155,9 +155,11 @@ public class Expect implements SimpleObject {
         }
     }
 
+    // chai semantics: the value's JS type decides the assertion, so the actual is never parsed,
+    // and against a string a string argument is compared as given, never parsed as JSON or XML
     private static Result evaluate(Object actual, Match.Type type, Object expected) {
-        try (Value value = Match.evaluate(actual, null, null)) {
-            return value.is(type, expected);
+        try (Value value = new Value(actual)) {
+            return actual instanceof String ? value.isLiteral(type, expected) : value.is(type, expected);
         }
     }
 
@@ -272,7 +274,10 @@ public class Expect implements SimpleObject {
                 yield new Expect(subject, false, onResult, throwOnFailure, contextSupplier);
             }
             case "oneOf" -> (JavaCallable) (context, args) -> {
-                Result result = evaluate(args[0], Match.Type.CONTAINS, subject);
+                Result result;
+                try (Value list = new Value(args[0])) {
+                    result = subject instanceof String ? list.isLiteral(Match.Type.CONTAINS, subject) : list.is(Match.Type.CONTAINS, subject);
+                }
                 handleResult(context, result);
                 return new Expect(subject, false, onResult, throwOnFailure, contextSupplier);
             };
@@ -369,8 +374,11 @@ public class Expect implements SimpleObject {
                     String path = args[0] + "";
                     Json json;
                     try {
-                        json = Json.of(subject);
+                        json = subject instanceof String ? null : Json.of(subject); // a string has no nested properties
                     } catch (Exception e) {
+                        json = null;
+                    }
+                    if (json == null) {
                         Result fail = Result.fail("expected to have property: " + path);
                         handleResult(context, fail);
                         return new Expect(subject, false, onResult, throwOnFailure, contextSupplier);

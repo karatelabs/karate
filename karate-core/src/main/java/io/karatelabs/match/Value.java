@@ -331,8 +331,17 @@ public class Value implements SimpleObject, AutoCloseable {
 
     /** @param policy decides per marker whether it runs in {@code engine} or in a fresh one; null for all */
     public Result is(Engine engine, MarkerPolicy policy, Match.Type matchType, Object expected) {
+        return compare(engine, policy, matchType, parseIfJsonOrXmlString(expected));
+    }
+
+    /** Compares against {@code expected} as given: a string stays a string, never parsed as JSON or XML. */
+    Result isLiteral(Match.Type matchType, Object expected) {
+        return compare(null, null, matchType, expected);
+    }
+
+    private Result compare(Engine engine, MarkerPolicy policy, Match.Type matchType, Object expected) {
         Result result;
-        try (Value expectedValue = new Value(parseIfJsonOrXmlString(expected), context, onResult)) {
+        try (Value expectedValue = new Value(expected, context, onResult)) {
             Operation op = new Operation(engine, policy, matchType, this, expectedValue, false);
             op.execute();
             result = op.getResult();

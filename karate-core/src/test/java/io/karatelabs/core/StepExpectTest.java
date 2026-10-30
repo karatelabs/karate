@@ -589,4 +589,72 @@ class StepExpectTest {
         assertPassed(sr);
     }
 
+    // ========== A string subject stays a string (chai never parses it) ==========
+
+    @Test
+    void testExpectIncludeOnJsonLookingString() {
+        ScenarioRuntime sr = run("""
+            * def text = '{"name":"kitty","age":2}'
+            * karate.expect(text).to.include('kitty')
+            * karate.expect(text).to.contain('"age":2')
+            * karate.expect(text).to.include('{"name"')
+            * karate.expect(text).to.not.include('dog')
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testExpectEqualJsonStringToSameString() {
+        ScenarioRuntime sr = run("""
+            * def text = '{"name":"kitty"}'
+            * karate.expect(text).to.equal('{"name":"kitty"}')
+            * karate.expect(text).to.not.equal('{ "name": "kitty" }')
+            * karate.expect(text).to.not.eql({ name: 'kitty' })
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testExpectJsonStringIsNotDeepEqualToObject() {
+        ScenarioRuntime sr = run("""
+            * karate.expect('{"name":"kitty"}').to.eql({ name: 'kitty' })
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testExpectLengthOfJsonString() {
+        ScenarioRuntime sr = run("""
+            * karate.expect('{"a":1}').to.have.length(7)
+            * karate.expect('[1,2,3]').to.have.length(7)
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testExpectJsonStringIsAString() {
+        ScenarioRuntime sr = run("""
+            * karate.expect('{"a":1}').to.be.a('string')
+            * karate.expect('[1,2]').to.be.a('string').and.include('2')
+            * karate.expect('<a>x</a>').to.be.a('string').and.include('x</a>')
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testExpectJsonStringOneOfStrings() {
+        ScenarioRuntime sr = run("""
+            * karate.expect('{"a":1}').to.be.oneOf(['{"a":1}', 'x'])
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testExpectJsonStringHasNoNestedProperty() {
+        ScenarioRuntime sr = run("""
+            * karate.expect('{"a":{"b":1}}').to.have.nested.property('a.b')
+            """);
+        assertFailedWith(sr, "expected to have property: a.b");
+    }
+
 }
