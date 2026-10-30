@@ -338,6 +338,22 @@ class StepExpectTest {
     }
 
     @Test
+    void testExpectHaveNestedPropertyOnNonJsonFails() {
+        ScenarioRuntime sr = run("""
+            * karate.expect('not json').to.have.nested.property('a')
+            """);
+        assertFailedWith(sr, "expected to have property: a");
+    }
+
+    @Test
+    void testExpectNotHaveNestedPropertyOnNonJson() {
+        ScenarioRuntime sr = run("""
+            * karate.expect('not json').to.not.have.nested.property('a')
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testExpectHaveKeys() {
         ScenarioRuntime sr = run("""
             * def obj = { a: 1, b: 2 }
