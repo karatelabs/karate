@@ -306,4 +306,17 @@ class HttpRequestTest {
         assertNull(empty.jsGet("bodyJson"));
     }
 
+    @Test
+    void processingAFormBodyAgainLeavesTheParamsAsTheyWere() {
+        HttpRequest request = new HttpRequest();
+        request.setUrl("http://localhost/token?x=1");
+        request.setMethod("POST");
+        request.putHeader("Content-Type", "application/x-www-form-urlencoded");
+        request.setBody("grant_type=client_credentials&client_id=app".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        request.processBody();
+        request.processBody();
+        assertEquals(Map.of("x", List.of("1"), "grant_type", List.of("client_credentials"), "client_id", List.of("app")),
+                request.getParams());
+    }
+
 }

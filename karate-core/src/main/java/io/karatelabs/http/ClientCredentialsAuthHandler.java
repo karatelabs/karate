@@ -6,6 +6,9 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 
 public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
@@ -20,7 +23,7 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
     }
 
     /** The config's token {@code url}, a relative one resolved against the main request's scheme and authority. */
-    static String tokenUrl(Map<String, Object> config, String mainRequestUrl) {
+    public static String tokenUrl(Map<String, Object> config, String mainRequestUrl) {
         String tokenUrl = (String) config.get("url");
 
         // If token URL is relative, resolve it using the main request's protocol and host
@@ -42,12 +45,31 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
         return tokenUrl;
     }
 
+    /** {@code client_authentication: 'header'}: the client authenticates with HTTP Basic, not in the form. */
+    static boolean basicClientAuthentication(Map<String, Object> config) {
+        return "header".equals(config.get("client_authentication"));
+    }
+
+    /** {@code Authorization: Basic} over the form-encoded client_id and client_secret (RFC 6749 §2.3.1). */
+    static void basicClientAuthentication(HttpRequestBuilder builder, Map<String, Object> config) {
+        String credentials = formEncode(config.get("client_id")) + ":" + formEncode(config.get("client_secret"));
+        builder.header("Authorization", "Basic " + Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    private static String formEncode(Object value) {
+        return value == null ? "" : URLEncoder.encode(value.toString(), StandardCharsets.UTF_8);
+    }
+
     static Map<String, Object> requestToken(HttpRequestBuilder builder, Map<String, Object> config, String mainRequestUrl) {
         String tokenUrl = tokenUrl(config, mainRequestUrl);
         builder.url(tokenUrl);
         builder.formField("grant_type", "client_credentials");
-        builder.formField("client_id", config.get("client_id"));
-        builder.formField("client_secret", config.get("client_secret"));
+        if (basicClientAuthentication(config)) {
+            basicClientAuthentication(builder, config);
+        } else {
+            builder.formField("client_id", config.get("client_id"));
+            builder.formField("client_secret", config.get("client_secret"));
+        }
         if (config.containsKey("scope")) {
             builder.formField("scope", config.get("scope"));
         }

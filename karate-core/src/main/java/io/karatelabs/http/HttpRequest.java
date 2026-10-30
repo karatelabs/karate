@@ -60,6 +60,7 @@ public class HttpRequest implements SimpleObject {
     private Map<String, List<String>> params;
     private Map<String, List<String>> headers;
     private byte[] body;
+    private boolean bodyProcessed;
     private String bodyDisplay;
     private ResourceType resourceType;
     private Map<String, String> pathParams;
@@ -215,6 +216,7 @@ public class HttpRequest implements SimpleObject {
 
     public void setBody(byte[] body) {
         this.body = body;
+        bodyProcessed = false;
     }
 
     public boolean isFollowRedirects() {
@@ -381,9 +383,10 @@ public class HttpRequest implements SimpleObject {
      * Process the request body for form-urlencoded or multipart data.
      * For form-urlencoded, fields are merged into params.
      * For multipart, file uploads are stored in multiParts and fields in params.
+     * Processing the same body again changes nothing.
      */
     public void processBody() {
-        if (body == null) {
+        if (body == null || bodyProcessed) {
             return;
         }
         String contentType = getContentType();
@@ -400,6 +403,7 @@ public class HttpRequest implements SimpleObject {
             return;
         }
         logger.trace("decoding content-type: {}", contentType);
+        bodyProcessed = true;
         // Make params mutable if needed
         params = (params == null || params.isEmpty()) ? new HashMap<>() : new HashMap<>(params);
         DefaultFullHttpRequest nettyRequest = new DefaultFullHttpRequest(

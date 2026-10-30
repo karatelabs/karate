@@ -574,6 +574,9 @@ public class KarateConfig implements SimpleObject {
                     if (map.containsKey("scope")) {
                         this.auth.put("scope", toString(map.get("scope")));
                     }
+                    if (map.containsKey("clientAuthentication")) {
+                        this.auth.put("clientAuthentication", toString(map.get("clientAuthentication")));
+                    }
                 }
                 case "ntlm" -> {
                     this.auth.put("username", toString(map.get("username")));

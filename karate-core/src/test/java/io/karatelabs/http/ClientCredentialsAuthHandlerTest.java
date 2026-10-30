@@ -6,7 +6,11 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -72,6 +76,52 @@ class ClientCredentialsAuthHandlerTest {
             throw new RuntimeException(e);
         } finally {
             server.stopAsync();
+        }
+    }
+
+    /** The token request's Authorization header and form fields, for the given {@code client_authentication}. */
+    static List<Object> tokenRequest(String clientAuthentication) {
+        List<Object> seen = new ArrayList<>();
+        HttpServer server = HttpServer.start(0, request -> {
+            request.processBody();
+            Map<String, String> form = new HashMap<>();
+            request.getParams().forEach((k, v) -> form.put(k, v.getFirst()));
+            seen.add(request.getHeader("Authorization"));
+            seen.add(form);
+            return HttpResponse.json("{\"access_token\":\"foo\"}");
+        });
+        try (HttpClient client = new ApacheHttpClient()) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("url", "http://localhost:" + server.getPort() + "/token");
+            map.put("client_id", "my app");
+            map.put("client_secret", "s3c:r&t");
+            if (clientAuthentication != null) {
+                map.put("client_authentication", clientAuthentication);
+            }
+            HttpRequestBuilder http = new HttpRequestBuilder(client).url("http://localhost:" + server.getPort() + "/test");
+            assertEquals("foo", new ClientCredentialsAuthHandler(map).getAccessToken(http));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            server.stopAsync();
+        }
+        return seen;
+    }
+
+    @Test
+    void headerClientAuthenticationSendsBasicAndNoCredentialsInTheForm() {
+        List<Object> seen = tokenRequest("header");
+        String basic = "Basic " + Base64.getEncoder().encodeToString("my+app:s3c%3Ar%26t".getBytes(StandardCharsets.UTF_8));
+        assertEquals(basic, seen.get(0));
+        assertEquals(Map.of("grant_type", "client_credentials"), seen.get(1));
+    }
+
+    @Test
+    void bodyClientAuthenticationOrNoneSendsTheCredentialsInTheForm() {
+        for (String mode : new String[]{"body", null}) {
+            List<Object> seen = tokenRequest(mode);
+            assertNull(seen.get(0), mode);
+            assertEquals(Map.of("grant_type", "client_credentials", "client_id", "my app", "client_secret", "s3c:r&t"), seen.get(1), mode);
         }
     }
 

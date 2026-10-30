@@ -2065,6 +2065,9 @@ public class StepExecutor {
                 if (auth.containsKey("scope")) {
                     oauth2Config.put("scope", auth.get("scope"));
                 }
+                if (auth.containsKey("clientAuthentication")) {
+                    oauth2Config.put("client_authentication", auth.get("clientAuthentication"));
+                }
                 if ("password".equals(auth.get("grantType"))) {
                     oauth2Config.put("username", auth.get("username"));
                     oauth2Config.put("password", auth.get("password"));

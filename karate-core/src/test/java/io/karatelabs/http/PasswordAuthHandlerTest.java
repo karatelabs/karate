@@ -3,8 +3,10 @@ package io.karatelabs.http;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
@@ -19,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PasswordAuthHandlerTest {
 
     final List<Map<String, String>> forms = Collections.synchronizedList(new ArrayList<>());
+    final List<String> authorizations = Collections.synchronizedList(new ArrayList<>());
     final Deque<HttpResponse> answers = new ArrayDeque<>();
     HttpServer server;
 
@@ -38,6 +41,7 @@ class PasswordAuthHandlerTest {
             Map<String, String> form = new HashMap<>();
             request.getParams().forEach((k, v) -> form.put(k, v.getFirst()));
             forms.add(form);
+            authorizations.add(request.getHeader("Authorization"));
             return answers.poll();
         });
         return "http://localhost:" + server.getPort();
@@ -103,6 +107,25 @@ class PasswordAuthHandlerTest {
             OAuth2Exception e = assertThrows(OAuth2Exception.class, () -> handler.getAccessToken(http));
             assertTrue(e.getMessage().contains("invalid_grant - bad password"), e.getMessage());
         }
+    }
+
+    @Test
+    void headerClientAuthenticationSendsBasicOnSignInAndRefresh() throws Exception {
+        String base = start();
+        answers.add(HttpResponse.json("{\"access_token\":\"a1\",\"refresh_token\":\"r1\",\"expires_in\":0}"));
+        answers.add(HttpResponse.json("{\"access_token\":\"a2\",\"expires_in\":3600}"));
+        Map<String, Object> config = config(base);
+        config.put("client_authentication", "header");
+        OAuth2AuthHandler handler = new PasswordAuthHandler(config);
+        try (HttpClient client = new ApacheHttpClient()) {
+            HttpRequestBuilder http = new HttpRequestBuilder(client).url(base + "/me");
+            assertEquals("a1", handler.getAccessToken(http));
+            assertEquals("a2", handler.getAccessToken(http));
+        }
+        String basic = "Basic " + Base64.getEncoder().encodeToString("app:s3c".getBytes(StandardCharsets.UTF_8));
+        assertEquals(List.of(basic, basic), authorizations);
+        assertEquals(Map.of("grant_type", "password", "username", "alice", "password", "pw", "scope", "read"), forms.get(0));
+        assertEquals(Map.of("grant_type", "refresh_token", "refresh_token", "r1"), forms.get(1));
     }
 
 }

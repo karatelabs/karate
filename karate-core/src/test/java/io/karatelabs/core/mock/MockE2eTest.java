@@ -315,6 +315,12 @@ class MockE2eTest {
               * def valid = p('grant_type') == 'password' && p('username') == 'alice' && p('password') == 'pw' && p('client_id') == 'test-client'
               * def responseStatus = valid ? 200 : 401
               * def response = valid ? { access_token: 'password-token', token_type: 'Bearer', expires_in: 3600 } : { error: 'invalid_grant' }
+
+            Scenario: pathMatches('/oauth/basic-token') && methodIs('post')
+              * def authHeader = requestHeaders['Authorization'] ? requestHeaders['Authorization'][0] : null
+              * def valid = authHeader == 'Basic dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ=' && !requestParams['client_id'] && !requestParams['client_secret'] && requestParams['grant_type'][0] == 'client_credentials'
+              * def responseStatus = valid ? 200 : 401
+              * def response = valid ? { access_token: 'basic-token', token_type: 'Bearer', expires_in: 3600 } : { error: 'invalid_client' }
             """)
             .port(0)
             .start();
@@ -1825,6 +1831,23 @@ class MockE2eTest {
             * status 200
             # OAuth2 obtains token 'test-access-token-12345' from token endpoint
             * match response.authorization == 'Bearer test-access-token-12345'
+            """.formatted(port));
+
+        assertPassed(sr);
+    }
+
+    @Test
+    void testConfigureAuthOAuth2ClientCredentialsInTheHeader() {
+        ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+            Feature: Test OAuth2 Client Credentials sent as HTTP Basic
+
+            Scenario: clientAuthentication header sends the client's credentials as Basic, not in the form
+            * url 'http://localhost:%d'
+            * configure auth = { type: 'oauth2', grantType: 'client_credentials', accessTokenUrl: '/oauth/basic-token', clientId: 'test-client', clientSecret: 'test-secret', clientAuthentication: 'header' }
+            * path '/auth/check'
+            * method get
+            * status 200
+            * match response.authorization == 'Bearer basic-token'
             """.formatted(port));
 
         assertPassed(sr);

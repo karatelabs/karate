@@ -9,7 +9,8 @@ import java.util.Map;
 
 /**
  * The OAuth2 resource owner password grant: {@code url} (the token endpoint), {@code username}, {@code password},
- * and optional {@code client_id}, {@code client_secret} and {@code scope}. The token is cached until it expires, then
+ * and optional {@code client_id}, {@code client_secret}, {@code client_authentication} ({@code header} sends the client's
+ * credentials as HTTP Basic, {@code body} or absent in the form) and {@code scope}. The token is cached until it expires, then
  * refreshed with its refresh token if it has one, else (or if the refresh is refused) requested again.
  */
 public class PasswordAuthHandler implements OAuth2AuthHandler {
@@ -54,9 +55,11 @@ public class PasswordAuthHandler implements OAuth2AuthHandler {
         Map<String, Object> form = new LinkedHashMap<>();
         form.put("grant_type", grantType);
         form.put(key, value);
-        for (String client : new String[]{"client_id", "client_secret"}) {
-            if (config.get(client) != null) {
-                form.put(client, config.get(client));
+        if (!ClientCredentialsAuthHandler.basicClientAuthentication(config)) {
+            for (String client : new String[]{"client_id", "client_secret"}) {
+                if (config.get(client) != null) {
+                    form.put(client, config.get(client));
+                }
             }
         }
         return form;
@@ -66,6 +69,9 @@ public class PasswordAuthHandler implements OAuth2AuthHandler {
         HttpRequestBuilder http = builder.forkNewBuilder();
         http.url(ClientCredentialsAuthHandler.tokenUrl(config, builder.getUrl()));
         form.forEach(http::formField);
+        if (ClientCredentialsAuthHandler.basicClientAuthentication(config)) {
+            ClientCredentialsAuthHandler.basicClientAuthentication(http, config);
+        }
         http.header("Accept", "application/json");
         String failed = "OAuth2 " + form.get("grant_type") + " token request failed: ";
         HttpResponse response;
