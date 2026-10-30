@@ -215,6 +215,14 @@ class PropertyAccess {
         return key == site.key ? site : new AccessSite(site.target, key, true, null, site.receiver);
     }
 
+    /** V8's TypeError for a read or write through a null / undefined base:
+     *  {@code Cannot set properties of undefined (setting 'x')}. */
+    private static JsErrorException nullishBase(String access, AccessSite site) {
+        String key = site.privateName != null || site.key instanceof ObjectLike ? null : Terms.toPropertyKey(site.key);
+        return JsErrorException.typeError("Cannot " + access + " properties of " + (site.target == null ? "null" : "undefined")
+                + (key == null ? "" : " (" + ("set".equals(access) ? "setting" : "reading") + " '" + key + "')"));
+    }
+
     /** Site read honoring a super receiver; the non-super shape delegates to
      *  the ordinary index/name workers unchanged. */
     private static Object siteRead(AccessSite site, CoreContext context) {
@@ -319,6 +327,7 @@ class PropertyAccess {
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
                 if (site == null || site == SHORT_CIRCUIT_SITE) return;
+                if (site.target == null || site.target == Terms.UNDEFINED) throw nullishBase("set", site);
                 if ((site = keyed(site, context)) == null) return;
                 if (site.privateName != null) PrivateAccess.set(site.target, site.privateName, value, context);
                 else siteWrite(site, value, context, trackingNode);
@@ -364,6 +373,7 @@ class PropertyAccess {
                     // fallback would treat the write as a scope update.
                     throw JsErrorException.typeError("cannot set property on null 'super' base");
                 }
+                if (site.target == null || site.target == Terms.UNDEFINED) throw nullishBase("set", site);
                 // ToPropertyKey follows the RHS (§13.15.2 / PutValue)
                 if ((site = keyed(site, context)) == null) yield value;
                 if (site.privateName != null) PrivateAccess.set(site.target, site.privateName, value, context);
@@ -456,8 +466,7 @@ class PropertyAccess {
                 // null/undefined target must throw TypeError before any toString
                 // on a non-primitive key is invoked.
                 if (site.target == null || site.target == Terms.UNDEFINED) {
-                    throw JsErrorException.typeError("cannot read properties of "
-                            + (site.target == null ? "null" : "undefined"));
+                    throw nullishBase("read", site);
                 }
                 if ((site = keyed(site, context)) == null) yield null;
                 if (site.privateName != null) {
@@ -924,7 +933,7 @@ class PropertyAccess {
             }
             if (object == null || object == Terms.UNDEFINED) {
                 if (optional) return Terms.UNDEFINED;
-                throw JsErrorException.typeError("cannot read properties of " + object + " (reading '[" + i + "]')");
+                throw JsErrorException.typeError("Cannot read properties of " + object + " (reading '" + i + "')");
             }
             if (object instanceof JsArray array) {
                 return array.getIndexedValue(i, array, context);
@@ -981,7 +990,7 @@ class PropertyAccess {
             // unrelated `id` binding (e.g. a Scenario-Outline Examples column) instead of
             // degrading to #notpresent.
             if (optional) return Terms.UNDEFINED;
-            throw JsErrorException.typeError("cannot read properties of " + object + " (reading '" + name + "')");
+            throw JsErrorException.typeError("Cannot read properties of " + object + " (reading '" + name + "')");
         }
 
         // java.time is a Java object first, raw or as the call path's JsDateView: a

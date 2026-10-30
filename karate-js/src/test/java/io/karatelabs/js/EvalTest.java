@@ -971,13 +971,13 @@ class EvalTest extends EvalBase {
             eval("var obj = { a: null }; obj.a.b");
             fail("error expected");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("cannot read properties of null (reading 'b')"));
+            assertTrue(e.getMessage().contains("Cannot read properties of null (reading 'b')"));
         }
         try {
             eval("var obj = { }; obj.a.b");
             fail("error expected");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("cannot read properties of undefined (reading 'b')"));
+            assertTrue(e.getMessage().contains("Cannot read properties of undefined (reading 'b')"));
         }
     }
 
@@ -997,7 +997,7 @@ class EvalTest extends EvalBase {
             eval("var obj = { a: null }; obj?.a.b");
             fail("error expected");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("cannot read properties of null (reading 'b')"));
+            assertTrue(e.getMessage().contains("Cannot read properties of null (reading 'b')"));
         }
         // bracket
         assertNull(eval("var obj = null; obj?.['key']"));
@@ -1031,7 +1031,7 @@ class EvalTest extends EvalBase {
             eval("var obj = { a: null }; obj?.a.b.c");
             fail("error expected");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("cannot read properties of null"));
+            assertTrue(e.getMessage().contains("Cannot read properties of null"));
         }
     }
 
@@ -1065,13 +1065,13 @@ class EvalTest extends EvalBase {
             eval("var o = { a: null }; o?.a.b");
             fail("error expected");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("cannot read properties of null (reading 'b')"));
+            assertTrue(e.getMessage().contains("Cannot read properties of null (reading 'b')"));
         }
         try {
             eval("var o = {}; (o.x?.y).z");
             fail("error expected");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("cannot read properties of undefined (reading 'z')"));
+            assertTrue(e.getMessage().contains("Cannot read properties of undefined (reading 'z')"));
         }
     }
 
@@ -1127,7 +1127,7 @@ class EvalTest extends EvalBase {
             eval("var a = null; (a?.b).c");
             fail("error expected — parens terminate optional chain");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("cannot read properties"));
+            assertTrue(e.getMessage().contains("Cannot read properties"));
         }
     }
 

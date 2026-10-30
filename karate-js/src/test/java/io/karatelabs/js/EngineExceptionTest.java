@@ -577,4 +577,24 @@ class EngineExceptionTest {
         assertFalse(ex.isAuthoredThrow());
     }
 
+    @Test
+    void testNullishPropertyAccessReadsAsV8() {
+        Engine engine = new Engine();
+        Map<String, String> cases = new LinkedHashMap<>();
+        cases.put("undefined.foo", "Cannot read properties of undefined (reading 'foo')");
+        cases.put("var o = { a: null }; o.a.b", "Cannot read properties of null (reading 'b')");
+        cases.put("var u; u.a.b", "Cannot read properties of undefined (reading 'a')");
+        cases.put("null[0]", "Cannot read properties of null (reading '0')");
+        cases.put("var k = 'x'; undefined[k]", "Cannot read properties of undefined (reading 'x')");
+        cases.put("var x; x.y = 1", "Cannot set properties of undefined (setting 'y')");
+        cases.put("var x = null; x['y'] = 1", "Cannot set properties of null (setting 'y')");
+        cases.put("var x; x.y ??= 1", "Cannot read properties of undefined (reading 'y')");
+        cases.forEach((script, message) -> {
+            assertEquals("TypeError: " + message, engine.eval("try { " + script + " } catch (e) { e.name + ': ' + e.message }"), script);
+            EngineException ex = assertThrowsEngineException(script);
+            assertEquals("TypeError", ex.getJsErrorName(), script);
+            assertEquals(message, ex.getJsMessage(), script);
+        });
+    }
+
 }
