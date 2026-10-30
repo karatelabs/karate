@@ -631,6 +631,12 @@ public class HttpRequestBuilder implements SimpleObject {
         }
         sb.append(" -X ").append(curlMethod.toUpperCase());
 
+        // a preview applies auth before the URL is written, as a handler may place its credential in the query
+        final String previewArgument = preview && authHandler != null ? authHandler.toCurlPreview(effectivePlatform) : null;
+        if (preview && authHandler != null && previewArgument == null && !(authHandler instanceof OAuth2AuthHandler)) {
+            authHandler.applyPreview(this);
+        }
+
         // Add URL
         String url = getUri();
         if (!StringUtils.isBlank(url)) {
@@ -641,17 +647,9 @@ public class HttpRequestBuilder implements SimpleObject {
         final String authArgument;
         if (authHandler != null) {
             if (preview) {
-                // Preview mode - use toCurlPreview() to avoid side effects
-                authArgument = authHandler.toCurlPreview(effectivePlatform);
+                authArgument = previewArgument;
                 if (authArgument != null) {
                     sb.append(lineContinuation).append("  ").append(authArgument);
-                } else {
-                    // Auth handler wants to use Authorization header
-                    // For preview, apply it unless it requires network
-                    if (!(authHandler instanceof OAuth2AuthHandler)) {
-                        // Safe to apply - doesn't need network
-                        authHandler.apply(this);
-                    }
                 }
             } else {
                 // Normal mode - use toCurlArgument()

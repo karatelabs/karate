@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -16,6 +18,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * OAuth 2.0 Authorization Code + PKCE Auth Handler.
  * Implements the authorization code flow with PKCE for public clients.
+ * A {@code redirect_uri} on {@code http://localhost} or {@code http://127.0.0.1} is listened on at its port and path
+ * and sent as written; any other is refused, as this process cannot receive it; none listens on the
+ * {@code callbackPort}, {@code callbackPorts} or default ports at {@code /callback}.
  */
 public class AuthorizationCodeAuthHandler implements OAuth2AuthHandler {
 
@@ -219,6 +224,10 @@ public class AuthorizationCodeAuthHandler implements OAuth2AuthHandler {
      * Start callback server on configured or default ports
      */
     private String startCallbackServer(LocalCallbackServer server) {
+        Object configured = config.get("redirect_uri");
+        if (configured != null && !configured.toString().isBlank()) {
+            return server.start(loopbackRedirectUri(configured.toString().trim()));
+        }
         int[] ports = getConfiguredPorts();
 
         Exception lastException = null;
@@ -240,6 +249,23 @@ public class AuthorizationCodeAuthHandler implements OAuth2AuthHandler {
             "These ports must be registered as redirect URIs with your OAuth provider.",
             lastException
         );
+    }
+
+    private static URI loopbackRedirectUri(String redirectUri) {
+        URI uri = null;
+        try {
+            uri = new URI(redirectUri);
+        } catch (URISyntaxException e) {
+            // refused below
+        }
+        String host = uri == null ? null : uri.getHost();
+        if (uri == null || !"http".equalsIgnoreCase(uri.getScheme())
+                || !("localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host))) {
+            throw new OAuth2Exception("Callback URL " + redirectUri + " is not a loopback URL this app can receive:"
+                    + " register a loopback callback such as http://localhost:8080/callback with the provider and set it"
+                    + " as the Callback URL, or leave it empty to listen on http://127.0.0.1:8080/callback");
+        }
+        return uri;
     }
 
     /**

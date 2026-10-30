@@ -51,13 +51,15 @@ import java.util.Set;
  * The JOSE header is {@code header} with {@code alg} set to {@code algorithm}; {@code header} and {@code payload} are
  * JSON text or maps, serialized as JavaScript's {@code JSON.stringify} does so a token matches jose's byte for byte.
  * HS* sign with {@code secret} (UTF-8, or base64 when {@code isSecretBase64Encoded}); RS*, PS* and ES* with a PKCS#8
- * PEM {@code privateKey}. The token is signed once per handler; a signing failure throws with jose's message.
+ * PEM {@code privateKey}. The token is signed once per handler; a signing failure throws with jose's message. A preview
+ * places {@link #PLACEHOLDER} and signs nothing.
  */
 public class JwtAuthHandler implements AuthHandler {
 
     private static final Set<String> ALGORITHMS = Set.of("HS256", "HS384", "HS512", "RS256", "RS384", "RS512",
             "PS256", "PS384", "PS512", "ES256", "ES384", "ES512");
     private static final String PKCS8_BEGIN = "-----BEGIN PRIVATE KEY-----";
+    public static final String PLACEHOLDER = "<your-jwt-token>";
 
     private final Map<String, Object> config;
     private final boolean query;
@@ -80,6 +82,13 @@ public class JwtAuthHandler implements AuthHandler {
         queryParamKey = key == null || key.toString().isEmpty() ? "token" : key.toString();
     }
 
+    /** A handler that places {@link #PLACEHOLDER} where the token goes, for a preview built through {@link #apply}. */
+    public static JwtAuthHandler preview(Map<String, Object> config) {
+        JwtAuthHandler handler = new JwtAuthHandler(config);
+        handler.token = PLACEHOLDER;
+        return handler;
+    }
+
     /** The signed token, signed on first use. */
     public synchronized String token() {
         if (token == null) {
@@ -90,7 +99,15 @@ public class JwtAuthHandler implements AuthHandler {
 
     @Override
     public void apply(HttpRequestBuilder builder) {
-        String jwt = token();
+        place(builder, token());
+    }
+
+    @Override
+    public void applyPreview(HttpRequestBuilder builder) {
+        place(builder, PLACEHOLDER);
+    }
+
+    private void place(HttpRequestBuilder builder, String jwt) {
         if (query) {
             builder.url(withoutParam(builder.getUrl(), queryParamKey));
             List<String> existing = builder.getParam(queryParamKey);

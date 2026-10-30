@@ -38,6 +38,14 @@ public interface AuthHandler {
     }
 
     /**
+     * Applies this handler for a curl preview when {@link #toCurlPreview} gives no argument: nothing sent, nothing
+     * signed, a placeholder where a computed credential goes.
+     */
+    default void applyPreview(HttpRequestBuilder builder) {
+        apply(builder);
+    }
+
+    /**
      * Returns the curl command argument for this auth handler, or null to use the default
      * behavior (including the Authorization header).
      * For example, BasicAuthHandler can return "-u username:password"

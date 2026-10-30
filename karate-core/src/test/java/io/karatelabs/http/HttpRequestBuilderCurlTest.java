@@ -429,6 +429,35 @@ class HttpRequestBuilderCurlTest {
     }
 
     @Test
+    void testPreviewModeWithJwtPlacesAPlaceholderAndSignsNothing() {
+        // no secret: signing would throw, so a preview that renders signed nothing
+        Map<String, Object> config = new HashMap<>();
+        config.put("algorithm", "HS256");
+        config.put("payload", "{\"sub\":\"alice\"}");
+        HttpRequestBuilder http = new HttpRequestBuilder(null);
+        http.url("https://api.example.com/secure");
+        http.auth(new JwtAuthHandler(config));
+        String curl = http.toCurlCommandPreview();
+        assertTrue(curl.contains("-H 'Authorization: Bearer <your-jwt-token>'"), curl);
+
+        config.put("headerPrefix", "JWT");
+        http = new HttpRequestBuilder(null);
+        http.url("https://api.example.com/secure");
+        http.auth(new JwtAuthHandler(config));
+        curl = http.toCurlCommandPreview();
+        assertTrue(curl.contains("-H 'Authorization: JWT <your-jwt-token>'"), curl);
+
+        config.put("addTokenTo", "query");
+        config.put("queryParamKey", "jwt");
+        http = new HttpRequestBuilder(null);
+        http.url("https://api.example.com/secure?jwt=stale&a=1");
+        http.auth(new JwtAuthHandler(config));
+        curl = http.toCurlCommandPreview();
+        assertTrue(curl.contains("jwt=%3Cyour-jwt-token%3E"), curl);
+        assertFalse(curl.contains("stale") || curl.contains("Authorization"), curl);
+    }
+
+    @Test
     void testPreviewModeWithBearerAuth() {
         HttpRequestBuilder http = new HttpRequestBuilder(null);
         http.url("https://api.example.com/secure");

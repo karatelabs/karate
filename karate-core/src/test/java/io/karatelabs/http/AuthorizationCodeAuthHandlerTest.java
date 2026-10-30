@@ -603,4 +603,108 @@ class AuthorizationCodeAuthHandlerTest {
             throw new RuntimeException(e);
         }
     }
+
+    @Test
+    void testConfiguredLoopbackRedirectUriIsListenedOnAndSent() throws Exception {
+        int callbackPort;
+        try (java.net.ServerSocket socket = new java.net.ServerSocket(0)) {
+            callbackPort = socket.getLocalPort();
+        }
+        String configured = "http://localhost:" + callbackPort + "/oauth/cb";
+        String encoded = java.net.URLEncoder.encode(configured, java.nio.charset.StandardCharsets.UTF_8);
+        AtomicReference<String> tokenBody = new AtomicReference<>();
+        mockHandler.set(request -> {
+            HttpResponse response = new HttpResponse();
+            if (request.pathMatches("/token")) {
+                tokenBody.set(request.getBodyString());
+                response.setBody(Json.toBytes(Map.of("access_token", "cb-token", "token_type", "Bearer")), ResourceType.JSON);
+            } else {
+                response.setBody(request.getHeader("authorization"), ResourceType.TEXT);
+            }
+            return response;
+        });
+        Map<String, Object> config = new HashMap<>();
+        config.put("authorizationUrl", "http://localhost:" + port + "/authorize");
+        config.put("url", "http://localhost:" + port + "/token");
+        config.put("client_id", "test-client");
+        config.put("redirect_uri", configured);
+        AtomicReference<String> capturedAuthUrl = new AtomicReference<>();
+        AtomicReference<String> capturedRedirectUri = new AtomicReference<>();
+        AtomicReference<Integer> otherPath = new AtomicReference<>();
+        OAuth2BrowserCallback browser = (authUrl, redirectUri) -> {
+            capturedAuthUrl.set(authUrl);
+            capturedRedirectUri.set(redirectUri);
+            try (java.net.http.HttpClient web = java.net.http.HttpClient.newHttpClient()) {
+                otherPath.set(web.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://localhost:" + callbackPort + "/callback?code=wrong")).build(),
+                        java.net.http.HttpResponse.BodyHandlers.discarding()).statusCode());
+                web.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(configured + "?code=cb-code&state=s")).build(),
+                        java.net.http.HttpResponse.BodyHandlers.discarding());
+            } catch (Exception e) {
+                return CompletableFuture.failedFuture(e);
+            }
+            return CompletableFuture.completedFuture("USE_CALLBACK_SERVER");
+        };
+        try (HttpClient client = new ApacheHttpClient()) {
+            HttpRequestBuilder http = new HttpRequestBuilder(client);
+            http.auth(new AuthorizationCodeAuthHandler(config, browser));
+            http.url("http://localhost:" + port + "/api/test");
+            assertEquals("Bearer cb-token", http.invoke().getBodyString());
+        }
+        assertEquals(configured, capturedRedirectUri.get());
+        assertTrue(capturedAuthUrl.get().contains("&redirect_uri=" + encoded + "&"), capturedAuthUrl.get());
+        assertEquals(404, otherPath.get(), "only the configured path receives the code");
+        assertTrue(tokenBody.get().contains("code=cb-code"), tokenBody.get());
+        assertTrue(tokenBody.get().contains("redirect_uri=" + encoded), tokenBody.get());
+    }
+
+    @Test
+    void testNonLoopbackRedirectUriFailsNamingALoopbackOne() {
+        Map<String, Object> config = new HashMap<>();
+        config.put("authorizationUrl", "http://localhost:" + port + "/authorize");
+        config.put("url", "http://localhost:" + port + "/token");
+        config.put("client_id", "test-client");
+        config.put("redirect_uri", "https://oauth.pstmn.io/v1/callback");
+        OAuth2BrowserCallback browser = (authUrl, redirectUri) -> fail("the browser opened for " + redirectUri);
+        try (HttpClient client = new ApacheHttpClient()) {
+            HttpRequestBuilder http = new HttpRequestBuilder(client);
+            http.auth(new AuthorizationCodeAuthHandler(config, browser));
+            http.url("http://localhost:" + port + "/api/test");
+            OAuth2Exception e = assertThrows(OAuth2Exception.class, http::invoke);
+            assertTrue(e.getMessage().contains("https://oauth.pstmn.io/v1/callback"), e.getMessage());
+            assertTrue(e.getMessage().contains("register a loopback callback such as http://localhost:8080/callback"), e.getMessage());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void testEmptyRedirectUriKeepsTheFixedPorts() {
+        AtomicReference<String> capturedRedirectUri = new AtomicReference<>();
+        mockHandler.set(request -> {
+            HttpResponse response = new HttpResponse();
+            if (request.pathMatches("/token")) {
+                response.setBody(Json.toBytes(Map.of("access_token", "t")), ResourceType.JSON);
+            }
+            return response;
+        });
+        try (HttpClient client = new ApacheHttpClient()) {
+            Map<String, Object> config = new HashMap<>();
+            config.put("authorizationUrl", "http://localhost:" + port + "/authorize");
+            config.put("url", "http://localhost:" + port + "/token");
+            config.put("client_id", "test-client");
+            config.put("redirect_uri", "");
+            config.put("callbackPort", 5556);
+            OAuth2BrowserCallback browser = (authUrl, redirectUri) -> {
+                capturedRedirectUri.set(redirectUri);
+                return CompletableFuture.completedFuture("code");
+            };
+            HttpRequestBuilder http = new HttpRequestBuilder(client);
+            http.auth(new AuthorizationCodeAuthHandler(config, browser));
+            http.url("http://localhost:" + port + "/api/test");
+            http.invoke();
+            assertEquals("http://127.0.0.1:5556/callback", capturedRedirectUri.get());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

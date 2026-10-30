@@ -4,11 +4,12 @@ import io.karatelabs.common.ResourceType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Local HTTP server to capture OAuth redirect with authorization code.
- * Listens on http://127.0.0.1:PORT/callback
+ * Listens on http://127.0.0.1:PORT/callback, or on the port and path of a configured loopback redirect URI.
  */
 public class LocalCallbackServer {
 
@@ -17,6 +18,7 @@ public class LocalCallbackServer {
     private HttpServer server;
     private CompletableFuture<String> codeFuture;
     private int port;
+    private String path = "/callback";
 
     /**
      * Start server on random available port
@@ -40,12 +42,23 @@ public class LocalCallbackServer {
         return "http://127.0.0.1:" + port + "/callback";
     }
 
+    /**
+     * Start server on the port of {@code redirectUri}, receiving the code at its path.
+     * @return {@code redirectUri} as given
+     */
+    public String start(URI redirectUri) {
+        String uriPath = redirectUri.getPath();
+        path = uriPath == null || uriPath.isEmpty() ? "/" : uriPath;
+        start(redirectUri.getPort() < 0 ? 80 : redirectUri.getPort());
+        return redirectUri.toString();
+    }
+
     private HttpResponse handleRequest(HttpRequest request) {
         if (!"GET".equalsIgnoreCase(request.getMethod())) {
             return HttpResponse.text(405, "Method Not Allowed");
         }
 
-        if (!"/callback".equals(request.getPath())) {
+        if (!path.equals(request.getPath())) {
             return HttpResponse.text(404, "Not Found");
         }
 
