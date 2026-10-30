@@ -81,6 +81,8 @@ import java.net.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -853,7 +855,14 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             headers = new LinkedHashMap<>();
             response.setHeaders(headers);
         }
-        List<String> responseCookies = headers.get(HttpUtils.Header.SET_COOKIE.key);
+        String setCookieKey = HttpUtils.Header.SET_COOKIE.key;
+        for (String key : headers.keySet()) {
+            if (setCookieKey.equalsIgnoreCase(key)) {
+                setCookieKey = key; // HTTP/2 names it lowercase
+                break;
+            }
+        }
+        List<String> responseCookies = headers.get(setCookieKey);
         if (responseCookies == null) {
             responseCookies = new ArrayList<>();
         }
@@ -885,7 +894,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                     map.put(Cookies.PATH, c.getPath());
                 }
                 if (c.getExpiryInstant() != null) {
-                    map.put(Cookies.MAX_AGE, c.getExpiryInstant().toEpochMilli());
+                    map.put(Cookies.MAX_AGE, Math.max(0, Duration.between(Instant.now(), c.getExpiryInstant()).getSeconds()));
                 }
                 map.put(Cookies.SECURE, c.isSecure());
                 io.netty.handler.codec.http.cookie.Cookie nettyCookie = Cookies.fromMap(map);
@@ -895,7 +904,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             }
         }
         if (!mergedCookies.isEmpty()) {
-            headers.put(HttpUtils.Header.SET_COOKIE.key, mergedCookies);
+            headers.put(setCookieKey, mergedCookies);
         }
     }
 
