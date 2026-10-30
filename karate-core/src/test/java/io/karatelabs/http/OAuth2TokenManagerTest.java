@@ -212,6 +212,38 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    void testRefreshWithHeaderClientAuthenticationSendsBasic() {
+        Map<String, Object> seen = new HashMap<>();
+        HttpServer server = HttpServer.start(0, request -> {
+            request.processBody();
+            request.getParams().forEach((k, v) -> seen.put(k, v.getFirst()));
+            seen.put("Authorization", request.getHeader("Authorization"));
+            HttpResponse response = new HttpResponse();
+            response.setBody(Json.toBytes(Json.of("{ access_token: 'new-token', expires_in: 3600 }").asMap()), ResourceType.JSON);
+            return response;
+        });
+        try (HttpClient client = new ApacheHttpClient()) {
+            Map<String, Object> config = new HashMap<>();
+            config.put("url", "http://localhost:" + server.getPort() + "/token");
+            config.put("client_id", "test-client");
+            config.put("client_secret", "test-secret");
+            config.put("client_authentication", "header");
+            OAuth2TokenManager manager = new OAuth2TokenManager(config);
+            manager.storeToken(new OAuth2Token("old", "Bearer", "refresh-token", System.currentTimeMillis() - 1000, null));
+            assertEquals("new-token", manager.refreshToken(new HttpRequestBuilder(client)).getAccessToken());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            server.stopAsync();
+        }
+        String basic = "Basic " + java.util.Base64.getEncoder().encodeToString("test-client:test-secret".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertEquals(basic, seen.get("Authorization"));
+        assertEquals("refresh_token", seen.get("grant_type"));
+        assertFalse(seen.containsKey("client_id"));
+        assertFalse(seen.containsKey("client_secret"));
+    }
+
+    @Test
     void testRefreshTokenWithoutRefreshToken() {
         Map<String, Object> config = new HashMap<>();
         OAuth2TokenManager manager = new OAuth2TokenManager(config);

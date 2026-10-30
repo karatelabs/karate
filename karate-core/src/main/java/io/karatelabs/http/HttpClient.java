@@ -24,6 +24,7 @@
 package io.karatelabs.http;
 
 import io.karatelabs.core.KarateConfig;
+import org.apache.hc.client5.http.cookie.CookieStore;
 
 import java.io.Closeable;
 
@@ -50,6 +51,11 @@ public interface HttpClient extends Closeable {
      * sort it out. They must not try to predict the answer.
      */
     void apply(KarateConfig config);
+
+    /** The caller-supplied store this client keeps cookies in across requests, or null when it keeps none. */
+    default CookieStore getCookieStore() {
+        return null;
+    }
 
     /** Aborts the call in flight, or the next one if none is in flight; the one after that proceeds. */
     void abort();

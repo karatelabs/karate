@@ -56,12 +56,7 @@ public class OAuth2TokenManager {
         builder.url(tokenUrl);
         builder.formField("grant_type", "refresh_token");
         builder.formField("refresh_token", currentToken.getRefreshToken());
-        builder.formField("client_id", config.get("client_id"));
-
-        // Optional client_secret (for confidential clients)
-        if (config.containsKey("client_secret")) {
-            builder.formField("client_secret", config.get("client_secret"));
-        }
+        ClientCredentialsAuthHandler.clientAuthentication(builder, config);
 
         builder.header("Accept", "application/json");
 

@@ -203,6 +203,33 @@ class ApacheHttpClientTest {
     }
 
     @Test
+    void testResponseTimeIncludesTheBodyDownload() {
+        org.apache.hc.core5.http.message.BasicClassicHttpResponse wire
+                = new org.apache.hc.core5.http.message.BasicClassicHttpResponse(200);
+        java.io.InputStream slowBody = new java.io.InputStream() {
+            boolean sent;
+
+            @Override
+            public int read() {
+                if (sent) {
+                    return -1;
+                }
+                try {
+                    Thread.sleep(300);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                sent = true;
+                return 'x';
+            }
+        };
+        wire.setEntity(new org.apache.hc.core5.http.io.entity.InputStreamEntity(slowBody, -1,
+                org.apache.hc.core5.http.ContentType.TEXT_PLAIN));
+        HttpResponse response = ApacheHttpClient.buildResponse(wire, System.currentTimeMillis());
+        assertTrue(response.getResponseTime() >= 300, "took " + response.getResponseTime() + " ms");
+    }
+
+    @Test
     void testUnencodedResponseKeepsHeadersUntouched() throws Exception {
         byte[] plain = "hello".getBytes();
         org.apache.hc.core5.http.message.BasicClassicHttpResponse wire

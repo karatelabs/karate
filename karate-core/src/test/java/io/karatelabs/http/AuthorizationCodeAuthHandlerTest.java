@@ -366,6 +366,46 @@ class AuthorizationCodeAuthHandlerTest {
     }
 
     @Test
+    void testHeaderClientAuthenticationSendsBasicAndNoCredentialsInTheForm() {
+        AtomicReference<String> authorization = new AtomicReference<>();
+        AtomicReference<Map<String, String>> form = new AtomicReference<>();
+        mockHandler.set(request -> {
+            HttpResponse response = new HttpResponse();
+            if (request.pathMatches("/token")) {
+                request.processBody();
+                Map<String, String> fields = new HashMap<>();
+                request.getParams().forEach((k, v) -> fields.put(k, v.getFirst()));
+                form.set(fields);
+                authorization.set(request.getHeader("Authorization"));
+                response.setBody(Json.toBytes(Json.of("{ access_token: 'token', expires_in: 3600 }").asMap()), ResourceType.JSON);
+            }
+            return response;
+        });
+        try (HttpClient client = new ApacheHttpClient()) {
+            Map<String, Object> config = new HashMap<>();
+            config.put("authorizationUrl", "http://localhost:" + port + "/authorize");
+            config.put("url", "http://localhost:" + port + "/token");
+            config.put("client_id", "my app");
+            config.put("client_secret", "s3c:r&t");
+            config.put("client_authentication", "header");
+            config.put("callbackPort", 9880);
+            AuthorizationCodeAuthHandler handler = new AuthorizationCodeAuthHandler(config,
+                    (authUrl, redirectUri) -> CompletableFuture.completedFuture("code"));
+            HttpRequestBuilder http = new HttpRequestBuilder(client);
+            http.auth(handler);
+            http.url("http://localhost:" + port + "/api/test");
+            http.invoke();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        String basic = "Basic " + java.util.Base64.getEncoder().encodeToString("my+app:s3c%3Ar%26t".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertEquals(basic, authorization.get());
+        assertFalse(form.get().containsKey("client_id"), form.get().toString());
+        assertFalse(form.get().containsKey("client_secret"), form.get().toString());
+        assertEquals("authorization_code", form.get().get("grant_type"));
+    }
+
+    @Test
     void testAuthHandlerType() {
         Map<String, Object> config = new HashMap<>();
         OAuth2BrowserCallback mockBrowser = (authUrl, redirectUri) ->

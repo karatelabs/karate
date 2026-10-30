@@ -56,6 +56,18 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
         builder.header("Authorization", "Basic " + Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8)));
     }
 
+    /** The client's credentials, as HTTP Basic or else in the form; a {@code client_secret} only when configured (a public client has none). */
+    static void clientAuthentication(HttpRequestBuilder builder, Map<String, Object> config) {
+        if (basicClientAuthentication(config)) {
+            basicClientAuthentication(builder, config);
+        } else {
+            builder.formField("client_id", config.get("client_id"));
+            if (config.containsKey("client_secret")) {
+                builder.formField("client_secret", config.get("client_secret"));
+            }
+        }
+    }
+
     private static String formEncode(Object value) {
         return value == null ? "" : URLEncoder.encode(value.toString(), StandardCharsets.UTF_8);
     }

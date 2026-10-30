@@ -35,6 +35,7 @@ import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.cookie.BasicCookieStore;
 import org.apache.hc.client5.http.cookie.Cookie;
+import org.apache.hc.client5.http.cookie.CookieStore;
 import org.apache.hc.client5.http.cookie.StandardCookieSpec;
 import org.apache.hc.client5.http.entity.EntityBuilder;
 import org.apache.hc.client5.http.impl.DefaultHttpRequestRetryStrategy;
@@ -93,7 +94,9 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     // keeping. It costs nothing here: the field is read once per request.
     private volatile CloseableHttpClient httpClient;
     private RequestConfig requestConfig;
-    private BasicCookieStore cookieStore;
+    private final CookieStore cookieStore;
+    // a supplied store is the caller's jar: kept across requests and rebuilds; the client's own is cleared per request
+    private final boolean ownsCookieStore;
     private volatile ClassicHttpRequest currentRequest;
     private volatile boolean aborted;
     private volatile boolean cancelled;
@@ -137,6 +140,24 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private String digestPassword;
 
     private final HttpLogger logger = new HttpLogger();
+
+    public ApacheHttpClient() {
+        this(null);
+    }
+
+    /**
+     * {@code cookieStore} null keeps no cookies between requests. A supplied store sends its matching cookies with
+     * every request and takes every {@code Set-Cookie}; it survives {@link #apply} rebuilds and is never cleared.
+     */
+    public ApacheHttpClient(CookieStore cookieStore) {
+        this.ownsCookieStore = cookieStore == null;
+        this.cookieStore = ownsCookieStore ? new BasicCookieStore() : cookieStore;
+    }
+
+    @Override
+    public CookieStore getCookieStore() {
+        return ownsCookieStore ? null : cookieStore;
+    }
 
     /**
      * The config this client was last built from, or null before the first {@link #apply}.
@@ -327,7 +348,6 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         } else {
             clientBuilder.disableRedirectHandling();
         }
-        cookieStore = new BasicCookieStore();
         clientBuilder.setDefaultCookieStore(cookieStore);
         if (ssl) {
             KeyStore trustStore = getKeyStore(sslTrustStore, sslTrustStorePassword, sslTrustStoreType);
@@ -604,6 +624,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 requestBuilder.abort();
             }
             HttpClientContext context = HttpClientContext.create();
+            Recorder recorder = new Recorder(cookieStore);
+            context.setCookieStore(recorder);
             if (ntlmUsername != null || digestUsername != null) {
                 // the port resolved from the scheme, which is how the challenge's scope will name it
                 HttpHost target = RoutingSupport.normalize(RoutingSupport.determineHost(currentRequest), DefaultSchemePortResolver.INSTANCE);
@@ -621,8 +643,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 }
             }
             currentRequest = null; // clear after completion
-            // Merge cookies from the store (captured during redirects) with response headers
-            mergeCookiesFromStore(finalResponse);
+            mergeCookies(finalResponse, recorder.added);
             finalResponse.setRequest(request);
             finalResponse.setStrictParsing(strictResponseParsing);
             logger.logResponse(finalResponse);
@@ -632,7 +653,44 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         } finally {
             currentRequest = null;
             aborted = false;
+            if (ownsCookieStore) {
+                cookieStore.clear();
+            }
         }
+    }
+
+    /** The store this exchange reads and writes, recording each cookie its responses set, redirect hops included. */
+    private static final class Recorder implements CookieStore {
+
+        final CookieStore store;
+        final List<Cookie> added = new ArrayList<>();
+
+        Recorder(CookieStore store) {
+            this.store = store;
+        }
+
+        @Override
+        public void addCookie(Cookie cookie) {
+            added.add(cookie);
+            store.addCookie(cookie);
+        }
+
+        @Override
+        public List<Cookie> getCookies() {
+            return store.getCookies();
+        }
+
+        @Override
+        @SuppressWarnings("deprecation")
+        public boolean clearExpired(Date date) {
+            return store.clearExpired(date);
+        }
+
+        @Override
+        public void clear() {
+            store.clear();
+        }
+
     }
 
     @Override
@@ -662,12 +720,10 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     }
 
     static HttpResponse buildResponse(org.apache.hc.core5.http.HttpResponse httpResponse, long startTime) {
-        long endTime = System.currentTimeMillis();
         int statusCode = httpResponse.getCode();
         Map<String, List<String>> headers = toHeaders(httpResponse);
         HttpResponse response = new HttpResponse();
         response.setStartTime(startTime);
-        response.setResponseTime(endTime - startTime);
         response.setStatus(statusCode);
         response.setStatusText(httpResponse.getReasonPhrase());
         response.setHeaders(headers);
@@ -716,19 +772,16 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 }
             }
         }
+        // after the body is read, so the time includes the download
+        response.setResponseTime(System.currentTimeMillis() - startTime);
         return response;
     }
 
     /**
-     * Merge cookies from Apache's cookie store (captured during redirects) with response headers.
-     * This ensures cookies set during redirects are visible to Karate's cookie management.
-     * After merging, the cookie store is cleared for the next request.
+     * Adds to the final response's {@code Set-Cookie} the cookies this exchange's redirect hops set, so Karate's
+     * cookie management sees them; a cookie already in the store from an earlier request is not among them.
      */
-    private void mergeCookiesFromStore(HttpResponse response) {
-        if (cookieStore == null) {
-            return;
-        }
-        List<Cookie> storedCookies = cookieStore.getCookies();
+    private static void mergeCookies(HttpResponse response, List<Cookie> storedCookies) {
         Map<String, List<String>> headers = response.getHeaders();
         if (headers == null) {
             headers = new LinkedHashMap<>();
@@ -778,8 +831,6 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         if (!mergedCookies.isEmpty()) {
             headers.put(HttpUtils.Header.SET_COOKIE.key, mergedCookies);
         }
-        // Clear cookie store for next request - Karate manages cookies at a higher level
-        cookieStore.clear();
     }
 
     private static Map<String, List<String>> toHeaders(HttpMessage msg) {

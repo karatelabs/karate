@@ -179,13 +179,8 @@ public class AuthorizationCodeAuthHandler implements OAuth2AuthHandler {
         builder.formField("grant_type", "authorization_code");
         builder.formField("code", code);
         builder.formField("redirect_uri", redirectUri);
-        builder.formField("client_id", config.get("client_id"));
         builder.formField("code_verifier", codeVerifier);
-
-        // Optional client_secret (for confidential clients)
-        if (config.containsKey("client_secret")) {
-            builder.formField("client_secret", config.get("client_secret"));
-        }
+        ClientCredentialsAuthHandler.clientAuthentication(builder, config);
 
         builder.header("Accept", "application/json");
 
