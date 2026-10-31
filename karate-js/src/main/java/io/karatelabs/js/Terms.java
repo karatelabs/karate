@@ -358,6 +358,20 @@ public class Terms {
         return (long) (truncated % 4294967296.0) & 0xFFFFFFFFL;
     }
 
+    /**
+     * Spec {@code ToInt32} (§7.1.6) of a Number: modulo 2^32, where {@code Number.intValue()} of a Double saturates
+     * ({@code 3141592653.5 | 0} is -1153374643, not 2147483647).
+     */
+    static int toInt32(Number n) {
+        if (n instanceof Integer i) {
+            return i;
+        }
+        if (n instanceof Long l) {
+            return (int) (long) l;
+        }
+        return (int) (long) (n.doubleValue() % 4294967296.0);
+    }
+
     static Number fromRadixPrefix(String text) {
         int radix = radixPrefix(text);
         if (radix == 0) {
@@ -695,7 +709,7 @@ public class Terms {
             requireBothBigInt(lhs, rhs, "&");
             return narrowBigInt(((BigInteger) lhs).and((BigInteger) rhs));
         }
-        return lhs.intValue() & rhs.intValue();
+        return toInt32(lhs) & toInt32(rhs);
     }
 
     static Object bitOr(Object lhsObject, Object rhsObject, CoreContext context) {
@@ -707,7 +721,7 @@ public class Terms {
             requireBothBigInt(lhs, rhs, "|");
             return narrowBigInt(((BigInteger) lhs).or((BigInteger) rhs));
         }
-        return lhs.intValue() | rhs.intValue();
+        return toInt32(lhs) | toInt32(rhs);
     }
 
     static Object bitXor(Object lhsObject, Object rhsObject, CoreContext context) {
@@ -719,7 +733,7 @@ public class Terms {
             requireBothBigInt(lhs, rhs, "^");
             return narrowBigInt(((BigInteger) lhs).xor((BigInteger) rhs));
         }
-        return lhs.intValue() ^ rhs.intValue();
+        return toInt32(lhs) ^ toInt32(rhs);
     }
 
     static Object bitShiftRight(Object lhsObject, Object rhsObject, CoreContext context) {
@@ -731,7 +745,7 @@ public class Terms {
             requireBothBigInt(lhs, rhs, ">>");
             return narrowBigInt(((BigInteger) lhs).shiftRight(((BigInteger) rhs).intValueExact()));
         }
-        return lhs.intValue() >> rhs.intValue();
+        return toInt32(lhs) >> toInt32(rhs);
     }
 
     static Object bitShiftLeft(Object lhsObject, Object rhsObject, CoreContext context) {
@@ -743,7 +757,7 @@ public class Terms {
             requireBothBigInt(lhs, rhs, "<<");
             return narrowBigInt(((BigInteger) lhs).shiftLeft(((BigInteger) rhs).intValueExact()));
         }
-        return lhs.intValue() << rhs.intValue();
+        return toInt32(lhs) << toInt32(rhs);
     }
 
     static Object bitShiftRightUnsigned(Object lhsObject, Object rhsObject, CoreContext context) {
@@ -755,7 +769,7 @@ public class Terms {
             // spec: unsigned right shift on BigInt always TypeError, even when both operands are BigInt
             throw JsErrorException.typeError("BigInts have no unsigned right shift, use >> instead");
         }
-        return narrow((lhs.intValue() & 0xFFFFFFFFL) >>> rhs.intValue());
+        return narrow((toInt32(lhs) & 0xFFFFFFFFL) >>> (toInt32(rhs) & 0x1F));
     }
 
     static Object bitNot(Object value, CoreContext context) {
@@ -764,7 +778,7 @@ public class Terms {
         if (number instanceof BigInteger bi) {
             return narrowBigInt(bi.not());
         }
-        return ~number.intValue();
+        return ~toInt32(number);
     }
 
     static Object mul(Object lhsObject, Object rhsObject, CoreContext context) {

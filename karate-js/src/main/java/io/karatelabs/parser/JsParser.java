@@ -102,7 +102,6 @@ public class JsParser extends BaseParser {
         return s;
     }
     private static final EnumSet<TokenType> T_LIT_EXPR = EnumSet.of(S_STRING, D_STRING, NUMBER, BIGINT, TRUE, FALSE, NULL);
-    private static final EnumSet<TokenType> T_FOR_IN_OF = EnumSet.of(IN, OF);
 
     // Lookahead sets - EnumSet for O(1) contains() via bitmask
     private static final EnumSet<TokenType> T_EXPR_START = EnumSet.of(
@@ -2094,7 +2093,9 @@ public class JsParser extends BaseParser {
             } else {
                 error(NodeType.EXPR);
             }
-        } else if (anyOf(T_FOR_IN_OF)) {
+        } else if (consumeIf(IN)) {
+            expr_list(true); // for-in iterates an Expression, for-of an AssignmentExpression (§14.7.5)
+        } else if (consumeIf(OF)) {
             expr(-1, true);
         } else {
             error(SEMI, IN, OF);
@@ -2439,7 +2440,7 @@ public class JsParser extends BaseParser {
             } else if (priority < 8 && !noIn && enter(NodeType.IN_EXPR, IN)) {
                 // ECMA relational `key in obj` — true iff `obj` (or its
                 // prototype chain) has a property named `key`. Same precedence
-                // as `instanceof`. The for-stmt parser checks T_FOR_IN_OF
+                // as `instanceof`. The for-stmt parser checks IN / OF
                 // before entering expression land for `for (var x in y)`
                 // (no `=` initializer), so consuming IN here doesn't affect
                 // that path. The pathological `for (var x = a in b; ...)`

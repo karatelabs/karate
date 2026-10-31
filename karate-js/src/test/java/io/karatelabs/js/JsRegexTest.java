@@ -14,6 +14,16 @@ class JsRegexTest extends EvalBase {
     }
 
     @Test
+    void testCharacterClassIsJsNotJava() {
+        assertEquals("ab", eval("/[^[\\]]+/.exec('ab]')[0]"));
+        assertEquals(true, eval("/[-\\/\\\\^$*+?.()|[\\]{}]/.test('[')"));
+        assertEquals(true, eval("/[a&&b]/.test('&')"));
+        assertEquals(true, eval("/x[^]y/.test('x\\ny')"));
+        assertEquals(false, eval("/x[]y/.test('xy')"));
+        assertEquals("[^[\\]]", eval("/[^[\\]]/.source"));
+    }
+
+    @Test
     void testRegexLiteral() {
         eval("var re = /test/; var str = re.toString()");
         assertInstanceOf(JsRegex.class, get("re"));

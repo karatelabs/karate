@@ -448,6 +448,36 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testBitwiseToInt32WrapsDoubles() {
+        assertEquals(-1153374643, eval("3141592653.5 | 0"));
+        assertEquals(-559939584, eval("1e21 | 0"));
+        assertEquals(-1150833019, eval("((Math.sqrt(3) - 1) * 0x100000000) | 0"));
+        assertEquals(1153374642, eval("~3141592653.5"));
+        assertEquals(3141592653L, eval("3141592653.5 >>> 0"));
+        assertEquals(-1153374643, eval("3141592653.5 >> 0"));
+        assertEquals(0, eval("NaN | Infinity"));
+        assertEquals(4294967295L, eval("-1 >>> 32"));
+    }
+
+    @Test
+    void testForInIteratesAnExpression() {
+        assertEquals("b", eval("var r; for (var k in r = {a: 1}, {b: 2}) r = k; r"));
+    }
+
+    @Test
+    void testEscapeUnescape() {
+        assertEquals("a%20b%E9%u20AC@*_+-./", eval("escape('a b\u00e9\u20ac@*_+-./')"));
+        assertEquals("a b\u00e9\u20ac%zz%u12", eval("unescape('a%20b%E9%u20AC%zz%u12')"));
+        assertEquals("a+b c", eval("decodeURIComponent('a+b%20c')"));
+        assertEquals("a+b", eval("decodeURI('a+b')"));
+        assertEquals("%2F%23%2f\u20ac", eval("decodeURI('%2F%23%2f%E2%82%AC')"));
+        assertEquals("/#", eval("decodeURIComponent('%2F%23')"));
+        assertEquals("URIError", eval("var n; try { decodeURIComponent('%C0%80') } catch (e) { n = e.name } n"));
+        assertEquals("URIError", eval("var n; try { decodeURI('%E2%82') } catch (e) { n = e.name } n"));
+        assertEquals("%\u0661\u0662", eval("unescape('%\u0661\u0662')"));
+    }
+
+    @Test
     void testLogic() {
         assertEquals(true, eval("2 > 1"));
         assertEquals(2, eval("2 || 1"));

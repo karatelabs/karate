@@ -169,10 +169,44 @@ public class JsRegex extends JsObject {
         return groups;
     }
 
-    private static String translateJsRegexToJava(String jsPattern) {
-        // handle any JavaScript regex syntax that needs special handling in Java
-        // examples might include certain escape sequences or character classes
-        return jsPattern;
+    // Inside a JS character class `[` and `&` are literal, where Java reads a nested class and `&&`
+    // intersection; `[^]` matches any character and `[]` none (§22.2.1).
+    static String translateJsRegexToJava(String jsPattern) {
+        if (jsPattern.indexOf('[') < 0) {
+            return jsPattern;
+        }
+        int n = jsPattern.length();
+        StringBuilder sb = new StringBuilder(n + 8);
+        boolean inClass = false;
+        for (int i = 0; i < n; i++) {
+            char c = jsPattern.charAt(i);
+            if (c == '\\' && i + 1 < n) {
+                sb.append(c).append(jsPattern.charAt(++i));
+            } else if (!inClass && c == '[') {
+                if (jsPattern.startsWith("[^]", i)) {
+                    sb.append("[\\s\\S]");
+                    i += 2;
+                } else if (jsPattern.startsWith("[]", i)) {
+                    sb.append("(?!)");
+                    i += 1;
+                } else {
+                    inClass = true;
+                    sb.append(c);
+                    if (i + 1 < n && jsPattern.charAt(i + 1) == '^') {
+                        sb.append('^');
+                        i++;
+                    }
+                }
+            } else if (inClass && c == ']') {
+                inClass = false;
+                sb.append(c);
+            } else if (inClass && (c == '[' || c == '&')) {
+                sb.append('\\').append(c);
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     private static int translateJsFlags(String flags) {

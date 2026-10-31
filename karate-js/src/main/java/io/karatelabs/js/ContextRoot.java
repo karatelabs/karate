@@ -26,7 +26,6 @@ package io.karatelabs.js;
 import io.karatelabs.parser.Node;
 import io.karatelabs.parser.ParserException;
 
-import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
@@ -158,7 +157,7 @@ class ContextRoot implements Context {
     // every name initGlobal produces
     static final List<String> GLOBALS = List.of(
             "console", "parseInt", "parseFloat", "encodeURIComponent", "decodeURIComponent",
-            "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Function",
+            "encodeURI", "decodeURI", "escape", "unescape", "undefined", "Array", "Date", "Error", "Function",
             "Infinity", "Java", "JSON", "Map", "Math", "NaN", "Number", "BigInt", "Boolean",
             "Object", "Promise", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
             "SyntaxError", "URIError", "EvalError", "AggregateError", "WeakMap", "WeakSet",
@@ -170,6 +169,137 @@ class ContextRoot implements Context {
 
     private static boolean canInitGlobal(String key) {
         return GLOBAL_SET.contains(key);
+    }
+
+    private static String firstArgToString(Context ctx, Object[] args) {
+        return Terms.toStringCoerce(args.length == 0 ? Terms.UNDEFINED : args[0], (CoreContext) ctx);
+    }
+
+    private static final String ESCAPE_KEEP = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@*_+-./";
+
+    /** Annex B.2.1.1 {@code escape}. */
+    static String escape(String s) {
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (ESCAPE_KEEP.indexOf(c) >= 0) {
+                sb.append(c);
+            } else if (c < 256) {
+                sb.append('%').append(String.format("%02X", (int) c));
+            } else {
+                sb.append("%u").append(String.format("%04X", (int) c));
+            }
+        }
+        return sb.toString();
+    }
+
+    /** Annex B.2.1.2 {@code unescape}: a malformed escape stays as written. */
+    static String unescape(String s) {
+        StringBuilder sb = new StringBuilder(s.length());
+        int n = s.length();
+        for (int i = 0; i < n; i++) {
+            char c = s.charAt(i);
+            if (c == '%') {
+                if (i + 5 < n && s.charAt(i + 1) == 'u' && isHex(s, i + 2, 4)) {
+                    sb.append((char) Integer.parseInt(s, i + 2, i + 6, 16));
+                    i += 5;
+                    continue;
+                }
+                if (i + 2 < n && isHex(s, i + 1, 2)) {
+                    sb.append((char) Integer.parseInt(s, i + 1, i + 3, 16));
+                    i += 2;
+                    continue;
+                }
+            }
+            sb.append(c);
+        }
+        return sb.toString();
+    }
+
+    private static boolean isHex(String s, int from, int count) {
+        for (int i = from; i < from + count; i++) {
+            if (hexDigit(s.charAt(i)) < 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // ASCII only: Character.digit also accepts non-ASCII digits
+    private static int hexDigit(char c) {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
+    }
+
+    private static int hexOctet(String s, int at) {
+        if (at + 2 > s.length() || hexDigit(s.charAt(at)) < 0 || hexDigit(s.charAt(at + 1)) < 0) {
+            throw uriMalformed();
+        }
+        return hexDigit(s.charAt(at)) * 16 + hexDigit(s.charAt(at + 1));
+    }
+
+    private static JsErrorException uriMalformed() {
+        return JsErrorException.uriError("URI malformed");
+    }
+
+    static final String DECODE_URI_RESERVED = ";/?:@&=+$,#";
+
+    /** §19.2.6.5 Decode: an escape decoding to a character in {@code preserve} stays as written. */
+    static String decode(String s, String preserve) {
+        int n = s.length();
+        StringBuilder sb = new StringBuilder(n);
+        for (int k = 0; k < n; k++) {
+            char c = s.charAt(k);
+            if (c != '%') {
+                sb.append(c);
+                continue;
+            }
+            int start = k;
+            int b = hexOctet(s, k + 1);
+            k += 2;
+            if (b < 0x80) {
+                if (preserve.indexOf(b) >= 0) {
+                    sb.append(s, start, k + 1);
+                } else {
+                    sb.append((char) b);
+                }
+                continue;
+            }
+            int count;
+            int cp;
+            if ((b & 0xE0) == 0xC0) {
+                count = 2;
+                cp = b & 0x1F;
+            } else if ((b & 0xF0) == 0xE0) {
+                count = 3;
+                cp = b & 0x0F;
+            } else if ((b & 0xF8) == 0xF0) {
+                count = 4;
+                cp = b & 0x07;
+            } else {
+                throw uriMalformed();
+            }
+            for (int j = 1; j < count; j++) {
+                k++;
+                if (k >= n || s.charAt(k) != '%') {
+                    throw uriMalformed();
+                }
+                int cont = hexOctet(s, k + 1);
+                if ((cont & 0xC0) != 0x80) {
+                    throw uriMalformed();
+                }
+                cp = (cp << 6) | (cont & 0x3F);
+                k += 2;
+            }
+            int min = count == 2 ? 0x80 : count == 3 ? 0x800 : 0x10000;
+            if (cp < min || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) {
+                throw uriMalformed();
+            }
+            sb.appendCodePoint(cp);
+        }
+        return sb.toString();
     }
 
     /** Backs {@link Engine#builtins()}: read off a fresh engine so it tracks what the engine installs. */
@@ -353,8 +483,8 @@ class ContextRoot implements Context {
                         .replace("%21", "!").replace("%27", "'").replace("%28", "(")
                         .replace("%29", ")").replace("%7E", "~").replace("%2A", "*");
             };
-            case "decodeURIComponent" -> (JsInvokable) args ->
-                    URLDecoder.decode(Terms.toStringCoerce(args[0], null), StandardCharsets.UTF_8);
+            case "decodeURIComponent" -> new JsBuiltinMethod("decodeURIComponent", 1, (ctx, args) ->
+                    decode(firstArgToString(ctx, args), ""));
             case "encodeURI" -> (JsInvokable) args -> {
                 String encoded = URLEncoder.encode(Terms.toStringCoerce(args[0], null), StandardCharsets.UTF_8);
                 return encoded.replace("+", "%20")
@@ -365,8 +495,10 @@ class ContextRoot implements Context {
                         .replace("%3B", ";").replace("%3D", "=").replace("%3F", "?")
                         .replace("%40", "@").replace("%7E", "~");
             };
-            case "decodeURI" -> (JsInvokable) args ->
-                    URLDecoder.decode(Terms.toStringCoerce(args[0], null), StandardCharsets.UTF_8);
+            case "decodeURI" -> new JsBuiltinMethod("decodeURI", 1, (ctx, args) ->
+                    decode(firstArgToString(ctx, args), DECODE_URI_RESERVED));
+            case "escape" -> new JsBuiltinMethod("escape", 1, (ctx, args) -> escape(firstArgToString(ctx, args)));
+            case "unescape" -> new JsBuiltinMethod("unescape", 1, (ctx, args) -> unescape(firstArgToString(ctx, args)));
             case "undefined" -> Terms.UNDEFINED;
             case "eval" -> (JsInvokable) args -> {
                 if (args.length == 0) return Terms.UNDEFINED;

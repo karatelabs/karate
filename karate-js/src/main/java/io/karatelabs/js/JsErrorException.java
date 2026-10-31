@@ -77,6 +77,10 @@ class JsErrorException extends RuntimeException {
         return new JsErrorException(build(JsErrorPrototype.RANGE_ERROR, message, null));
     }
 
+    static JsErrorException uriError(String message) {
+        return new JsErrorException(build(JsErrorPrototype.URI_ERROR, message, null));
+    }
+
     /**
      * The RangeError a Java {@link StackOverflowError} becomes. Built on an almost
      * exhausted stack, so {@link Interpreter}'s class init builds one first — see there.
