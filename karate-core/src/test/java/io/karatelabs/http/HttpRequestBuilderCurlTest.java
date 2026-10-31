@@ -538,14 +538,8 @@ class HttpRequestBuilderCurlTest {
         String curl = http.toCurlCommand("ps");
         logger.debug("PowerShell format:\n{}", curl);
 
-        // Should use single quotes (PowerShell style)
-        assertTrue(curl.contains("'https://api.example.com/users'"));
-        assertTrue(curl.contains("-H 'Authorization: Bearer token123'"));
-        // Single quotes in JSON should be doubled for PowerShell
-        assertTrue(curl.contains("It''s a test"));
-        // Should use ` (backtick) for line continuation
-        assertTrue(curl.contains(" `\n"));
-        assertFalse(curl.contains(" \\\n"));
+        assertEquals("curl.exe -X POST `\n  'https://api.example.com/users' `\n"
+                + "  -H 'Authorization: Bearer token123' `\n  -H 'Content-Type: application/json' `\n  -d '{\"message\":\"It''s a test\"}'", curl);
     }
 
     @Test
@@ -578,11 +572,11 @@ class HttpRequestBuilderCurlTest {
     }
 
     // Exact output per shell: sh single-quotes ('\''), cmd caret-escapes a C-runtime-quoted argument, and
-    // PowerShell single-quotes (doubled).
+    // PowerShell 7.3+ single-quotes (doubled) for curl.exe.
 
     private static final String SH = "curl -X GET \\\n  'https://api.example.com/x' \\\n  ";
     private static final String CMD = "curl -X GET ^\n  ^\"https://api.example.com/x^\" ^\n  ";
-    private static final String PS = "curl -X GET `\n  'https://api.example.com/x' `\n  ";
+    private static final String PS = "curl.exe -X GET `\n  'https://api.example.com/x' `\n  ";
 
     private static void assertCurl(HttpRequestBuilder http, String sh, String cmd, String ps) {
         assertEquals(sh, http.toCurlCommandPreview("sh"), "sh");
@@ -677,7 +671,7 @@ class HttpRequestBuilderCurlTest {
         assertCurl(http,
                 "curl -X POST \\\n  'https://api.example.com/x' \\\n  -d '{\n\t\"a\": \"b\"\n}'",
                 "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  -d ^\"{^\n\n\t\\^\"a\\^\": \\^\"b\\^\"^\n\n}^\"",
-                "curl -X POST `\n  'https://api.example.com/x' `\n  -d '{\n\t\"a\": \"b\"\n}'");
+                "curl.exe -X POST `\n  'https://api.example.com/x' `\n  -d '{\n\t\"a\": \"b\"\n}'");
     }
 
     @Test
@@ -687,7 +681,7 @@ class HttpRequestBuilderCurlTest {
         assertCurl(http,
                 "curl -X POST \\\n  'https://api.example.com/x' \\\n  -d '{\"path\":\"C:\\\\dir\\\\\"}'",
                 "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  -d ^\"{\\^\"path\\^\":\\^\"C:\\\\dir\\\\\\\\\\^\"}^\"",
-                "curl -X POST `\n  'https://api.example.com/x' `\n  -d '{\"path\":\"C:\\\\dir\\\\\"}'");
+                "curl.exe -X POST `\n  'https://api.example.com/x' `\n  -d '{\"path\":\"C:\\\\dir\\\\\"}'");
     }
 
     @Test
@@ -697,7 +691,7 @@ class HttpRequestBuilderCurlTest {
         assertCurl(http,
                 "curl -X POST \\\n  'https://api.example.com/x' \\\n  --data-raw '@notafile'",
                 "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  --data-raw ^\"@notafile^\"",
-                "curl -X POST `\n  'https://api.example.com/x' `\n  --data-raw '@notafile'");
+                "curl.exe -X POST `\n  'https://api.example.com/x' `\n  --data-raw '@notafile'");
     }
 
     @Test
@@ -708,7 +702,7 @@ class HttpRequestBuilderCurlTest {
         assertCurl(http,
                 "curl -X GET \\\n  'https://api.example.com/search?a=1&b=2'",
                 "curl -X GET ^\n  ^\"https://api.example.com/search?a=1^&b=2^\"",
-                "curl -X GET `\n  'https://api.example.com/search?a=1&b=2'");
+                "curl.exe -X GET `\n  'https://api.example.com/search?a=1&b=2'");
     }
 
     @Test
@@ -722,7 +716,7 @@ class HttpRequestBuilderCurlTest {
                         + "  -F 'file=@a.txt;type=text/plain' \\\n  --form-string 'note=@notes.txt'",
                 "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  -F ^\"title=a ^& b^\" ^\n"
                         + "  -F ^\"file=@a.txt;type=text/plain^\" ^\n  --form-string ^\"note=@notes.txt^\"",
-                "curl -X POST `\n  'https://api.example.com/x' `\n  -F 'title=a & b' `\n"
+                "curl.exe -X POST `\n  'https://api.example.com/x' `\n  -F 'title=a & b' `\n"
                         + "  -F 'file=@a.txt;type=text/plain' `\n  --form-string 'note=@notes.txt'");
     }
 
@@ -733,7 +727,7 @@ class HttpRequestBuilderCurlTest {
         assertCurl(http,
                 "curl -X POST \\\n  'https://api.example.com/x' \\\n  --data-urlencode 'q=a b&c=d'",
                 "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  --data-urlencode ^\"q=a b^&c=d^\"",
-                "curl -X POST `\n  'https://api.example.com/x' `\n  --data-urlencode 'q=a b&c=d'");
+                "curl.exe -X POST `\n  'https://api.example.com/x' `\n  --data-urlencode 'q=a b&c=d'");
     }
 
     @Test
@@ -744,5 +738,47 @@ class HttpRequestBuilderCurlTest {
                 SH + "-u 'user:p@ss'\\''w\"rd%'",
                 CMD + "-u ^\"user:p@ss'w\\^\"rd^%^\"",
                 PS + "-u 'user:p@ss''w\"rd%'");
+    }
+
+    // PowerShell 7.3+ passes each single-quoted value to curl.exe as it is, embedded double quotes included.
+
+    @Test
+    void testJsonBodyWithEscapedQuoteAndSpace() {
+        HttpRequestBuilder http = post();
+        http.body(Map.of("q", "he said \"hi there\""));
+        assertCurl(http,
+                "curl -X POST \\\n  'https://api.example.com/x' \\\n  -d '{\"q\":\"he said \\\"hi there\\\"\"}'",
+                "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  -d ^\"{\\^\"q\\^\":\\^\"he said \\\\\\^\"hi there\\\\\\^\"\\^\"}^\"",
+                "curl.exe -X POST `\n  'https://api.example.com/x' `\n  -d '{\"q\":\"he said \\\"hi there\\\"\"}'");
+    }
+
+    @Test
+    void testBodyWithDollarBacktickAndQuotes() {
+        HttpRequestBuilder http = post();
+        http.body("$env:X `n it's ‘a’ “b”");
+        assertCurl(http,
+                "curl -X POST \\\n  'https://api.example.com/x' \\\n  -d '$env:X `n it'\\''s ‘a’ “b”'",
+                "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  -d ^\"$env:X `n it's ‘a’ “b”^\"",
+                "curl.exe -X POST `\n  'https://api.example.com/x' `\n  -d '$env:X `n it''s ‘‘a’’ “b”'");
+    }
+
+    @Test
+    void testEmptyBodyIsAnEmptyArgument() {
+        HttpRequestBuilder http = post();
+        http.body("");
+        assertCurl(http,
+                "curl -X POST \\\n  'https://api.example.com/x' \\\n  -d ''",
+                "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  -d ^\"^\"",
+                "curl.exe -X POST `\n  'https://api.example.com/x' `\n  -d ''");
+    }
+
+    @Test
+    void testBodyWithNonAscii() {
+        HttpRequestBuilder http = post();
+        http.body("héllo 日本 ✓");
+        assertCurl(http,
+                "curl -X POST \\\n  'https://api.example.com/x' \\\n  -d 'héllo 日本 ✓'",
+                "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  -d ^\"héllo 日本 ✓^\"",
+                "curl.exe -X POST `\n  'https://api.example.com/x' `\n  -d 'héllo 日本 ✓'");
     }
 }

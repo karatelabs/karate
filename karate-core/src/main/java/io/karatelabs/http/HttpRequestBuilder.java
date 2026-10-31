@@ -618,7 +618,8 @@ public class HttpRequestBuilder implements SimpleObject {
         String lineContinuation = StringUtils.getLineContinuation(effectivePlatform);
 
         StringBuilder sb = new StringBuilder();
-        sb.append("curl");
+        // curl is an alias for Invoke-WebRequest in Windows PowerShell
+        sb.append("ps".equals(effectivePlatform) ? "curl.exe" : "curl");
 
         // Determine method - use provided or default
         String curlMethod = method;

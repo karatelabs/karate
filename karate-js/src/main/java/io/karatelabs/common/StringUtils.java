@@ -410,7 +410,7 @@ public class StringUtils {
      * Escapes a string for the specified shell platform.
      *
      * @param value the string to escape
-     * @param platform "sh" for Unix/Linux/macOS, "cmd" for Windows CMD, "ps" for PowerShell
+     * @param platform "sh" for Unix/Linux/macOS, "cmd" for Windows CMD, "ps" for PowerShell 7.3+
      * @return escaped string suitable for the target platform
      */
     public static String shellEscapeForPlatform(String value, String platform) {
@@ -427,7 +427,7 @@ public class StringUtils {
     /**
      * Returns the line continuation character for the specified shell platform.
      *
-     * @param platform "sh" for Unix/Linux/macOS, "cmd" for Windows CMD, "ps" for PowerShell
+     * @param platform "sh" for Unix/Linux/macOS, "cmd" for Windows CMD, "ps" for PowerShell 7.3+
      * @return line continuation string
      */
     public static String getLineContinuation(String platform) {

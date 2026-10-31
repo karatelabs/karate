@@ -207,6 +207,45 @@ class StringUtilsCliTest {
         assertEquals("^\"^^^&^|^<^>^%^\"", result);
     }
 
+    // ==================== shellEscapePowerShell (PowerShell 7.3+) Tests ====================
+
+    @Test
+    void testPowerShellEscapeSimpleString() {
+        assertEquals("'hello'", StringUtils.shellEscapePowerShell("hello"));
+    }
+
+    @Test
+    void testPowerShellEscapeJsonWithDoubleQuotesAndSpace() {
+        assertEquals("'{\"q\":\"he said \\\"hi there\\\"\"}'",
+                StringUtils.shellEscapePowerShell("{\"q\":\"he said \\\"hi there\\\"\"}"));
+    }
+
+    @Test
+    void testPowerShellEscapeSingleAndTypographicQuotes() {
+        assertEquals("'it''s ‘‘a’’ ‚‚b‛‛ “c”'", StringUtils.shellEscapePowerShell("it's ‘a’ ‚b‛ “c”"));
+    }
+
+    @Test
+    void testPowerShellEscapeDollarAndBacktick() {
+        assertEquals("'$env:PATH $(x) `n'", StringUtils.shellEscapePowerShell("$env:PATH $(x) `n"));
+    }
+
+    @Test
+    void testPowerShellEscapeEmptyAndNull() {
+        assertEquals("''", StringUtils.shellEscapePowerShell(""));
+        assertEquals("''", StringUtils.shellEscapePowerShell(null));
+    }
+
+    @Test
+    void testPowerShellEscapeTrailingBackslashBeforeQuote() {
+        assertEquals("'C:\\dir\\\" x\\'", StringUtils.shellEscapePowerShell("C:\\dir\\\" x\\"));
+    }
+
+    @Test
+    void testPowerShellEscapeNonAscii() {
+        assertEquals("'héllo 日本 ✓ 🌍'", StringUtils.shellEscapePowerShell("héllo 日本 ✓ 🌍"));
+    }
+
     // ==================== shellEscape (OS-aware) Tests ====================
 
     @Test
