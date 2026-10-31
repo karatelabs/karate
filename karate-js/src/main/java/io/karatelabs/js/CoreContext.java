@@ -676,6 +676,39 @@ class CoreContext implements Context {
         }
     }
 
+    /** A var-scoped binding of this context, initialized to undefined unless the name is
+     *  already bound here — a parameter, a hoisted function, {@code arguments}, or an
+     *  earlier call of this. Function entry binds every VarDeclaredName this way
+     *  (§10.2.11 step 27, Annex B.3.3), a Script its names the chain cannot already
+     *  resolve (§16.1.7 step 16), and a {@code var} declarator without an initializer
+     *  reaches here instead of writing (§14.3.2.1: it evaluates to empty). */
+    void declareVar(String key) {
+        if (frameTable != null) {
+            int idx = frameTable.indexOf(key);
+            if (idx >= 0) {
+                if (frame[idx] == SlotTable.UNDECLARED) {
+                    frame[idx] = Terms.UNDEFINED;
+                }
+                return;
+            }
+        }
+        if (callArgs != null && "arguments".equals(key)) {
+            return;
+        }
+        if (bindings == null) {
+            bindings = new BindingsStore();
+        } else if (bindings.hasMember(key)) {
+            return;
+        }
+        bindings.pushBinding(key, Terms.UNDEFINED, null, findFunctionLevel());
+    }
+
+    /** {@code delete identifier}: false for a declared binding (§9.1.1.1.7 — every binding
+     *  here is one); a {@link WithContext} deletes its object's property. */
+    boolean deleteBinding(String key, Node node) {
+        return false;
+    }
+
     void update(String key, Object value) {
         update(key, value, null);
     }
@@ -705,8 +738,15 @@ class CoreContext implements Context {
             // ReferenceError — only its declaration may initialize it
             throw SlotTable.tdzError(key);
         }
-        if (s.scope == BindScope.CONST) {
+        if (s.scope == BindScope.CONST || s.scope == BindScope.FUNCTION && strict) {
             throw JsErrorException.typeError("assignment to constant: " + key);
+        }
+        if (s.scope == BindScope.FUNCTION) {
+            return;
+        }
+        if (s.withBase != null) {
+            s.withBase.putMember(key, value, this, strict);
+            return;
         }
         // NamedEvaluation (§13.15.2): when RHS is an anonymous function expression and
         // LHS is an IdentifierRef, set fn.name from the identifier. Mirrors the

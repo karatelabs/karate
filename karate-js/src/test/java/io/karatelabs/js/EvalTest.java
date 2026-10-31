@@ -2047,4 +2047,17 @@ class EvalTest extends EvalBase {
         assertEquals("h", eval("var a; [a] = 'hello'; a"));
     }
 
+
+    @Test
+    void testOfIsAnIdentifierOutsideForOf() {
+        assertEquals(3, eval("function of(n) { return n + 1 } of(2)"));
+        assertEquals(2, eval("var of = 2; of"));
+        assertEquals(4, eval("var o = {of: 4}; o.of"));
+        assertEquals(5, eval("var o = {of: 5}; var {of} = o; of"));
+        assertEquals("1,2", eval("var out = []; for (var x of [1, 2]) out.push(x); out.join()"));
+        assertEquals("a,b", eval("var out = []; for (const [k] of [['a'], ['b']]) out.push(k); out.join()"));
+        assertEquals(1, eval("var of = [1]; for (var v of of) {} v"));
+        assertEquals("x", eval("var of = function() { return 'x' }\nof()"));
+    }
+
 }

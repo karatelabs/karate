@@ -50,8 +50,6 @@ skip:
       reason: class generators/async/decorators + field/early-error conformance tail not done (Phases 1-3 + private elements done — see JsClassTest)
     - path: test/language/expressions/super/**
       reason: object-literal-method super + super edge cases (this-TDZ, return-override) not done (class super done — see JsClassTest)
-    - path: test/language/statements/with/**
-      reason: with-statement is conformance-only, negligible in real-world JS and LLM-written code
     - path: test/language/eval-code/direct/**
       reason: direct-eval lexical-environment semantics are exotic, negligible in real-world JS
 

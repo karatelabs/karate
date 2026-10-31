@@ -65,6 +65,7 @@ public enum TokenType {
     OF(true),
     DO(true),
     WHILE(true),
+    WITH(true),
     SWITCH(true),
     CASE(true),
     DEFAULT(true),

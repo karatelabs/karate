@@ -257,12 +257,11 @@ class SlotFrameTest {
     }
 
     @Test
-    void dynamicVarSemanticsPreserved() {
-        // this engine declares var at its statement (no hoisting): a read
-        // before the var line resolves the outer/global binding
-        assertEquals(42, evalBoth("var x = 42; function f() { var y = x; var x = 1; return y; } f()"));
-        // pre-declaration write goes to the outer binding, as today
-        assertEquals(32, evalBoth("var g = 1; function f() { g = 2; var g = 3; return g; } f() * 10 + g"));
+    void varHoistingSemanticsPreserved() {
+        // a var is bound at function entry (§10.2.11), on the frame and in the store alike:
+        // a read before the var line is undefined, a write lands on the local
+        assertEquals("undefined", evalBoth("var x = 42; function f() { var y = typeof x; var x = 1; return y; } f()"));
+        assertEquals(31, evalBoth("var g = 1; function f() { g = 2; var g = 3; return g; } f() * 10 + g"));
     }
 
     @Test

@@ -27,6 +27,9 @@ public enum BindScope {
 
     VAR,
     LET,
-    CONST
+    CONST,
+    /** The name of a named function expression, in the scope only that function sees
+     *  (§15.2.5): immutable, an assignment is ignored (strict: TypeError). */
+    FUNCTION
 
 }

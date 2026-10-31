@@ -336,4 +336,17 @@ class JsRegexTest extends EvalBase {
                         + " out"));
     }
 
+
+    @Test
+    void testNulEscape() {
+        // \0 is NUL unless an octal digit follows (Annex B legacy octal)
+        assertEquals(true, eval("/\\0/.test('a\\0b')"));
+        assertEquals(false, eval("/\\0/.test('a0b')"));
+        assertEquals(true, eval("/[^\\0-\\x7E]/.test('\\u00e9')"));
+        assertEquals(false, eval("/[^\\0-\\x7E]/.test('abc')"));
+        assertEquals(true, eval("/[\\0]/.test('\\0')"));
+        assertEquals(true, eval("/\\07/.test('\\u0007')"));
+        assertEquals(true, eval("/\\\\0/.test('\\\\0')"));
+    }
+
 }

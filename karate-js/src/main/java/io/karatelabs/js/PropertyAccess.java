@@ -646,7 +646,7 @@ class PropertyAccess {
      */
     static boolean delete(Node node, CoreContext context) {
                 return switch (node.type) {
-            case REF_EXPR -> false; // Can't delete variables
+            case REF_EXPR -> node.getFirst().isToken() && context.deleteBinding(node.getText(), node);
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site;
                 try {
@@ -1374,7 +1374,7 @@ class PropertyAccess {
         return newValue;
     }
 
-    private static boolean deleteByKey(Object object, String key, CoreContext context, Node node) {
+    static boolean deleteByKey(Object object, String key, CoreContext context, Node node) {
         Object oldValue = null;
         if (object instanceof ObjectLike ol) {
             // §13.5.1.2: sloppy delete of a non-configurable own property is

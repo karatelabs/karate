@@ -960,7 +960,7 @@ class Interpreter {
         for (int i = 0, n = parent.size(); i < n; i++) {
             Node child = parent.get(i);
             if (isFunctionDeclarationStatement(child)) {
-                evalFnExpr(child.getFirst(), context);
+                evalFnExpr(child.getFirst(), context, true);
             }
         }
     }
@@ -1030,19 +1030,32 @@ class Interpreter {
     }
 
     private static Object evalFnExpr(Node node, CoreContext context) {
+        return evalFnExpr(node, context, false);
+    }
+
+    /** {@code declaration}: statement position, so the name is bound in the enclosing
+     *  scope (the caller hoists). A named function <i>expression</i> binds its name in a
+     *  scope of its own that only the function's body sees (§15.2.5), immutably. */
+    private static Object evalFnExpr(Node node, CoreContext context, boolean declaration) {
         // Shorthand method syntax ({foo() {...}}) produces an FN_EXPR whose
         // first child is FN_DECL_ARGS (no leading `function` keyword / name).
         if (node.getFirst().type == NodeType.FN_DECL_ARGS) {
             return new JsFunctionNode(false, node, fnArgs(node.getFirst()), node.getLast(), context);
         }
         int i = fnNameOrArgsIndex(node);
-        if (node.get(i).token.type == IDENT) {
-            JsFunctionNode fn = new JsFunctionNode(false, node, fnArgs(node.get(i + 1)), node.getLast(), context);
-            context.put(node.get(i).getText(), fn);
-            return fn;
-        } else {
+        if (node.get(i).token.type != IDENT) {
             return new JsFunctionNode(false, node, fnArgs(node.get(i)), node.getLast(), context);
         }
+        String name = node.get(i).getText();
+        if (declaration) {
+            JsFunctionNode fn = new JsFunctionNode(false, node, fnArgs(node.get(i + 1)), node.getLast(), context);
+            context.put(name, fn);
+            return fn;
+        }
+        CoreContext fnScope = new CoreContext(context.root, context, context.depth, node, ContextScope.BLOCK, null);
+        JsFunctionNode fn = new JsFunctionNode(false, node, fnArgs(node.get(i + 1)), node.getLast(), fnScope);
+        fnScope.declare(name, fn, BindScope.FUNCTION, true);
+        return fn;
     }
 
     private static Object evalFnArrowExpr(Node node, CoreContext context) {
@@ -2541,6 +2554,15 @@ class Interpreter {
         if (lexical != LexicalScope.NONE) {
             lexical.instantiateGlobal(context);
         }
+        // Script vars: a name the chain already resolves (a host binding, an earlier
+        // eval's, a built-in) is kept, like a global object property (§16.1.7 step 16)
+        List<String> vars = new ArrayList<>(2);
+        JsParser.varDeclaredNames(node, vars);
+        for (String name : vars) {
+            if (!context.hasKey(name)) {
+                context.declareVar(name);
+            }
+        }
         // Hoist top-level function declarations so they're visible before their lexical
         // position. Per ES5/ES6, `function foo() {}` at script-level is registered before
         // any other statement runs — code earlier in the source can still reference foo.
@@ -2691,6 +2713,10 @@ class Interpreter {
     }
 
     private static Object evalStatement(Node node, CoreContext context) {
+        if (isFunctionDeclarationStatement(node)) {
+            // a declaration no block hoisted: the body of an `if` (Annex B.3.4) or a label
+            return evalFnExpr(node.getFirst(), context, true);
+        }
         node = node.getFirst(); // go straight to relevant node
         if (node.token.type == SEMI) { // ignore empty statements
             return null;
@@ -3361,6 +3387,11 @@ class Interpreter {
             if (child.size() > 2) { // binding, EQ, expr
                 value = eval(child.get(2), context);
                 initialized = true;
+            } else if (bindScope == BindScope.VAR && binding.isToken()) {
+                // §14.3.2.1: no initializer, no write — the hoisted binding keeps its value
+                context.declareVar(binding.getText());
+                lastValue = Terms.UNDEFINED;
+                continue;
             } else {
                 // §14.3.1.2: a let (or var) declarator with no initializer INITIALIZES the binding to
                 // undefined — the TDZ ends at the declaration, it does not outlive it; only a const
@@ -3372,6 +3403,30 @@ class Interpreter {
             lastValue = value;
         }
         return lastValue;
+    }
+
+    /** §14.11.2: the body runs in an object environment over the expression's value
+     *  ({@link WithContext}), whose completion is then this context's. */
+    private static Object evalWithStmt(Node node, CoreContext context) {
+        Object value = eval(node.get(2), context);
+        if (context.isStopped()) {
+            return null;
+        }
+        if (value == null || value == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("cannot convert " + value + " to object");
+        }
+        ObjectLike object = Terms.toObjectLike(value);
+        if (object == null) {
+            throw JsErrorException.typeError("cannot convert value to object");
+        }
+        WithContext withContext = new WithContext(context, node, object);
+        Object result = eval(node.getLast(), withContext);
+        if (withContext.getExitType() != null) {
+            context.restoreCompletion(withContext.getExitType(), withContext.getExitLabel(),
+                    withContext.getReturnValue(), withContext.getErrorThrown(),
+                    withContext.isErrorAuthored(), withContext.getErrorAuthoredLine());
+        }
+        return result;
     }
 
     private static Object evalWhileStmt(Node node, CoreContext context) {
@@ -3514,6 +3569,7 @@ class Interpreter {
             case YIELD_EXPR -> evalYieldExpr(node, context);
             case VAR_STMT -> evalVarStmt(node, context);
             case WHILE_STMT -> evalWhileStmt(node, context);
+            case WITH_STMT -> evalWithStmt(node, context);
             case DO_WHILE_STMT -> evalDoWhileStmt(node, context);
             default -> throw new RuntimeException(node.toStringError("eval - unexpected node"));
         };

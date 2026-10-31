@@ -588,7 +588,7 @@ class EngineExceptionTest {
         cases.put("var k = 'x'; undefined[k]", "Cannot read properties of undefined (reading 'x')");
         cases.put("var x; x.y = 1", "Cannot set properties of undefined (setting 'y')");
         cases.put("var x = null; x['y'] = 1", "Cannot set properties of null (setting 'y')");
-        cases.put("var x; x.y ??= 1", "Cannot read properties of undefined (reading 'y')");
+        cases.put("var w; w.y ??= 1", "Cannot read properties of undefined (reading 'y')");
         cases.forEach((script, message) -> {
             assertEquals("TypeError: " + message, engine.eval("try { " + script + " } catch (e) { e.name + ': ' + e.message }"), script);
             EngineException ex = assertThrowsEngineException(script);

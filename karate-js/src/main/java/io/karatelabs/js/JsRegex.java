@@ -172,7 +172,7 @@ public class JsRegex extends JsObject {
     // Inside a JS character class `[` and `&` are literal, where Java reads a nested class and `&&`
     // intersection; `[^]` matches any character and `[]` none (§22.2.1).
     static String translateJsRegexToJava(String jsPattern) {
-        if (jsPattern.indexOf('[') < 0) {
+        if (jsPattern.indexOf('[') < 0 && jsPattern.indexOf("\\0") < 0) {
             return jsPattern;
         }
         int n = jsPattern.length();
@@ -181,7 +181,14 @@ public class JsRegex extends JsObject {
         for (int i = 0; i < n; i++) {
             char c = jsPattern.charAt(i);
             if (c == '\\' && i + 1 < n) {
-                sb.append(c).append(jsPattern.charAt(++i));
+                char e = jsPattern.charAt(++i);
+                if (e == '0' && (i + 1 == n || jsPattern.charAt(i + 1) < '0' || jsPattern.charAt(i + 1) > '7')) {
+                    // NUL (§22.2.2.9 CharacterEscape); Java reads a lone \0 as a broken octal
+                    // escape. \0 with an octal digit after it is Annex B octal in both.
+                    sb.append("\\x00");
+                } else {
+                    sb.append(c).append(e);
+                }
             } else if (!inClass && c == '[') {
                 if (jsPattern.startsWith("[^]", i)) {
                     sb.append("[\\s\\S]");

@@ -381,6 +381,13 @@ class JsFunctionNode extends JsFunction {
                 }
             }
         }
+        if (body.type == NodeType.BLOCK) {
+            // after the parameters: a var named like one keeps the argument, and a
+            // parameter default never sees the body's vars (§10.2.11 steps 27-28)
+            for (String name : LexicalScope.ofFunctionBody(body).varNames) {
+                functionContext.declareVar(name);
+            }
+        }
         Object result = Interpreter.eval(body, functionContext);
         // exit function, only propagate error
         if (functionContext.isError()) {

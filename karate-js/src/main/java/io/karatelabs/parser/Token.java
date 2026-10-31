@@ -68,6 +68,19 @@ public class Token {
         this(buffer, type, pos, (int) line, (int) col, (int) length);
     }
 
+    /** The same lexeme under another type: a contextual keyword the parser recognized
+     *  ({@code of} in a for-of head). Shares the buffer entry, so text, comments and
+     *  neighbours are the original's. */
+    Token(Token source, TokenType type) {
+        this.buffer = source.buffer;
+        this.index = source.index;
+        this.type = type;
+        this.pos = source.pos;
+        this.line = source.line;
+        this.col = source.col;
+        this.length = source.length;
+    }
+
     public Resource getResource() {
         return buffer.resource;
     }

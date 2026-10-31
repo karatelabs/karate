@@ -39,6 +39,10 @@ final class BindingSlot {
 
     final String name;
     Object value;
+    /** The object a {@code with} statement's environment resolved this name on
+     *  ({@link WithContext}): the slot is a read of the property, and a write goes
+     *  to the object. Null for every real binding. */
+    ObjectLike withBase;
 
     /** null = var (or implicit), LET / CONST otherwise. */
     BindScope scope;

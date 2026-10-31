@@ -48,16 +48,17 @@ class JsFunctionConstructor extends JsFunction {
 
     @Override
     public Object call(Context context, Object[] args) {
+        CoreContext cc = context instanceof CoreContext c ? c : null;
         StringBuilder src = new StringBuilder("(function anonymous(");
         if (args.length == 0) {
             src.append(") {\n})");
         } else {
             for (int i = 0; i < args.length - 1; i++) {
                 if (i > 0) src.append(',');
-                src.append(argToString(args[i]));
+                src.append(argToString(args[i], cc));
             }
             src.append("\n) {\n");
-            src.append(argToString(args[args.length - 1]));
+            src.append(argToString(args[args.length - 1], cc));
             src.append("\n})");
         }
         Engine engine = context.getEngine();
@@ -73,9 +74,10 @@ class JsFunctionConstructor extends JsFunction {
         }
     }
 
-    private static String argToString(Object arg) {
+    /** ToString (§20.2.1.1.1 CreateDynamicFunction): an array of names joins to a list. */
+    private static String argToString(Object arg, CoreContext context) {
         if (arg == null || arg == Terms.UNDEFINED) return "";
-        return arg.toString();
+        return Terms.toStringCoerce(arg, context);
     }
 
 }

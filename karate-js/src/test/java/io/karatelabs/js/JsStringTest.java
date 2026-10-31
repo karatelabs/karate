@@ -362,4 +362,15 @@ class JsStringTest extends EvalBase {
         assertEquals(List.of("", "bab"), eval("'abab'.split(/^a/)"));
     }
 
+
+    @Test
+    void testCodePointEscape() {
+        assertEquals("A", eval("'\\u{41}'"));
+        assertEquals("A", eval("'\\u{000041}'"));
+        assertEquals(2, eval("'\\u{1F600}'.length"));
+        assertEquals(0x1F600, eval("'\\u{1F600}'.codePointAt(0)"));
+        assertEquals("A", eval("'\\u0041'"));
+        assertEquals("\\u{41}", eval("'\\\\u{41}'"));
+    }
+
 }

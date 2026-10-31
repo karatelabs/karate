@@ -322,6 +322,9 @@ final class SlotTable {
         }
         Walker w = new Walker();
         w.walk(body, body.type == NodeType.BLOCK ? body : null);
+        if (w.withStatement) {
+            return null;
+        }
         // Default-value expressions run in the function context too — walk them
         // for captured/annotation coverage (they contain no declarations).
         for (Node argNode : argNodes) {
@@ -474,6 +477,7 @@ final class SlotTable {
         final Set<String> captured = new LinkedHashSet<>();
         final Map<String, LetDecl> letConsts = new LinkedHashMap<>();
         final Map<String, Integer> declCount = new HashMap<>();
+        boolean withStatement;
 
         private void count(String name) {
             declCount.merge(name, 1, Integer::sum);
@@ -484,16 +488,23 @@ final class SlotTable {
                 return;
             }
             switch (node.type) {
-                case FN_EXPR -> {
-                    // evalFnExpr binds the name into the defining context for
-                    // any named FN_EXPR (declaration or expression position).
-                    if (node.size() > 1 && node.get(1).isToken() && node.get(1).token.type == TokenType.IDENT) {
-                        fnDecls.add(node.get(1).getText());
-                    }
-                    collectCaptured(node);
-                }
-                case FN_ARROW_EXPR, CLASS_EXPR -> collectCaptured(node);
+                case FN_EXPR, FN_ARROW_EXPR, CLASS_EXPR -> collectCaptured(node);
                 case STATEMENT -> {
+                    // a function declaration binds its name in this function; a named
+                    // function expression binds it in a scope of its own (evalFnExpr)
+                    Node first = node.size() > 0 ? node.getFirst() : null;
+                    if (first != null && first.type == NodeType.FN_EXPR) {
+                        for (int i = 0, n = first.size(); i < n; i++) {
+                            Node ch = first.get(i);
+                            if (!ch.isToken()) {
+                                break;
+                            }
+                            if (ch.token.type == TokenType.IDENT) {
+                                fnDecls.add(ch.getText());
+                                break;
+                            }
+                        }
+                    }
                     // a statement is transparent for let-scope: BLOCK → STATEMENT
                     // → VAR_STMT keeps the block as the declaring scope
                     for (int i = 0, n = node.size(); i < n; i++) {
@@ -567,6 +578,7 @@ final class SlotTable {
                         }
                     }
                 }
+                case WITH_STMT -> withStatement = true; // its object shadows dynamically: no frame
                 case TRY_STMT -> {
                     // catch (param) binds via context.put at function level;
                     // keep those names on the STORE side.

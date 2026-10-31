@@ -327,7 +327,7 @@ class JsLexerTest {
         assertEquals(List.of(FINALLY, EOF), types("finally"));
         assertEquals(List.of(THROW, EOF), types("throw"));
         assertEquals(List.of(IN, EOF), types("in"));
-        assertEquals(List.of(OF, EOF), types("of"));
+        assertEquals(List.of(IDENT, EOF), types("of")); // contextual: the parser types the for-of head's
         assertEquals(List.of(VOID, EOF), types("void"));
     }
 

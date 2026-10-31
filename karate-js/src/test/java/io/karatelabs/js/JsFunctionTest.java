@@ -749,4 +749,13 @@ class JsFunctionTest extends EvalBase {
         assertEquals("bound h", eval("function h(a){}; h.bind(null).name"));
     }
 
+
+    @Test
+    void testFunctionConstructorParamsToString() {
+        // §20.2.1.1.1: each parameter argument is ToString'd — an array joins to a list
+        assertEquals(3, eval("Function(['a', 'b'], 'return a + b')(1, 2)"));
+        assertEquals(3, eval("new Function('a', 'b', 'return a + b')(1, 2)"));
+        assertEquals(1, eval("Function('return 1')()"));
+    }
+
 }

@@ -768,8 +768,6 @@ public class JsLexer extends BaseLexer {
             if (c0 == 'i') {
                 if (source.charAt(start + 1) == 'f') return IF;
                 if (source.charAt(start + 1) == 'n') return IN;
-            } else if (c0 == 'o' && source.charAt(start + 1) == 'f') {
-                return OF;
             } else if (c0 == 'd' && source.charAt(start + 1) == 'o') {
                 return DO;
             }
@@ -787,6 +785,7 @@ public class JsLexer extends BaseLexer {
             if (c0 == 'e' && matchKeyword(start, "else")) return ELSE;
             if (c0 == 'c' && matchKeyword(start, "case")) return CASE;
             if (c0 == 'v' && matchKeyword(start, "void")) return VOID;
+            if (c0 == 'w' && matchKeyword(start, "with")) return WITH;
         } else if (len == 5) {
             char c0 = source.charAt(start);
             if (c0 == 'f' && matchKeyword(start, "false")) return FALSE;
@@ -1022,6 +1021,19 @@ public class JsLexer extends BaseLexer {
                         }
                     }
                     case 'u' -> {
+                        int close = i + 2 < s.length() && s.charAt(i + 2) == '{' ? s.indexOf('}', i + 3) : -1;
+                        if (close > i + 3) { // u-brace code point escape (§12.9.4)
+                            try {
+                                int cp = Integer.parseInt(s.substring(i + 3, close), 16);
+                                if (cp <= 0x10FFFF) {
+                                    sb.appendCodePoint(cp);
+                                    i = close;
+                                    break;
+                                }
+                            } catch (NumberFormatException e) {
+                                // not a code point escape: fall through to the 4-digit form
+                            }
+                        }
                         // Unicode escape sequence (4 hex digits)
                         if (i + 5 < s.length()) {
                             try {

@@ -1282,7 +1282,7 @@ public class Terms {
         }
         // a typed array borrows Array.prototype's methods (there is no
         // %TypedArray%.prototype chain yet) but is not an Array
-        if (lhs instanceof JsUint8Array && rhs instanceof JsArrayConstructor) {
+        if ((lhs instanceof JsUint8Array || lhs instanceof JsUint32Array) && rhs instanceof JsArrayConstructor) {
             return false;
         }
         if (!(rhs instanceof ObjectLike objectRhs)) {

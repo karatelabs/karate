@@ -161,7 +161,7 @@ class ContextRoot implements Context {
             "Infinity", "Java", "JSON", "Map", "Math", "NaN", "Number", "BigInt", "Boolean",
             "Object", "Promise", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
             "SyntaxError", "URIError", "EvalError", "AggregateError", "WeakMap", "WeakSet",
-            "TextEncoder", "TextDecoder", "Uint8Array", "globalThis",
+            "TextEncoder", "TextDecoder", "Uint8Array", "Uint32Array", "crypto", "globalThis",
             "setTimeout", "clearTimeout", "structuredClone", "performance",
             "isNaN", "isFinite", "eval", "Symbol", "Reflect");
 
@@ -534,7 +534,9 @@ class ContextRoot implements Context {
             case "structuredClone" -> new JsBuiltinMethod("structuredClone", 1, JsStructuredClone::call);
             case "TextDecoder" -> new JsTextDecoder();
             case "TextEncoder" -> new JsTextEncoder();
+            case "crypto" -> new JsCrypto();
             case "Uint8Array" -> new JsUint8Array(0);
+            case "Uint32Array" -> new JsUint32Array(new int[0]);
             // Minimal Reflect — only `construct` and `apply` are wired so the
             // test262 isConstructor harness works. Full Reflect stays gated
             // via the `feature: Reflect` skip in expectations.yaml.

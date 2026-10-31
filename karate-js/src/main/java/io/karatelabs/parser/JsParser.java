@@ -577,6 +577,10 @@ public class JsParser extends BaseParser {
                 checkNoLexicalOrClassDeclarationBody(node, "a loop");
             }
             case IF_STMT -> checkNoLexicalOrClassDeclarationBody(node, "an `if`/`else` clause");
+            case WITH_STMT -> {
+                checkNoFunctionDeclarationBody(node, "a with statement");
+                checkNoLexicalOrClassDeclarationBody(node, "a with statement");
+            }
             // CaseBlock has at most one DefaultClause (§14.12.1). The grammar accepts
             // `default` anywhere among the cases, so the count is checked here.
             case SWITCH_STMT -> {
@@ -897,6 +901,11 @@ public class JsParser extends BaseParser {
             // Class bodies — and every FN_EXPR (constructor / method) nested inside
             // — are always strict regardless of any enclosing directive (§15.7).
             case CLASS_EXPR -> childStrict = true;
+            case WITH_STMT -> {
+                if (strict) { // §14.11.1
+                    throw new ParserException("Strict mode code may not include a with statement");
+                }
+            }
             default -> {
             }
         }
@@ -1265,6 +1274,49 @@ public class JsParser extends BaseParser {
      *  pattern binds (property keys and default values bind nothing). */
     public static void boundNames(Node declarator, List<String> out) {
         collectBindingBoundNames(declarator, out);
+    }
+
+    /**
+     * VarDeclaredNames of a function body or Script (§8.2.4 — plus a function declaration
+     * nested in a block, whose Annex B.3.3 var binding the interpreter hoists the same way):
+     * every {@code var} bound anywhere in the statement tree, including {@code for} heads
+     * and catch blocks, without crossing into a nested function or class. Expressions are
+     * skipped, as a declaration cannot sit under one. Appends to {@code out}, duplicates
+     * included.
+     */
+    public static void varDeclaredNames(Node node, List<String> out) {
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node ch = node.get(i);
+            if (ch.isToken()) {
+                continue;
+            }
+            switch (ch.type) {
+                case EXPR, EXPR_LIST, FN_EXPR, FN_ARROW_EXPR, CLASS_EXPR, FN_DECL_ARGS -> {
+                }
+                case VAR_STMT -> {
+                    if (ch.getFirstToken().type == VAR) {
+                        for (int j = 0, m = ch.size(); j < m; j++) {
+                            Node d = ch.get(j);
+                            if (!d.isToken() && d.type == NodeType.VAR_DECL) {
+                                collectBindingBoundNames(d, out);
+                            }
+                        }
+                    }
+                }
+                case STATEMENT -> {
+                    Node d = firstNonToken(ch);
+                    if (d != null && d.type == NodeType.FN_EXPR) {
+                        String name = declarationName(d);
+                        if (name != null) {
+                            out.add(name);
+                        }
+                    } else {
+                        varDeclaredNames(ch, out);
+                    }
+                }
+                default -> varDeclaredNames(ch, out);
+            }
+        }
     }
 
     /** All case/default clauses of a {@code switch} share ONE lexical scope (the
@@ -1909,6 +1961,7 @@ public class JsParser extends BaseParser {
                 || try_stmt()
                 || for_stmt()
                 || while_stmt()
+                || with_stmt()
                 || do_while_stmt()
                 || switch_stmt()
                 || (break_stmt() && eos())
@@ -2095,7 +2148,7 @@ public class JsParser extends BaseParser {
             }
         } else if (consumeIf(IN)) {
             expr_list(true); // for-in iterates an Expression, for-of an AssignmentExpression (§14.7.5)
-        } else if (consumeIf(OF)) {
+        } else if (consumeContextual("of", OF)) {
             expr(-1, true);
         } else {
             error(SEMI, IN, OF);
@@ -2111,6 +2164,17 @@ public class JsParser extends BaseParser {
 
     private boolean while_stmt() {
         if (!enter(NodeType.WHILE_STMT, WHILE)) {
+            return false;
+        }
+        consumeSoft(L_PAREN);
+        expr_list(true);
+        consumeSoft(R_PAREN);
+        statement(true);
+        return exit();
+    }
+
+    private boolean with_stmt() {
+        if (!enter(NodeType.WITH_STMT, WITH)) {
             return false;
         }
         consumeSoft(L_PAREN);
@@ -2626,6 +2690,18 @@ public class JsParser extends BaseParser {
     private boolean lastConsumedIs(String text) {
         Token token = lastConsumedToken();
         return token.type == IDENT && isIdentText(token, text);
+    }
+
+    /** Consume the IDENT spelled {@code text} as the keyword {@code as}: {@code of} lexes as
+     *  an identifier everywhere (§12.7.2 — it is reserved nowhere), and only the for-of head
+     *  gives it a keyword token, so every tree consumer keeps seeing {@code OF}. */
+    private boolean consumeContextual(String text, TokenType as) {
+        Token token = peekToken();
+        if (token.type != IDENT || !isIdentText(token, text)) {
+            return false;
+        }
+        markerNode().add(new Node(new Token(next(), as)));
+        return true;
     }
 
     private boolean isIdentText(Token token, String text) {

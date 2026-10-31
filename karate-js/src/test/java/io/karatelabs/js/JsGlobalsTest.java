@@ -212,4 +212,36 @@ class JsGlobalsTest extends EvalBase {
         assertThrows(UnsupportedOperationException.class, () -> builtins.put("x", List.of()));
     }
 
+
+    @Test
+    void testCrypto() {
+        assertEquals(true, eval("var a = new Uint8Array(16); crypto.getRandomValues(a) === a"));
+        assertEquals(true, eval("var a = new Uint8Array(32); crypto.getRandomValues(a); a.some(function(b) { return b !== 0 })"));
+        assertEquals(true, eval("/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(crypto.randomUUID())"));
+        assertEquals("function", eval("typeof crypto.getRandomValues.bind(crypto)"));
+    }
+
+    @Test
+    void testUint8ArraySet() {
+        assertEquals("1,2,0,0", eval("var a = new Uint8Array(4); a.set([1, 2]); Array.prototype.join.call(a)"));
+        assertEquals("0,1,2,0", eval("var a = new Uint8Array(4); a.set([1, 2], 1); Array.prototype.join.call(a)"));
+        assertEquals("0,9,8,0", eval("var a = new Uint8Array(4); a.set(new Uint8Array([9, 8]), 1); Array.prototype.join.call(a)"));
+        assertEquals("255,1", eval("var a = new Uint8Array(2); a.set([-1, 257]); Array.prototype.join.call(a)"));
+        assertThrows(EngineException.class, () -> eval("new Uint8Array(2).set([1, 2, 3])"));
+        assertThrows(EngineException.class, () -> eval("new Uint8Array(2).set([1], 3)"));
+    }
+
+    @Test
+    void testUint32Array() {
+        assertEquals(4294967295L, eval("var u = new Uint32Array(1); u[0] = -1; u[0]"));
+        assertEquals(-1, eval("var u = new Uint32Array(1); u[0] = -1; u[0] | 0"));
+        assertEquals(2147483648L, eval("var u = new Uint32Array(1); u[0] |= 0x80000000; u[0]"));
+        assertEquals(3, eval("new Uint32Array(3).length"));
+        assertEquals("1,2", eval("Array.prototype.join.call(new Uint32Array([1, 2.9]))"));
+        assertEquals(false, eval("Array.isArray(new Uint32Array(1))"));
+        assertEquals(true, eval("new Uint32Array(1) instanceof Uint32Array"));
+        assertEquals(false, eval("new Uint32Array(1) instanceof Array"));
+        assertThrows(EngineException.class, () -> eval("new Uint32Array(-1)"));
+    }
+
 }

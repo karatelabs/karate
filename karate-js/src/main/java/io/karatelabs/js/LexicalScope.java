@@ -62,10 +62,17 @@ import java.util.List;
  */
 final class LexicalScope {
 
-    static final LexicalScope NONE = new LexicalScope(new String[0], new BindScope[0]);
+    private static final String[] NO_NAMES = new String[0];
+
+    static final LexicalScope NONE = new LexicalScope(NO_NAMES, new BindScope[0]);
 
     final String[] names;
     final BindScope[] scopes;
+    /** For a function body only: its VarDeclaredNames, the bindings
+     *  {@link CoreContext#declareVar} creates at function entry (§10.2.11 step 27 /
+     *  Annex B.3.3). Null until {@link #ofFunctionBody} has computed it — written
+     *  before the instance is published on the node, never after. */
+    String[] varNames;
 
     /** (table, slots) pair for the last frame table this scope ran under —
      *  one immutable holder so a racing reader never sees a torn pair. */
@@ -79,6 +86,10 @@ final class LexicalScope {
         this.scopes = scopes;
     }
 
+    static {
+        NONE.varNames = NO_NAMES;
+    }
+
     /** The cached instance for a BLOCK / FOR_STMT / SWITCH_STMT node. */
     static LexicalScope of(Node node) {
         Object m = node.meta;
@@ -87,6 +98,31 @@ final class LexicalScope {
         }
         LexicalScope ls = compute(node);
         node.meta = ls;
+        return ls;
+    }
+
+    /** The cached instance for a function's body BLOCK, with {@link #varNames} computed.
+     *  Replaces an instance {@link #of} cached without them (the body is normally reached
+     *  through here first, so that is the rare order). */
+    static LexicalScope ofFunctionBody(Node body) {
+        Object m = body.meta;
+        if (m instanceof LexicalScope ls && ls.varNames != null) {
+            return ls;
+        }
+        LexicalScope ls = compute(body);
+        List<String> vars = new ArrayList<>(4);
+        JsParser.varDeclaredNames(body, vars);
+        if (vars.isEmpty()) {
+            if (ls != NONE) {
+                ls.varNames = NO_NAMES;
+            }
+        } else {
+            if (ls == NONE) {
+                ls = new LexicalScope(NO_NAMES, new BindScope[0]);
+            }
+            ls.varNames = vars.toArray(new String[0]);
+        }
+        body.meta = ls;
         return ls;
     }
 

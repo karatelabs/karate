@@ -37,8 +37,10 @@ non-sealed class JsUint8Array extends JsArray implements JsBinaryValue {
         this.buffer = new byte[length];
     }
 
+    /** A view over {@code bytes} itself: the engine wraps a byte[] value for each member
+     *  access, so a mutating method must reach the array the value is. */
     JsUint8Array(byte[] bytes) {
-        this.buffer = bytes.clone();
+        this.buffer = bytes;
     }
 
     // =================================================================================================
@@ -313,7 +315,44 @@ non-sealed class JsUint8Array extends JsArray implements JsBinaryValue {
         if ("length".equals(name)) {
             return buffer.length;
         }
+        if ("set".equals(name)) {
+            return (JsInvokable) this::setFrom;
+        }
         return super.resolveOwnIntrinsic(name);
+    }
+
+    /** %TypedArray%.prototype.set (§23.2.3.26): copies {@code source} (an array-like of
+     *  numbers, each ToUint8) in at {@code offset}; a RangeError when it does not fit. */
+    private Object setFrom(Object[] args) {
+        Object source = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        Object offsetArg = args.length > 1 ? args[1] : Terms.UNDEFINED;
+        double offset = offsetArg == Terms.UNDEFINED ? 0 : Terms.toNumberCoerce(offsetArg, null).doubleValue();
+        if (offset < 0 || Double.isNaN(offset)) {
+            throw JsErrorException.rangeError("offset is out of bounds");
+        }
+        List<?> items;
+        if (source instanceof byte[] bytes) {
+            items = new JsUint8Array(bytes);
+        } else if (source instanceof List<?> l) {
+            items = l;
+        } else if (source instanceof ObjectLike ol) {
+            int len = Terms.toNumberCoerce(ol.getMember("length"), null).intValue();
+            List<Object> copy = new ArrayList<>(len);
+            for (int i = 0; i < len; i++) {
+                copy.add(ol.getMember(String.valueOf(i)));
+            }
+            items = copy;
+        } else {
+            throw JsErrorException.typeError("invalid source for Uint8Array.set");
+        }
+        int at = (int) offset;
+        if (offset > buffer.length || items.size() > buffer.length - at) {
+            throw JsErrorException.rangeError("offset is out of bounds");
+        }
+        for (int i = 0, n = items.size(); i < n; i++) {
+            buffer[at + i] = (byte) (Terms.toNumberCoerce(items.get(i), null).intValue() & 0xFF);
+        }
+        return Terms.UNDEFINED;
     }
 
     @Override

@@ -1464,11 +1464,40 @@ no special case for it: `isUnresolvableReference` answers `"undefined"` only
 for a bare identifier that names no binding, and every other operand —
 a TDZ read, `null.x`, a throwing call — evaluates normally and throws.
 
-**Frame `UNDECLARED` vs `TDZ`.** `UNDECLARED` now means "not yet bound in this
-frame": a `var` before its statement runs, and a body-level let/const while the
-parameter defaults evaluate — they must resolve outward (§10.2.11 evaluates
-defaults in an environment that does not contain the body's lexical names), so
-the body's slots are armed on body-BLOCK entry, not at frame creation.
+**Frame `UNDECLARED` vs `TDZ`.** `UNDECLARED` means "not yet bound in this
+frame": a body-level let/const while the parameter defaults evaluate — they must
+resolve outward (§10.2.11 evaluates defaults in an environment that does not
+contain the body's lexical names), so the body's slots are armed on body-BLOCK
+entry, not at frame creation.
+
+**`var` is bound at function entry.** FunctionDeclarationInstantiation step 27:
+right after the parameters bind, every VarDeclaredName of the body
+(`JsParser.varDeclaredNames` — a `var` anywhere in the statement tree, `for`
+heads and catch blocks included, plus a function declaration nested in a block
+per Annex B.3.3, never crossing a nested function; cached on the body BLOCK's
+`LexicalScope.varNames`) is bound to undefined by `CoreContext.declareVar`,
+unless the name is already bound — a parameter, `arguments`. A read before the
+declaration is therefore `undefined` and a write lands on the local, never on an
+outer binding or an implicit global; a parameter default never sees the body's
+vars. A Script does the same for the names its chain cannot already resolve
+(§16.1.7: a host binding, an earlier eval's, a built-in stays). A `var`
+declarator without an initializer is no runtime write (§14.3.2.1): `var x = 1;
+var x;` keeps 1, and a `var acc; acc = acc || []` inside a loop accumulates.
+
+**A named function expression's name is its own** (§15.2.5): `evalFnExpr` binds
+it, immutable (`BindScope.FUNCTION` — a sloppy assignment is ignored, a strict
+one throws), in a context of its own that only the function's body sees, so
+`{ parse: function parse() {} }` neither leaks `parse` nor clobbers a
+same-named declaration. A function *declaration* (statement position, reached
+by hoisting or as an `if` body) binds in the enclosing scope as before.
+
+**`with`** (§14.11) runs its body in a `WithContext` — an object environment
+record: a name the object has (`in`, minus `@@unscopables`) reads and writes the
+property; anything else, `arguments` included, is the enclosing context's. A
+closure created in the body keeps the context as its lexical parent. A function
+containing `with` takes no slot frame (its annotations would bypass the object).
+Strict code rejects it at parse. Not done: the with-base object as `this` of a
+call resolved through it.
 
 **Script top level and REPL re-declaration.** `evalProgram` instantiates the
 script's lexical names before hoisting (`LexicalScope.instantiateGlobal`). A
@@ -1500,8 +1529,10 @@ off. **Known remaining deviations:** parameter TDZ (`function f(a = b, b)`),
 a closure in a parameter default seeing body-level lets (store path), the catch
 parameter bound as a function-level `var` rather than in the catch scope
 (test262 `block-scope/shadowing/*catch-parameter*`), function / generator /
-async declarations in blocks hoisted as `var`s rather than block-lexical, and
-the global-object half of GlobalDeclarationInstantiation (`script-decl-lex-*`).
+async declarations in blocks hoisted as `var`s rather than block-lexical (their
+name is var-bound to undefined at function entry, the function object assigned
+at block entry), and the global-object half of GlobalDeclarationInstantiation
+(`script-decl-lex-*`).
 
 ### Class semantics (`class` / `extends` / `super`)
 
