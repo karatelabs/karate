@@ -672,7 +672,9 @@ public class HttpRequestBuilder implements SimpleObject {
                         values.forEach(value -> {
                             if (value != null) {
                                 sb.append(lineContinuation).append("  ");
-                                sb.append("-H ").append(StringUtils.shellEscapeForPlatform(name + ": " + value, effectivePlatform));
+                                // curl drops a header given as "Name:" with no value, and sends "Name;" as one
+                                String header = value.isBlank() ? name + ";" : name + ": " + value;
+                                sb.append("-H ").append(StringUtils.shellEscapeForPlatform(header, effectivePlatform));
                             }
                         });
                     }
@@ -693,10 +695,7 @@ public class HttpRequestBuilder implements SimpleObject {
             // Multipart form data - delegate to MultiPartBuilder
             String multiPartCommand = multiPart.toCurlCommand(effectivePlatform);
             if (!multiPartCommand.isEmpty()) {
-                sb.append(lineContinuation).append("  ");
-                // Replace line continuations in multipart command with platform-specific ones
-                String shLineCont = StringUtils.getLineContinuation("sh");
-                sb.append(multiPartCommand.replace(shLineCont, lineContinuation + "  "));
+                sb.append(lineContinuation).append("  ").append(multiPartCommand);
             }
         } else if (body != null) {
             // Handle body based on content type
@@ -716,7 +715,8 @@ public class HttpRequestBuilder implements SimpleObject {
                 } else {
                     bodyStr = Json.stringifyStrict(body);
                 }
-                sb.append("-d ").append(StringUtils.shellEscapeForPlatform(bodyStr, effectivePlatform));
+                // -d reads a file for a leading @
+                sb.append(bodyStr.startsWith("@") ? "--data-raw " : "-d ").append(StringUtils.shellEscapeForPlatform(bodyStr, effectivePlatform));
             }
         } else if (params != null && !params.isEmpty() && !"GET".equals(curlMethod)) {
             // For non-GET requests with parameters but no body, treat as form data

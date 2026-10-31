@@ -256,14 +256,9 @@ public class MultiPartBuilder {
 
                 if (filename != null && !filename.isEmpty()) {
                     // Real file upload
-                    sb.append("-F ");
-                    sb.append(StringUtils.shellEscapeForPlatform(name + "=@" + filename, platform));
-
-                    // Add content type if present
                     String contentType = fileUpload.getContentType();
-                    if (contentType != null && !contentType.isEmpty()) {
-                        sb.append(";type=").append(contentType);
-                    }
+                    String type = contentType == null || contentType.isEmpty() ? "" : ";type=" + contentType;
+                    sb.append("-F ").append(StringUtils.shellEscapeForPlatform(name + "=@" + filename + type, platform));
                 } else {
                     // Text field stored as FileUpload (with empty filename)
                     // Get the actual string value
@@ -275,9 +270,7 @@ public class MultiPartBuilder {
                     }
 
                     if (multipart) {
-                        // For multipart/form-data, use -F
-                        sb.append("-F ");
-                        sb.append(StringUtils.shellEscapeForPlatform(name + "=" + (value != null ? value : ""), platform));
+                        sb.append(formField(name, value, platform));
                     } else {
                         // For application/x-www-form-urlencoded, use --data-urlencode
                         sb.append("--data-urlencode ");
@@ -295,9 +288,7 @@ public class MultiPartBuilder {
                 }
 
                 if (multipart) {
-                    // For multipart/form-data, use -F
-                    sb.append("-F ");
-                    sb.append(StringUtils.shellEscapeForPlatform(name + "=" + (value != null ? value : ""), platform));
+                    sb.append(formField(name, value, platform));
                 } else {
                     // For application/x-www-form-urlencoded, use --data-urlencode
                     sb.append("--data-urlencode ");
@@ -306,10 +297,17 @@ public class MultiPartBuilder {
             }
 
             if (parts.hasNext()) {
-                sb.append(lineContinuation);
+                sb.append(lineContinuation).append("  ");
             }
         }
         return sb.toString();
+    }
+
+    // -F reads a file for a leading @ or <, and parses ;type= and a leading quote, which --form-string does not
+    private static String formField(String name, String value, String platform) {
+        String text = value == null ? "" : value;
+        boolean literal = text.startsWith("@") || text.startsWith("<") || text.startsWith("\"") || text.contains(";");
+        return (literal ? "--form-string " : "-F ") + StringUtils.shellEscapeForPlatform(name + "=" + text, platform);
     }
 
     public byte[] build() {

@@ -520,13 +520,8 @@ class HttpRequestBuilderCurlTest {
         String curl = http.toCurlCommand("cmd");
         logger.debug("Windows CMD format:\n{}", curl);
 
-        // Should use double quotes instead of single quotes
-        assertTrue(curl.contains("\"https://api.example.com/users\""));
-        assertTrue(curl.contains("-H \"Content-Type: application/json\""));
-        assertTrue(curl.contains("-d \"{\"\"name\"\":\"\"John Doe\"\"}\""));
-        // Should use ^ for line continuation
-        assertTrue(curl.contains(" ^\n"));
-        assertFalse(curl.contains(" \\\n"));
+        assertEquals("curl -X POST ^\n  ^\"https://api.example.com/users^\" ^\n"
+                + "  -H ^\"Content-Type: application/json^\" ^\n  -d ^\"{\\^\"name\\^\":\\^\"John Doe\\^\"}^\"", curl);
     }
 
     @Test
@@ -563,11 +558,7 @@ class HttpRequestBuilderCurlTest {
         String curl = http.toCurlCommand("cmd");
         logger.debug("Windows CMD with basic auth:\n{}", curl);
 
-        // Should use double quotes
-        assertTrue(curl.contains("-u \"admin:pass@123\""));
-        assertTrue(curl.contains("\"https://api.example.com/secure\""));
-        // Should use ^ for line continuation
-        assertTrue(curl.contains(" ^\n"));
+        assertEquals("curl -X GET ^\n  ^\"https://api.example.com/secure^\" ^\n  -u ^\"admin:pass@123^\"", curl);
     }
 
     @Test
@@ -584,5 +575,174 @@ class HttpRequestBuilderCurlTest {
         assertTrue(curl.contains("Test''s data with ''quotes''"));
         // Should use backtick for line continuation
         assertTrue(curl.contains(" `\n"));
+    }
+
+    // Exact output per shell: sh single-quotes ('\''), cmd caret-escapes a C-runtime-quoted argument, and
+    // PowerShell single-quotes (doubled).
+
+    private static final String SH = "curl -X GET \\\n  'https://api.example.com/x' \\\n  ";
+    private static final String CMD = "curl -X GET ^\n  ^\"https://api.example.com/x^\" ^\n  ";
+    private static final String PS = "curl -X GET `\n  'https://api.example.com/x' `\n  ";
+
+    private static void assertCurl(HttpRequestBuilder http, String sh, String cmd, String ps) {
+        assertEquals(sh, http.toCurlCommandPreview("sh"), "sh");
+        assertEquals(cmd, http.toCurlCommandPreview("cmd"), "cmd");
+        assertEquals(ps, http.toCurlCommandPreview("ps"), "ps");
+    }
+
+    private static HttpRequestBuilder get() {
+        HttpRequestBuilder http = new HttpRequestBuilder(null);
+        http.url("https://api.example.com/x");
+        http.method("GET");
+        return http;
+    }
+
+    private static HttpRequestBuilder post() {
+        HttpRequestBuilder http = get();
+        http.method("POST");
+        return http;
+    }
+
+    private static void assertHeader(String value, String sh, String cmd, String ps) {
+        HttpRequestBuilder http = get();
+        http.header("X-Value", value);
+        assertCurl(http, SH + "-H " + sh, CMD + "-H " + cmd, PS + "-H " + ps);
+    }
+
+    @Test
+    void testHeaderWithSingleQuote() {
+        assertHeader("it's", "'X-Value: it'\\''s'", "^\"X-Value: it's^\"", "'X-Value: it''s'");
+    }
+
+    @Test
+    void testHeaderWithDoubleQuote() {
+        assertHeader("say \"hi\"", "'X-Value: say \"hi\"'", "^\"X-Value: say \\^\"hi\\^\"^\"", "'X-Value: say \"hi\"'");
+    }
+
+    @Test
+    void testHeaderWithShellVariables() {
+        assertHeader("$var ${x}", "'X-Value: $var ${x}'", "^\"X-Value: $var ${x}^\"", "'X-Value: $var ${x}'");
+    }
+
+    @Test
+    void testHeaderWithBacktick() {
+        assertHeader("a`b", "'X-Value: a`b'", "^\"X-Value: a`b^\"", "'X-Value: a`b'");
+    }
+
+    @Test
+    void testHeaderWithPercentVariable() {
+        assertHeader("%PATH%", "'X-Value: %PATH%'", "^\"X-Value: ^%PATH^%^\"", "'X-Value: %PATH%'");
+    }
+
+    @Test
+    void testHeaderWithCaret() {
+        assertHeader("a^b", "'X-Value: a^b'", "^\"X-Value: a^^b^\"", "'X-Value: a^b'");
+    }
+
+    @Test
+    void testHeaderWithAmpersandPipeAndRedirects() {
+        assertHeader("a&b|c<d>e", "'X-Value: a&b|c<d>e'", "^\"X-Value: a^&b^|c^<d^>e^\"", "'X-Value: a&b|c<d>e'");
+    }
+
+    @Test
+    void testHeaderWithBang() {
+        assertHeader("hi!", "'X-Value: hi!'", "^\"X-Value: hi^!^\"", "'X-Value: hi!'");
+    }
+
+    @Test
+    void testHeaderWithTrailingBackslash() {
+        assertHeader("C:\\dir\\", "'X-Value: C:\\dir\\'", "^\"X-Value: C:\\dir\\\\^\"", "'X-Value: C:\\dir\\'");
+    }
+
+    @Test
+    void testHeaderWithUnicode() {
+        assertHeader("héllo ✓ 日本 ‘q’", "'X-Value: héllo ✓ 日本 ‘q’'", "^\"X-Value: héllo ✓ 日本 ‘q’^\"",
+                "'X-Value: héllo ✓ 日本 ‘‘q’’'");
+    }
+
+    @Test
+    void testHeaderWithEmptyValue() {
+        assertHeader("", "'X-Value;'", "^\"X-Value;^\"", "'X-Value;'");
+    }
+
+    @Test
+    void testHeaderWithColonInValue() {
+        assertHeader("12:30:00", "'X-Value: 12:30:00'", "^\"X-Value: 12:30:00^\"", "'X-Value: 12:30:00'");
+    }
+
+    @Test
+    void testBodyWithNewlineAndTab() {
+        HttpRequestBuilder http = post();
+        http.body("{\n\t\"a\": \"b\"\n}");
+        assertCurl(http,
+                "curl -X POST \\\n  'https://api.example.com/x' \\\n  -d '{\n\t\"a\": \"b\"\n}'",
+                "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  -d ^\"{^\n\n\t\\^\"a\\^\": \\^\"b\\^\"^\n\n}^\"",
+                "curl -X POST `\n  'https://api.example.com/x' `\n  -d '{\n\t\"a\": \"b\"\n}'");
+    }
+
+    @Test
+    void testJsonBodyWithBackslashBeforeQuote() {
+        HttpRequestBuilder http = post();
+        http.body(Map.of("path", "C:\\dir\\"));
+        assertCurl(http,
+                "curl -X POST \\\n  'https://api.example.com/x' \\\n  -d '{\"path\":\"C:\\\\dir\\\\\"}'",
+                "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  -d ^\"{\\^\"path\\^\":\\^\"C:\\\\dir\\\\\\\\\\^\"}^\"",
+                "curl -X POST `\n  'https://api.example.com/x' `\n  -d '{\"path\":\"C:\\\\dir\\\\\"}'");
+    }
+
+    @Test
+    void testBodyWithLeadingAtIsNotAFile() {
+        HttpRequestBuilder http = post();
+        http.body("@notafile");
+        assertCurl(http,
+                "curl -X POST \\\n  'https://api.example.com/x' \\\n  --data-raw '@notafile'",
+                "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  --data-raw ^\"@notafile^\"",
+                "curl -X POST `\n  'https://api.example.com/x' `\n  --data-raw '@notafile'");
+    }
+
+    @Test
+    void testUrlWithAmpersandInQuery() {
+        HttpRequestBuilder http = new HttpRequestBuilder(null);
+        http.url("https://api.example.com/search?a=1&b=2");
+        http.method("GET");
+        assertCurl(http,
+                "curl -X GET \\\n  'https://api.example.com/search?a=1&b=2'",
+                "curl -X GET ^\n  ^\"https://api.example.com/search?a=1^&b=2^\"",
+                "curl -X GET `\n  'https://api.example.com/search?a=1&b=2'");
+    }
+
+    @Test
+    void testMultipartFieldsAndFile() {
+        HttpRequestBuilder http = post();
+        http.multiPart(Map.of("name", "title", "value", "a & b"));
+        http.multiPart(Map.of("name", "file", "filename", "a.txt", "value", "hello"));
+        http.multiPart(Map.of("name", "note", "value", "@notes.txt"));
+        assertCurl(http,
+                "curl -X POST \\\n  'https://api.example.com/x' \\\n  -F 'title=a & b' \\\n"
+                        + "  -F 'file=@a.txt;type=text/plain' \\\n  --form-string 'note=@notes.txt'",
+                "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  -F ^\"title=a ^& b^\" ^\n"
+                        + "  -F ^\"file=@a.txt;type=text/plain^\" ^\n  --form-string ^\"note=@notes.txt^\"",
+                "curl -X POST `\n  'https://api.example.com/x' `\n  -F 'title=a & b' `\n"
+                        + "  -F 'file=@a.txt;type=text/plain' `\n  --form-string 'note=@notes.txt'");
+    }
+
+    @Test
+    void testDataUrlEncode() {
+        HttpRequestBuilder http = post();
+        http.formField("q", "a b&c=d");
+        assertCurl(http,
+                "curl -X POST \\\n  'https://api.example.com/x' \\\n  --data-urlencode 'q=a b&c=d'",
+                "curl -X POST ^\n  ^\"https://api.example.com/x^\" ^\n  --data-urlencode ^\"q=a b^&c=d^\"",
+                "curl -X POST `\n  'https://api.example.com/x' `\n  --data-urlencode 'q=a b&c=d'");
+    }
+
+    @Test
+    void testBasicAuthUser() {
+        HttpRequestBuilder http = get();
+        http.auth(new BasicAuthHandler("user", "p@ss'w\"rd%"));
+        assertCurl(http,
+                SH + "-u 'user:p@ss'\\''w\"rd%'",
+                CMD + "-u ^\"user:p@ss'w\\^\"rd^%^\"",
+                PS + "-u 'user:p@ss''w\"rd%'");
     }
 }

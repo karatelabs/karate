@@ -144,67 +144,67 @@ class StringUtilsCliTest {
     @Test
     void testWindowsEscapeSimpleString() {
         String result = StringUtils.shellEscapeWindows("hello");
-        assertEquals("\"hello\"", result);
+        assertEquals("^\"hello^\"", result);
     }
 
     @Test
     void testWindowsEscapeWithDoubleQuote() {
         String result = StringUtils.shellEscapeWindows("say \"hello\"");
-        assertEquals("\"say \"\"hello\"\"\"", result);
+        assertEquals("^\"say \\^\"hello\\^\"^\"", result);
     }
 
     @Test
     void testWindowsEscapeAmpersand() {
         String result = StringUtils.shellEscapeWindows("test & special");
-        assertEquals("\"test ^& special\"", result);
+        assertEquals("^\"test ^& special^\"", result);
     }
 
     @Test
     void testWindowsEscapePipe() {
         String result = StringUtils.shellEscapeWindows("cmd | grep test");
-        assertEquals("\"cmd ^| grep test\"", result);
+        assertEquals("^\"cmd ^| grep test^\"", result);
     }
 
     @Test
     void testWindowsEscapeRedirection() {
         String result = StringUtils.shellEscapeWindows("output > file.txt");
-        assertEquals("\"output ^> file.txt\"", result);
+        assertEquals("^\"output ^> file.txt^\"", result);
     }
 
     @Test
     void testWindowsEscapeLessThan() {
         String result = StringUtils.shellEscapeWindows("input < file.txt");
-        assertEquals("\"input ^< file.txt\"", result);
+        assertEquals("^\"input ^< file.txt^\"", result);
     }
 
     @Test
     void testWindowsEscapePercent() {
         String result = StringUtils.shellEscapeWindows("PATH=%PATH%");
-        assertEquals("\"PATH=%%PATH%%\"", result);
+        assertEquals("^\"PATH=^%PATH^%^\"", result);
     }
 
     @Test
     void testWindowsEscapeCaret() {
         String result = StringUtils.shellEscapeWindows("test^test");
-        assertEquals("\"test^^test\"", result);
+        assertEquals("^\"test^^test^\"", result);
     }
 
     @Test
     void testWindowsEscapeNull() {
         String result = StringUtils.shellEscapeWindows(null);
-        assertEquals("\"\"", result);
+        assertEquals("^\"^\"", result);
     }
 
     @Test
     void testWindowsEscapeEmptyString() {
         String result = StringUtils.shellEscapeWindows("");
-        assertEquals("\"\"", result);
+        assertEquals("^\"^\"", result);
     }
 
     @Test
     void testWindowsEscapeAllSpecialChars() {
         String result = StringUtils.shellEscapeWindows("^&|<>%");
-        assertEquals("\"^^^&^|^<^>%%\"", result);
+        assertEquals("^\"^^^&^|^<^>^%^\"", result);
     }
 
     // ==================== shellEscape (OS-aware) Tests ====================
@@ -334,6 +334,6 @@ class StringUtilsCliTest {
         // Windows path
         String winPath = "C:\\Program Files\\MyApp\\app.exe";
         String escapedWin = StringUtils.shellEscapeWindows(winPath);
-        assertEquals("\"C:\\Program Files\\MyApp\\app.exe\"", escapedWin);
+        assertEquals("^\"C:\\Program Files\\MyApp\\app.exe^\"", escapedWin);
     }
 }

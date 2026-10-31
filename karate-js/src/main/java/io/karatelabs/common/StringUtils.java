@@ -343,34 +343,50 @@ public class StringUtils {
     }
 
     /**
-     * Escapes a string for Windows cmd.exe.
-     * Uses double quotes and escapes embedded double quotes and special chars.
-     *
-     * @param value the string to escape
-     * @return escaped string wrapped in double quotes
+     * Escapes a string as one argument on an interactive cmd.exe command line, for a program that splits its
+     * arguments by the C runtime rules, as curl.exe does: quoted for the C runtime ({@code \"}, and a backslash run
+     * before a quote doubled), then every cmd metacharacter, the quotes too, escaped with {@code ^}, so cmd never
+     * sees a quoted region (in one, {@code ^} is literal and {@code %VAR%} still expands). A {@code %} stays literal
+     * as {@code ^%}: the name it would open ends in {@code ^}, which no variable has. A newline is {@code ^} and two.
      */
     public static String shellEscapeWindows(String value) {
         if (value == null) {
-            return "\"\"";
+            value = "";
         }
-        // For Windows cmd.exe:
-        // 1. Wrap in double quotes
-        // 2. Escape double quotes as ""
-        // 3. Escape special characters: ^, &, |, <, >, %, !
-        String escaped = value
-            .replace("\"", "\"\"")  // Escape double quotes
-            .replace("^", "^^")      // Escape caret
-            .replace("&", "^&")      // Escape ampersand
-            .replace("|", "^|")      // Escape pipe
-            .replace("<", "^<")      // Escape less-than
-            .replace(">", "^>")      // Escape greater-than
-            .replace("%", "%%");     // Escape percent
-        return "\"" + escaped + "\"";
+        StringBuilder quoted = new StringBuilder("\"");
+        int backslashes = 0;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c == '\\') {
+                backslashes++;
+            } else {
+                if (c == '"') {
+                    quoted.append("\\".repeat(backslashes + 1));
+                }
+                backslashes = 0;
+            }
+            quoted.append(c);
+        }
+        quoted.append("\\".repeat(backslashes)).append('"');
+        StringBuilder sb = new StringBuilder(quoted.length() + 8);
+        for (int i = 0; i < quoted.length(); i++) {
+            char c = quoted.charAt(i);
+            if (c == '\n') {
+                sb.append("^\n\n");
+            } else {
+                if ("^&|<>\"!%".indexOf(c) >= 0) {
+                    sb.append('^');
+                }
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     /**
-     * Escapes a string for PowerShell.
-     * Uses single quotes and escapes embedded single quotes by doubling them.
+     * Escapes a string for PowerShell 7.3 or later, which passes an argument to a native program as given.
+     * Uses single quotes (a literal string) and doubles every character PowerShell reads as a single quote,
+     * the typographic ones included.
      *
      * @param value the string to escape
      * @return escaped string wrapped in single quotes
@@ -379,10 +395,15 @@ public class StringUtils {
         if (value == null) {
             return "''";
         }
-        // For PowerShell:
-        // Use single quotes (which are literal strings in PS)
-        // Escape single quotes by doubling them: ' becomes ''
-        return "'" + value.replace("'", "''") + "'";
+        StringBuilder sb = new StringBuilder(value.length() + 2).append('\'');
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c == '\'' || (c >= '\u2018' && c <= '\u201B')) {
+                sb.append(c);
+            }
+            sb.append(c);
+        }
+        return sb.append('\'').toString();
     }
 
     /**
