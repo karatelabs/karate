@@ -66,8 +66,8 @@ public class KarateConfig implements SimpleObject {
     // Keys exposed via SimpleObject
     private static final List<String> KEYS = List.of(
             // HTTP client settings
-            "url", "readTimeout", "connectTimeout", "followRedirects", "redirectReferer", "localAddress", "charset",
-            "strictResponseParsing",
+            "url", "readTimeout", "connectTimeout", "followRedirects", "maxRedirects", "redirectReferer", "localAddress",
+            "charset", "strictResponseParsing", "cookieJarEnabled",
             // Grouped settings (Maps)
             "ssl", "proxy", "auth", "retry", "report", "logging", "callSingleCache",
             // Headers/Cookies
@@ -87,6 +87,8 @@ public class KarateConfig implements SimpleObject {
     private int readTimeout = 30000;
     private int connectTimeout = 30000;
     private boolean followRedirects = true;
+    // the most redirects followed; httpclient5's own default
+    private int maxRedirects = 50;
     // a followed redirect hop sends Referer: <previous hop's URL>, as postman-request does
     private boolean redirectReferer;
     private String localAddress;
@@ -94,6 +96,8 @@ public class KarateConfig implements SimpleObject {
     // response body conversion honors the DECLARED Content-Type only (no first-char sniffing);
     // default false = the V1-compatible lenient sniff. See HttpResponse#getBodyConverted.
     private boolean strictResponseParsing;
+    // false: response cookies are not stored and stored ones are not sent; explicit cookies still are
+    private boolean cookieJarEnabled = true;
 
     // ===== Grouped Settings (Maps) =====
 
@@ -200,10 +204,12 @@ public class KarateConfig implements SimpleObject {
         this.readTimeout = other.readTimeout;
         this.connectTimeout = other.connectTimeout;
         this.followRedirects = other.followRedirects;
+        this.maxRedirects = other.maxRedirects;
         this.redirectReferer = other.redirectReferer;
         this.localAddress = other.localAddress;
         this.charset = other.charset;
         this.strictResponseParsing = other.strictResponseParsing;
+        this.cookieJarEnabled = other.cookieJarEnabled;
         // Grouped settings (deep copy Maps)
         this.ssl = new HashMap<>(other.ssl);
         this.proxy = new HashMap<>(other.proxy);
@@ -273,10 +279,12 @@ public class KarateConfig implements SimpleObject {
         if (before.readTimeout != after.readTimeout) this.readTimeout = after.readTimeout;
         if (before.connectTimeout != after.connectTimeout) this.connectTimeout = after.connectTimeout;
         if (before.followRedirects != after.followRedirects) this.followRedirects = after.followRedirects;
+        if (before.maxRedirects != after.maxRedirects) this.maxRedirects = after.maxRedirects;
         if (before.redirectReferer != after.redirectReferer) this.redirectReferer = after.redirectReferer;
         if (!Objects.equals(before.localAddress, after.localAddress)) this.localAddress = after.localAddress;
         if (!Objects.equals(before.charset, after.charset)) this.charset = after.charset;
         if (before.strictResponseParsing != after.strictResponseParsing) this.strictResponseParsing = after.strictResponseParsing;
+        if (before.cookieJarEnabled != after.cookieJarEnabled) this.cookieJarEnabled = after.cookieJarEnabled;
         // Grouped settings (deep copy Maps)
         if (!before.ssl.equals(after.ssl)) this.ssl = new HashMap<>(after.ssl);
         if (!before.proxy.equals(after.proxy)) {
@@ -350,11 +358,21 @@ public class KarateConfig implements SimpleObject {
             case "followRedirects" -> {
                 this.followRedirects = toBoolean(value);
             }
+            case "maxRedirects" -> {
+                int max = toInt(value);
+                if (max < 0) {
+                    throw new RuntimeException("configure 'maxRedirects' expects a non-negative integer, got: " + value);
+                }
+                this.maxRedirects = max;
+            }
             case "redirectReferer" -> {
                 this.redirectReferer = toBoolean(value);
             }
             case "strictResponseParsing" -> {
                 this.strictResponseParsing = toBoolean(value);
+            }
+            case "cookieJarEnabled" -> {
+                this.cookieJarEnabled = toBoolean(value);
             }
             case "localAddress" -> {
                 this.localAddress = toString(value);
@@ -757,10 +775,12 @@ public class KarateConfig implements SimpleObject {
             case "readTimeout" -> readTimeout;
             case "connectTimeout" -> connectTimeout;
             case "followRedirects" -> followRedirects;
+            case "maxRedirects" -> maxRedirects;
             case "redirectReferer" -> redirectReferer;
             case "localAddress" -> localAddress;
             case "charset" -> charset != null ? charset.name() : null;
             case "strictResponseParsing" -> strictResponseParsing;
+            case "cookieJarEnabled" -> cookieJarEnabled;
             // Grouped settings
             case "ssl" -> ssl;
             case "proxy" -> proxy;
@@ -840,12 +860,20 @@ public class KarateConfig implements SimpleObject {
         return followRedirects;
     }
 
+    public int getMaxRedirects() {
+        return maxRedirects;
+    }
+
     public boolean isRedirectReferer() {
         return redirectReferer;
     }
 
     public boolean isStrictResponseParsing() {
         return strictResponseParsing;
+    }
+
+    public boolean isCookieJarEnabled() {
+        return cookieJarEnabled;
     }
 
     public String getLocalAddress() {

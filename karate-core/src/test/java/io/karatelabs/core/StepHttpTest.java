@@ -1662,4 +1662,42 @@ class StepHttpTest {
         assertPassed(sr);
     }
 
+    @Test
+    void testCookieJarDisabled() {
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> {
+            String cookie = req.getHeader("Cookie");
+            HttpResponse resp = json(cookie == null ? "{ \"cookie\": null }" : "{ \"cookie\": \"" + cookie + "\" }");
+            if (req.getPath().endsWith("/login")) {
+                resp.setHeader("Set-Cookie", "session=abc; Path=/");
+            } else if (req.getPath().endsWith("/other")) {
+                resp.setHeader("Set-Cookie", "other=2; Path=/");
+            }
+            return resp;
+        });
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test'
+            * path 'login'
+            * method get
+            * match karate.config.cookieJarEnabled == true
+            * configure cookieJarEnabled = false
+            * match karate.config.cookieJarEnabled == false
+            * path 'other'
+            * method get
+            * match response.cookie == null
+            * match responseCookies.other.value == '2'
+            * cookie mine = '1'
+            * configure cookies = { conf: 'x' }
+            * method get
+            * match response.cookie contains 'mine=1'
+            * match response.cookie contains 'conf=x'
+            * match response.cookie !contains 'session'
+            * configure cookieJarEnabled = true
+            * method get
+            * match response.cookie contains 'session=abc'
+            * match response.cookie !contains 'other'
+            """);
+        assertPassed(sr);
+    }
+
 }

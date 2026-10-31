@@ -138,6 +138,18 @@ class StepConfigureTest {
     }
 
     @Test
+    void testConfigureMaxRedirects() {
+        ScenarioRuntime sr = run("""
+            Feature:
+            Scenario:
+            * match karate.config.maxRedirects == 50
+            * configure maxRedirects = 5
+            * match karate.config.maxRedirects == 5
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testConfigureRetry() {
         ScenarioRuntime sr = run("""
             Feature:

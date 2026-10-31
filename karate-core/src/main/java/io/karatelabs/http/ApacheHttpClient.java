@@ -26,6 +26,7 @@ package io.karatelabs.http;
 import io.karatelabs.output.HttpLogger;
 import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
+import org.apache.hc.client5.http.RedirectException;
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.NTCredentials;
 import org.apache.hc.client5.http.auth.StandardAuthScheme;
@@ -111,9 +112,12 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private int connectTimeout = 30000;
 
     private boolean followRedirects = true;
+    private int maxRedirects = 50;
     private boolean redirectReferer;
     // conversion-side (stamped onto each response, never part of ClientKey) — see apply()
     private boolean strictResponseParsing;
+    // read per request, never part of ClientKey — see apply()
+    private boolean cookieJarEnabled = true;
 
     private String proxyUri;
     private String proxyUsername;
@@ -200,7 +204,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             String sslKeyStoreType, String sslTrustStore, String sslTrustStorePassword,
             String sslTrustStoreType, boolean sslTrustAll,
             String proxyUri, String proxyUsername, String proxyPassword, List<String> nonProxyHosts,
-            int readTimeout, int connectTimeout, boolean followRedirects, boolean redirectReferer,
+            int readTimeout, int connectTimeout, boolean followRedirects, int maxRedirects, boolean redirectReferer,
             boolean httpRetryEnabled, int retryCount, int retryInterval,
             Charset charset, String localAddress,
             String ntlmUsername, String ntlmPassword, String ntlmDomain, String ntlmWorkstation,
@@ -224,7 +228,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                     config.getProxyUri(), config.getProxyUsername(), config.getProxyPassword(),
                     nonProxy == null ? null : new ArrayList<>(nonProxy),
                     config.getReadTimeout(), config.getConnectTimeout(), config.isFollowRedirects(),
-                    config.isRedirectReferer(),
+                    config.getMaxRedirects(), config.isRedirectReferer(),
                     // The count and interval reach the client only through the retry strategy,
                     // which is only installed when retry is enabled. Keying them unconditionally
                     // would tear down a live client every time a callee set `configure retry` to
@@ -247,6 +251,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         // body is parsed (stamped per response below), never what reaches the wire, so flipping
         // it must not tear down a live client. Captured before the unchanged-guard early return.
         this.strictResponseParsing = config.isStrictResponseParsing();
+        this.cookieJarEnabled = config.isCookieJarEnabled();
         // Nothing that reaches the wire changed, so the built client is still the right one.
         //
         // This guard is the ONLY thing deciding whether a rebuild is needed. Callers used to make
@@ -285,6 +290,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         readTimeout = key.readTimeout();
         connectTimeout = key.connectTimeout();
         followRedirects = key.followRedirects();
+        maxRedirects = key.maxRedirects();
         redirectReferer = key.redirectReferer();
         // Retry. The key reports the count and interval as zero while retry is disabled, because
         // the build reads them only through the retry strategy it then does not install. These
@@ -352,7 +358,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             clientBuilder.disableAutomaticRetries();
         }
         if (followRedirects) {
-            clientBuilder.setRedirectStrategy(RawTargetRedirectStrategy.INSTANCE);
+            clientBuilder.setRedirectStrategy(maxRedirects == 0 ? RawTargetRedirectStrategy.NONE : RawTargetRedirectStrategy.INSTANCE);
         } else {
             clientBuilder.disableRedirectHandling();
         }
@@ -441,6 +447,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         }
         RequestConfig.Builder configBuilder = RequestConfig.custom()
                 .setCookieSpec(StandardCookieSpec.STRICT)
+                .setMaxRedirects(maxRedirects)
                 // Also set per REQUEST, not only on the connection manager above. The manager's
                 // copy is the only one an unpooled client needs, but a client sharing a manager it
                 // did not build gets whatever that manager was configured with — and a pooled
@@ -673,7 +680,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 requestBuilder.abort();
             }
             HttpClientContext context = HttpClientContext.create();
-            Recorder recorder = new Recorder(cookieStore);
+            Recorder recorder = new Recorder(cookieJarEnabled ? cookieStore : null);
             context.setCookieStore(recorder);
             context.setAttribute(ORIGINAL_URL, request.getUrlAndPath());
             if (!request.isDefaultUserAgent() && request.getHeader(HttpHeaders.USER_AGENT) == null) {
@@ -715,7 +722,25 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     /** Resolves a relative Location against a request target sent as given, which {@link URI} may reject. */
     static final class RawTargetRedirectStrategy extends DefaultRedirectStrategy {
 
-        static final RawTargetRedirectStrategy INSTANCE = new RawTargetRedirectStrategy();
+        static final RawTargetRedirectStrategy INSTANCE = new RawTargetRedirectStrategy(false);
+        // httpclient5 reads a maxRedirects of 0 as its default of 50, so a limit of 0 is enforced here
+        static final RawTargetRedirectStrategy NONE = new RawTargetRedirectStrategy(true);
+
+        private final boolean refuse;
+
+        private RawTargetRedirectStrategy(boolean refuse) {
+            this.refuse = refuse;
+        }
+
+        @Override
+        public boolean isRedirected(org.apache.hc.core5.http.HttpRequest request, org.apache.hc.core5.http.HttpResponse response,
+                                    HttpContext context) throws org.apache.hc.core5.http.ProtocolException {
+            boolean redirected = super.isRedirected(request, response, context);
+            if (redirected && refuse) {
+                throw new RedirectException("Maximum redirects (0) exceeded");
+            }
+            return redirected;
+        }
 
         @Override
         public URI getLocationURI(org.apache.hc.core5.http.HttpRequest request, org.apache.hc.core5.http.HttpResponse response,
@@ -731,7 +756,10 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     }
 
-    /** The store this exchange reads and writes, recording each cookie its responses set, redirect hops included. */
+    /**
+     * The store this exchange reads and writes, recording each cookie its responses set, redirect hops included.
+     * With no store (the cookie jar disabled) it records but neither keeps nor sends.
+     */
     private static final class Recorder implements CookieStore {
 
         final CookieStore store;
@@ -744,23 +772,27 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         @Override
         public void addCookie(Cookie cookie) {
             added.add(cookie);
-            store.addCookie(cookie);
+            if (store != null) {
+                store.addCookie(cookie);
+            }
         }
 
         @Override
         public List<Cookie> getCookies() {
-            return store.getCookies();
+            return store == null ? List.of() : store.getCookies();
         }
 
         @Override
         @SuppressWarnings("deprecation")
         public boolean clearExpired(Date date) {
-            return store.clearExpired(date);
+            return store != null && store.clearExpired(date);
         }
 
         @Override
         public void clear() {
-            store.clear();
+            if (store != null) {
+                store.clear();
+            }
         }
 
     }

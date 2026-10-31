@@ -92,4 +92,35 @@ class ApacheHttpClientCookieStoreTest {
         }
     }
 
+    static KarateConfig cookieJarEnabled(boolean enabled) {
+        KarateConfig config = new KarateConfig();
+        config.configure("cookieJarEnabled", enabled);
+        return config;
+    }
+
+    @Test
+    void cookieJarDisabledNeitherStoresNorSendsAndReEnablingRestores() throws Exception {
+        BasicCookieStore jar = new BasicCookieStore();
+        try (ApacheHttpClient client = new ApacheHttpClient(jar)) {
+            get(client, "/login");
+            assertEquals(1, jar.getCookies().size());
+            client.apply(cookieJarEnabled(false));
+            get(client, "/api");
+            assertEquals("null", cookieSeen.get("/api"), "a jar cookie is not sent");
+            HttpResponse hop = get(client, "/hop");
+            assertEquals("null", cookieSeen.get("/plain"), "a redirect hop's cookie is not carried to the next hop");
+            assertTrue(hop.getHeaderValues("Set-Cookie").stream().anyMatch(v -> v.startsWith("hop=1")), "the response still reports it");
+            assertEquals(List.of("session"), jar.getCookies().stream().map(c -> c.getName()).toList(), "a Set-Cookie is not stored");
+            HttpRequest explicit = new HttpRequest();
+            explicit.setUrl("http://localhost:" + server.getPort() + "/own");
+            explicit.setMethod("GET");
+            explicit.putHeader("Cookie", "mine=1");
+            client.invoke(explicit);
+            assertEquals("mine=1", cookieSeen.get("/own"), "a request's own Cookie header is sent");
+            client.apply(cookieJarEnabled(true));
+            get(client, "/api");
+            assertEquals("session=abc", cookieSeen.get("/api"));
+        }
+    }
+
 }

@@ -2297,9 +2297,10 @@ public class StepExecutor {
 
         // Apply cookies from the cookie jar (V1 compatibility: auto-send responseCookies)
         // Use the full cookie map to preserve the wrap flag from Set-Cookie parsing
-        Map<String, Map<String, Object>> cookieJar = runtime.getCookieJar();
-        for (Map.Entry<String, Map<String, Object>> entry : cookieJar.entrySet()) {
-            http().cookie(entry.getValue());
+        if (config.isCookieJarEnabled()) {
+            for (Map<String, Object> cookie : runtime.getCookieJar().values()) {
+                http().cookie(cookie);
+            }
         }
 
         // Apply configured cookies before invoking request - may be a Map or a JsCallable
@@ -2420,7 +2421,9 @@ public class StepExecutor {
         runtime.setHiddenVariable("requestTimeStamp", response.getStartTime());
 
         // Update cookie jar with responseCookies for auto-send on subsequent requests (V1 compatibility)
-        runtime.updateCookieJar(responseCookies);
+        if (runtime.getConfig().isCookieJarEnabled()) {
+            runtime.updateCookieJar(responseCookies);
+        }
 
         // Determine response type for V1 compatibility
         String responseType;
