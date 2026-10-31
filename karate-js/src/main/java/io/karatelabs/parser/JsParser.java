@@ -3112,6 +3112,8 @@ public class JsParser extends BaseParser {
                 if (consumeIf(DOLLAR_L_CURLY)) {
                     expr(-1, false);
                     consumeSoft(R_CURLY);
+                } else {
+                    consumeNext(); // error-recovery mode only — consumeSoft above recorded the stray token
                 }
             }
         }
@@ -3312,9 +3314,14 @@ public class JsParser extends BaseParser {
         enter(NodeType.ARRAY_ELEM);
         consumeIf(DOT_DOT_DOT); // spread operator
         expr(-1, false); // optional for sparse array
-        if (!(consumeIf(COMMA) || peekIf(R_BRACKET) || peekIf(EOF))) {
-            error(COMMA, R_BRACKET);
+        if (consumeIf(COMMA) || peekIf(R_BRACKET) || peekIf(EOF)) {
+            return exit();
         }
+        // An empty element that succeeds would loop lit_array forever; lit_array recovers instead.
+        if (errorRecoveryEnabled && markerNode().isEmpty()) {
+            return exit(false, false);
+        }
+        error(COMMA, R_BRACKET);
         return exit();
     }
 

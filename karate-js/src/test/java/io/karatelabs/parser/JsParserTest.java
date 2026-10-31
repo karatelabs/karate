@@ -2,11 +2,14 @@ package io.karatelabs.parser;
 
 import io.karatelabs.common.Resource;
 import io.karatelabs.js.Engine;
+import io.karatelabs.js.JsonParser;
 import io.karatelabs.js.NodeUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.lang.reflect.Constructor;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -571,6 +574,21 @@ class JsParserTest {
         parser.parse();
         assertTrue(parser.hasErrors(), source);
         return parser.getErrors().get(0);
+    }
+
+    @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    void testBrokenInputParseTerminates() {
+        for (String text : List.of("{\"a\": [", "[", "{\"a\": [1,", "[{", "{\"a\": {\"b\": [", "[)", "{\"a\": [{", "foo([", "`${a b}`")) {
+            JsParser parser = new JsParser(Resource.text(text), true);
+            assertNotNull(parser.parse(), text);
+            assertTrue(parser.hasErrors(), text);
+            assertThrows(ParserException.class, () -> new JsParser(Resource.text(text)).parse(), text);
+            if (!text.startsWith("foo") && !text.startsWith("`")) {
+                assertThrows(RuntimeException.class, () -> JsonParser.parse(text), text);
+                assertThrows(RuntimeException.class, () -> JsonParser.parseSpans(text), text);
+            }
+        }
     }
 
     @Test
