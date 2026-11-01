@@ -165,7 +165,7 @@ class ContextRoot implements Context {
             "Uint8ClampedArray", "Int16Array", "Uint16Array", "Int32Array", "Uint32Array", "Float32Array",
             "Float64Array", "crypto", "globalThis",
             "setTimeout", "clearTimeout", "setInterval", "clearInterval", "setImmediate", "clearImmediate",
-            "structuredClone", "performance",
+            "structuredClone", "performance", "queueMicrotask", "URL", "URLSearchParams",
             "isNaN", "isFinite", "eval", "Symbol", "Reflect");
 
     private static final Set<String> GLOBAL_SET = Set.copyOf(GLOBALS);
@@ -445,6 +445,8 @@ class ContextRoot implements Context {
                 case "WeakSet" -> new JsWeakSetConstructor();
                 case "ArrayBuffer" -> new JsArrayBufferConstructor();
                 case "DataView" -> new JsDataViewConstructor();
+                case "URL" -> new JsUrlConstructor();
+                case "URLSearchParams" -> new JsUrlSearchParamsConstructor();
                 case "Error" -> new JsErrorConstructor(JsErrorPrototype.ERROR, 1);
                 case "TypeError" -> new JsErrorConstructor(JsErrorPrototype.TYPE_ERROR, 1);
                 case "RangeError" -> new JsErrorConstructor(JsErrorPrototype.RANGE_ERROR, 1);
@@ -528,6 +530,7 @@ class ContextRoot implements Context {
                  "WeakMap", "WeakSet", "ArrayBuffer", "DataView", "Int8Array", "Uint8Array", "Uint8ClampedArray",
                  "Int16Array", "Uint16Array", "Int32Array", "Uint32Array", "Float32Array",
                  "Float64Array" -> builtinConstructor(key);
+            case "URL", "URLSearchParams" -> builtinConstructor(key);
             // the top-level `this` object, under its spec name
             case "globalThis" -> thisObject;
             case "setTimeout" -> new JsBuiltinMethod("setTimeout", 2, AsyncSupport::setTimeout);
@@ -536,6 +539,7 @@ class ContextRoot implements Context {
             case "clearInterval" -> new JsBuiltinMethod("clearInterval", 1, AsyncSupport::clearTimeout);
             case "setImmediate" -> new JsBuiltinMethod("setImmediate", 1, AsyncSupport::setImmediate);
             case "clearImmediate" -> new JsBuiltinMethod("clearImmediate", 1, AsyncSupport::clearTimeout);
+            case "queueMicrotask" -> new JsBuiltinMethod("queueMicrotask", 1, AsyncSupport::queueMicrotask);
             case "Infinity" -> Double.POSITIVE_INFINITY;
             case "Java" -> new JsJava(bridge);
             case "JSON" -> new JsJson();

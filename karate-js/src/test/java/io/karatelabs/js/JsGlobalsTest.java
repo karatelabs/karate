@@ -255,6 +255,15 @@ class JsGlobalsTest extends EvalBase {
     }
 
     @Test
+    void testQueueMicrotask() {
+        assertEquals("function", eval("typeof queueMicrotask"));
+        assertEquals("[\"sync\",\"m1\",\"p\",\"m2\",\"t\"]", evalThen("var log = []; setTimeout(() => log.push('t'), 0);"
+                + " queueMicrotask(() => log.push('m1')); Promise.resolve().then(() => log.push('p'));"
+                + " queueMicrotask(() => log.push('m2')); log.push('sync'); globalThis.L = log"));
+        assertEquals("TypeError", eval("try { queueMicrotask(1) } catch (e) { e.name }"));
+    }
+
+    @Test
     void testSetImmediate() {
         assertEquals("[\"sync\",\"micro\",3]", evalThen("var log = []; setImmediate(function (a, b) { log.push(a + b) }, 1, 2);"
                 + " Promise.resolve().then(() => log.push('micro')); log.push('sync'); globalThis.L = log"));

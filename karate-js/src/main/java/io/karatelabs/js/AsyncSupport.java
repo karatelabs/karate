@@ -740,6 +740,27 @@ final class AsyncSupport {
         return arm(context, args, 1, 0, "setImmediate", false);
     }
 
+    /** A job on the microtask queue, in order with promise reactions; a throw is reported as a timer's is. */
+    static Object queueMicrotask(Context context, Object[] args) {
+        Engine engine = timerEngine(context, "queueMicrotask");
+        AsyncScope scope = engine.currentScope();
+        if (scope == null) {
+            throw JsErrorException.typeError("queueMicrotask requires an active evaluation");
+        }
+        if (!(arg(args, 0) instanceof JsCallable callback)) {
+            throw JsErrorException.typeError("The \"callback\" argument must be of type function. Received "
+                    + Terms.typeOf(arg(args, 0)));
+        }
+        AsyncActivation.anyAsync = true;
+        scope.publish(new AsyncJob.Microtask("queueMicrotask", () -> {
+            Completion outcome = invoke(engine, callback, EMPTY_ARGS, null);
+            if (outcome.threw()) {
+                reportFailure(engine, "uncaught exception in queueMicrotask callback", outcome.reason());
+            }
+        }));
+        return Terms.UNDEFINED;
+    }
+
     /** As in Node, an interval is at least 1 ms. */
     static Object setInterval(Context context, Object[] args) {
         return arm(context, args, 2, Math.max(1, coerceDelay(arg(args, 1))), "setInterval", true);

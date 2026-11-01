@@ -1158,6 +1158,8 @@ after each callback that did not throw, due one period after the last due time
 so the period does not drift, until `clearInterval`; one id space serves every
 `clear*`, as in Node. An uncleared interval keeps the eval from quiescing, as a
 far-future timer does (deviation 3).
+`queueMicrotask` queues its callback as a microtask, in order with promise
+reactions; a throw is reported as a timer callback's is.
 
 ### Job ordering — the microtask checkpoint
 
@@ -1187,7 +1189,7 @@ browser would.
 3. `Engine.eval` blocks to quiescence by design; a far-future timer blocks it
    (interrupt and the drain cap are the escape hatches), and fair-lock order
    among runnable activations is approximate, not the spec's job ordering.
-4. No `queueMicrotask`, no async iterators — `for await` is rejected at parse time.
+4. No async iterators — `for await` is rejected at parse time.
 
 > **Spec invariant.** Pinned by `JsAsyncAwaitTest` (19 cases — parse and call
 > shape, contextual-keyword back-compat), `JsPromiseTest` (60 — promise surface,
@@ -1717,6 +1719,13 @@ top-level `this`, so `globalThis === this` at top level and the two see one
 store. Absent from the
 global surface: `Proxy`, `SharedArrayBuffer`, `BigInt64Array` / `BigUint64Array`
 and the Iterator helpers (known deviations — see TEST262.md Active priorities).
+
+**The web globals** Postman and Node scripts reach for are built in: `URL` and
+`URLSearchParams` (`JsUrl`: the WHATWG parser and serializer for the common cases —
+special and opaque schemes, relative resolution, IPv4 and IPv6 hosts, `IDN.toASCII`
+for a non-ASCII domain, the setters, a live `searchParams`; not Windows drive
+letters or `blob:` origins), `queueMicrotask`, `structuredClone`, `TextEncoder` and
+`TextDecoder`. An input that is not a URL throws Node's `TypeError: Invalid URL`.
 
 So `this.foo = 1; foo` and `foo = 1; this.foo` see the same value (no
 divergence — same store). Lazy built-ins land hidden via
