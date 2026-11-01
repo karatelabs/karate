@@ -947,4 +947,22 @@ class JsObjectTest extends EvalBase {
         assertEquals(1, eval("var s = Symbol('k'); var o = {}; o[s] = 1; o[s]"));
     }
 
+    @Test
+    void testEntriesOfAValueThatContainsItselfHashNothing() {
+        java.util.List<Object> self = new java.util.ArrayList<>();
+        self.add(self);
+        JsObject o = new JsObject();
+        o.put("a", 1);
+        o.put("self", self);
+        o.put("b", 2);
+        o.remove("a");
+        assertEquals(2, o.entrySet().size());
+        java.util.Iterator<java.util.Map.Entry<String, Object>> it = ObjectLike.entries(o);
+        assertEquals("self", it.next().getKey());
+        java.util.Map.Entry<String, Object> b = it.next();
+        assertEquals("b", b.getKey());
+        assertEquals(2, b.getValue());
+        assertFalse(it.hasNext());
+    }
+
 }

@@ -964,13 +964,43 @@ class JsObject implements ObjectLike, Map<String, Object> {
     @Override
     public Set<Entry<String, Object>> entrySet() {
         if (props == null || props.isEmpty()) return Collections.emptySet();
-        Set<Entry<String, Object>> out = new LinkedHashSet<>(props.size());
+        // keyed by name, so no entry is hashed: an Entry's hash is its value's, which recurses forever on a
+        // self-referential Map / List (see getEntries)
+        Map<String, Object> out = new LinkedHashMap<>(props.size());
         for (PropertySlot s : props.values()) {
             if (s.tombstoned) continue;
-            Object v = s instanceof DataSlot ds ? Engine.toJava(ds.value) : null;
-            out.add(new AbstractMap.SimpleEntry<>(s.name, v));
+            out.put(s.name, s instanceof DataSlot ds ? Engine.toJava(ds.value) : null);
         }
-        return out;
+        return out.entrySet();
+    }
+
+    /**
+     * Own entries one at a time, each value as {@link #get} returns it: nothing is read ahead of the entry asked for
+     * and no value is hashed, so a caller can stop at any bound. Reached through {@link ObjectLike#entries}.
+     */
+    Iterator<Entry<String, Object>> entryIterator() {
+        if (props == null) return Collections.emptyIterator();
+        Iterator<PropertySlot> slots = props.values().iterator();
+        return new Iterator<>() {
+            PropertySlot peeked;
+
+            @Override
+            public boolean hasNext() {
+                while (peeked == null && slots.hasNext()) {
+                    PropertySlot s = slots.next();
+                    if (!s.tombstoned) peeked = s;
+                }
+                return peeked != null;
+            }
+
+            @Override
+            public Entry<String, Object> next() {
+                if (!hasNext()) throw new NoSuchElementException();
+                PropertySlot s = peeked;
+                peeked = null;
+                return new AbstractMap.SimpleImmutableEntry<>(s.name, s instanceof DataSlot ds ? Engine.toJava(ds.value) : null);
+            }
+        };
     }
 
     static Set<Entry<String, Object>> getEntries(Map<String, Object> map) {

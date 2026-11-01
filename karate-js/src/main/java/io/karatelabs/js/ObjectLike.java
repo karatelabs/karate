@@ -23,6 +23,7 @@
  */
 package io.karatelabs.js;
 
+import java.util.Iterator;
 import java.util.Map;
 
 public interface ObjectLike {
@@ -37,6 +38,15 @@ public interface ObjectLike {
      * {@link #getMember(String, Object, CoreContext)} instead.
      */
     Object getMember(String name);
+
+    /**
+     * {@code map}'s entries one at a time, each value as {@link Map#get} returns it. A JS object's are read lazily
+     * with no value hashed, so a caller can stop at any bound, and a value that contains itself is safe; any other
+     * map's come from its {@code entrySet()}.
+     */
+    static Iterator<Map.Entry<String, Object>> entries(Map<String, Object> map) {
+        return map instanceof JsObject o && !(o instanceof JsGlobalThis) ? o.entryIterator() : map.entrySet().iterator();
+    }
 
     /**
      * JS-semantic resolved read. For data descriptors returns the value;
