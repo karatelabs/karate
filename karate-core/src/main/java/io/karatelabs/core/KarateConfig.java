@@ -67,7 +67,7 @@ public class KarateConfig implements SimpleObject {
     private static final List<String> KEYS = List.of(
             // HTTP client settings
             "url", "readTimeout", "connectTimeout", "followRedirects", "maxRedirects", "redirectReferer", "localAddress",
-            "charset", "strictResponseParsing", "cookieJarEnabled",
+            "charset", "strictResponseParsing", "cookieJarEnabled", "maxResponseSize", "maxHeaderSize",
             // Grouped settings (Maps)
             "ssl", "proxy", "auth", "retry", "report", "logging", "callSingleCache",
             // Headers/Cookies
@@ -98,6 +98,9 @@ public class KarateConfig implements SimpleObject {
     private boolean strictResponseParsing;
     // false: response cookies are not stored and stored ones are not sent; explicit cookies still are
     private boolean cookieJarEnabled = true;
+    // the largest response body and header section, in bytes, a request accepts; -1 is no limit
+    private long maxResponseSize = -1;
+    private int maxHeaderSize = -1;
 
     // ===== Grouped Settings (Maps) =====
 
@@ -210,6 +213,8 @@ public class KarateConfig implements SimpleObject {
         this.charset = other.charset;
         this.strictResponseParsing = other.strictResponseParsing;
         this.cookieJarEnabled = other.cookieJarEnabled;
+        this.maxResponseSize = other.maxResponseSize;
+        this.maxHeaderSize = other.maxHeaderSize;
         // Grouped settings (deep copy Maps)
         this.ssl = new HashMap<>(other.ssl);
         this.proxy = new HashMap<>(other.proxy);
@@ -285,6 +290,8 @@ public class KarateConfig implements SimpleObject {
         if (!Objects.equals(before.charset, after.charset)) this.charset = after.charset;
         if (before.strictResponseParsing != after.strictResponseParsing) this.strictResponseParsing = after.strictResponseParsing;
         if (before.cookieJarEnabled != after.cookieJarEnabled) this.cookieJarEnabled = after.cookieJarEnabled;
+        if (before.maxResponseSize != after.maxResponseSize) this.maxResponseSize = after.maxResponseSize;
+        if (before.maxHeaderSize != after.maxHeaderSize) this.maxHeaderSize = after.maxHeaderSize;
         // Grouped settings (deep copy Maps)
         if (!before.ssl.equals(after.ssl)) this.ssl = new HashMap<>(after.ssl);
         if (!before.proxy.equals(after.proxy)) {
@@ -367,6 +374,12 @@ public class KarateConfig implements SimpleObject {
             }
             case "redirectReferer" -> {
                 this.redirectReferer = toBoolean(value);
+            }
+            case "maxResponseSize" -> {
+                this.maxResponseSize = value == null ? -1 : limit(key, value);
+            }
+            case "maxHeaderSize" -> {
+                this.maxHeaderSize = value == null ? -1 : (int) Math.min(limit(key, value), Integer.MAX_VALUE);
             }
             case "strictResponseParsing" -> {
                 this.strictResponseParsing = toBoolean(value);
@@ -764,6 +777,14 @@ public class KarateConfig implements SimpleObject {
         return Boolean.parseBoolean(value.toString());
     }
 
+    private static long limit(String key, Object value) {
+        long max = value instanceof Number n ? n.longValue() : Long.parseLong(value.toString());
+        if (max < 0) {
+            throw new RuntimeException("configure '" + key + "' expects a non-negative integer, got: " + value);
+        }
+        return max;
+    }
+
     private static int toInt(Object value) {
         if (value == null) return 0;
         if (value instanceof Number n) return n.intValue();
@@ -790,6 +811,8 @@ public class KarateConfig implements SimpleObject {
             case "charset" -> charset != null ? charset.name() : null;
             case "strictResponseParsing" -> strictResponseParsing;
             case "cookieJarEnabled" -> cookieJarEnabled;
+            case "maxResponseSize" -> maxResponseSize < 0 ? null : maxResponseSize;
+            case "maxHeaderSize" -> maxHeaderSize < 0 ? null : maxHeaderSize;
             // Grouped settings
             case "ssl" -> ssl;
             case "proxy" -> proxy;
@@ -875,6 +898,16 @@ public class KarateConfig implements SimpleObject {
 
     public boolean isRedirectReferer() {
         return redirectReferer;
+    }
+
+    /** The largest response body, in bytes, a request accepts; -1 is no limit. */
+    public long getMaxResponseSize() {
+        return maxResponseSize;
+    }
+
+    /** The largest response status line and headers, in bytes, a request accepts; -1 is no limit. */
+    public int getMaxHeaderSize() {
+        return maxHeaderSize;
     }
 
     public boolean isStrictResponseParsing() {

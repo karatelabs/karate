@@ -41,6 +41,7 @@ import org.apache.hc.client5.http.cookie.StandardCookieSpec;
 import org.apache.hc.client5.http.entity.EntityBuilder;
 import org.apache.hc.client5.http.impl.DefaultHttpRequestRetryStrategy;
 import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
+import org.apache.hc.client5.http.impl.io.ManagedHttpClientConnectionFactory;
 import org.apache.hc.client5.http.impl.DefaultSchemePortResolver;
 import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -57,6 +58,7 @@ import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
 import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.client5.http.ssl.TrustSelfSignedStrategy;
 import org.apache.hc.core5.http.*;
+import org.apache.hc.core5.http.config.Http1Config;
 import org.apache.hc.core5.http.io.SocketConfig;
 import org.apache.hc.core5.http.message.BasicHttpRequest;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
@@ -116,6 +118,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private boolean redirectReferer;
     // conversion-side (stamped onto each response, never part of ClientKey) — see apply()
     private boolean strictResponseParsing;
+    private long maxResponseSize = -1;
+    private int maxHeaderSize = -1;
     // read per request, never part of ClientKey — see apply()
     private boolean cookieJarEnabled = true;
 
@@ -208,7 +212,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             boolean httpRetryEnabled, int retryCount, int retryInterval,
             Charset charset, String localAddress,
             String ntlmUsername, String ntlmPassword, String ntlmDomain, String ntlmWorkstation,
-            String digestUsername, String digestPassword) {
+            String digestUsername, String digestPassword, int maxHeaderSize) {
 
         static ClientKey of(KarateConfig config) {
             // getNonProxyHosts() hands back the live List inside the proxy map rather than a copy,
@@ -240,7 +244,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                     config.getCharset(), config.getLocalAddress(),
                     config.getNtlmUsername(), config.getNtlmPassword(),
                     config.getNtlmDomain(), config.getNtlmWorkstation(),
-                    config.getDigestUsername(), config.getDigestPassword());
+                    config.getDigestUsername(), config.getDigestPassword(), config.getMaxHeaderSize());
         }
     }
 
@@ -252,6 +256,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         // it must not tear down a live client. Captured before the unchanged-guard early return.
         this.strictResponseParsing = config.isStrictResponseParsing();
         this.cookieJarEnabled = config.isCookieJarEnabled();
+        // read as the response is, never by the built client
+        this.maxResponseSize = config.getMaxResponseSize();
         // Nothing that reaches the wire changed, so the built client is still the right one.
         //
         // This guard is the ONLY thing deciding whether a rebuild is needed. Callers used to make
@@ -325,6 +331,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         ntlmWorkstation = key.ntlmWorkstation();
         digestUsername = key.digestUsername();
         digestPassword = key.digestPassword();
+        maxHeaderSize = key.maxHeaderSize();
         // Committed only now that every field above took, and only if they all did. Since the
         // assignments now come from the key rather than a second read, the only way to reach here
         // without the fields matching it is a name that would not resolve: that exception is
@@ -411,6 +418,11 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 LOGGER.error("ssl context init failed: {}", e.getMessage());
                 throw new RuntimeException(e);
             }
+        }
+        if (maxHeaderSize >= 0) {
+            // one header line may be as long as the whole section; buildResponse checks the section
+            connectionManagerBuilder.setConnectionFactory(ManagedHttpClientConnectionFactory.builder()
+                    .http1Config(Http1Config.custom().setMaxLineLength(Math.max(maxHeaderSize, 1)).build()).build());
         }
         connectionManagerBuilder
                 .setDefaultConnectionConfig(ConnectionConfig.custom()
@@ -696,7 +708,9 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             }
             HttpResponse finalResponse;
             try {
-                finalResponse = httpClient.execute(currentRequest, context, response -> buildResponse(response, startTime));
+                long maxBody = maxResponseSize;
+                int maxHeaders = maxHeaderSize;
+                finalResponse = httpClient.execute(currentRequest, context, response -> buildResponse(response, startTime, maxBody, maxHeaders));
             } finally {
                 if (orphanRebuild) {
                     closeQuietly();
@@ -708,6 +722,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             finalResponse.setStrictParsing(strictResponseParsing);
             logger.logResponse(finalResponse);
             return finalResponse;
+        } catch (MessageConstraintException e) {
+            throw maxHeaderSize >= 0 ? new ResponseLimitException(headerOverflow(maxHeaderSize)) : new RuntimeException(e);
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
@@ -827,7 +843,32 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         startTime = System.currentTimeMillis();
     }
 
+    /** A response over {@code maxResponseSize} or {@code maxHeaderSize}: the request fails, its connection dropped. */
+    static final class ResponseLimitException extends RuntimeException {
+
+        ResponseLimitException(String message) {
+            super(message);
+        }
+    }
+
     static HttpResponse buildResponse(org.apache.hc.core5.http.HttpResponse httpResponse, long startTime) {
+        return buildResponse(httpResponse, startTime, -1, -1);
+    }
+
+    private static String headerOverflow(int max) {
+        return "Header overflow: the response headers are over " + max + " bytes";
+    }
+
+    static HttpResponse buildResponse(org.apache.hc.core5.http.HttpResponse httpResponse, long startTime, long maxBody, int maxHeaders) {
+        if (maxHeaders >= 0) {
+            long size = ("HTTP/1.1 " + httpResponse.getCode() + " " + Objects.toString(httpResponse.getReasonPhrase(), "")).length() + 2;
+            for (Header h : httpResponse.getHeaders()) {
+                size += h.getName().length() + 2 + Objects.toString(h.getValue(), "").length() + 2;
+            }
+            if (size > maxHeaders) {
+                throw new ResponseLimitException(headerOverflow(maxHeaders));
+            }
+        }
         int statusCode = httpResponse.getCode();
         Map<String, List<String>> headers = toHeaders(httpResponse);
         HttpResponse response = new HttpResponse();
@@ -845,17 +886,21 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                     if ("br".equalsIgnoreCase(encoding)) {
                         try (InputStream is = entity.getContent();
                              BrotliInputStream brotliIs = new BrotliInputStream(is)) {
-                            bytes = brotliIs.readAllBytes();
+                            bytes = readAll(brotliIs, maxBody);
                         }
                     } else if ("gzip".equalsIgnoreCase(encoding)) {
                         try (InputStream is = entity.getContent();
                              java.util.zip.GZIPInputStream gzipIs = new java.util.zip.GZIPInputStream(is)) {
-                            bytes = gzipIs.readAllBytes();
+                            bytes = readAll(gzipIs, maxBody);
                         }
                     } else if ("deflate".equalsIgnoreCase(encoding)) {
                         try (InputStream is = entity.getContent();
                              java.util.zip.InflaterInputStream inflaterIs = new java.util.zip.InflaterInputStream(is)) {
-                            bytes = inflaterIs.readAllBytes();
+                            bytes = readAll(inflaterIs, maxBody);
+                        }
+                    } else if (maxBody >= 0) {
+                        try (InputStream is = entity.getContent()) {
+                            bytes = is == null ? new byte[0] : readAll(is, maxBody);
                         }
                     } else {
                         bytes = EntityUtils.toByteArray(entity);
@@ -875,6 +920,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                             response.setHeader(HttpUtils.Header.CONTENT_LENGTH.key, String.valueOf(bytes.length));
                         }
                     }
+                } catch (ResponseLimitException e) {
+                    throw e;
                 } catch (Exception e) {
                     LOGGER.warn("error extracting response body: {}", e.getMessage());
                 }
@@ -883,6 +930,21 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         // after the body is read, so the time includes the download
         response.setResponseTime(System.currentTimeMillis() - startTime);
         return response;
+    }
+
+    private static byte[] readAll(InputStream in, long max) throws java.io.IOException {
+        if (max < 0) {
+            return in.readAllBytes();
+        }
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        for (int n; (n = in.read(buffer)) != -1; ) {
+            if (out.size() + (long) n > max) {
+                throw new ResponseLimitException("Maximum response size reached");
+            }
+            out.write(buffer, 0, n);
+        }
+        return out.toByteArray();
     }
 
     /**

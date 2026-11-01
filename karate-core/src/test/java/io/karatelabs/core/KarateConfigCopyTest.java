@@ -145,6 +145,9 @@ class KarateConfigCopyTest {
         if (type == int.class) {
             return (Integer) current + 1;
         }
+        if (type == long.class) {
+            return (Long) current + 1;
+        }
         if (type == boolean.class) {
             return !((Boolean) current);
         }
