@@ -42,7 +42,10 @@ import io.netty.handler.ssl.SslContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.channels.ServerSocketChannel;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -57,6 +60,8 @@ public class HttpServer implements Stoppable {
     public static final int DEFAULT_MAX_INITIAL_LINE_LENGTH = HttpObjectDecoder.DEFAULT_MAX_INITIAL_LINE_LENGTH;
     public static final int DEFAULT_MAX_HEADER_SIZE = HttpObjectDecoder.DEFAULT_MAX_HEADER_SIZE;
     public static final int DEFAULT_MAX_CONTENT_LENGTH = HttpUtils.MEGABYTE;
+
+    private static final boolean SPECIFIC_BESIDE_WILDCARD = specificBesideWildcard();
 
     /** Servers that started and have not stopped — the registry is the single source of truth,
      *  see {@link KarateLifecycle} for the ecosystem-wide version of this. */
@@ -216,6 +221,33 @@ public class HttpServer implements Stoppable {
 
     }
 
+    /** Whether another socket listens on 127.0.0.1 at {@code port}. Where a specific bind can sit beside a
+     *  wildcard one (macOS), port 0 can hand a wildcard server such a port, and loopback clients then reach
+     *  the other socket; where it cannot (Linux), the probe fails against our own bind and proves nothing. */
+    private static boolean loopbackHeld(int port) {
+        if (!SPECIFIC_BESIDE_WILDCARD) {
+            return false;
+        }
+        try (ServerSocketChannel probe = ServerSocketChannel.open()) {
+            probe.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), port));
+            return false;
+        } catch (IOException e) {
+            return true;
+        }
+    }
+
+    private static boolean specificBesideWildcard() {
+        try (ServerSocketChannel wildcard = ServerSocketChannel.open();
+             ServerSocketChannel specific = ServerSocketChannel.open()) {
+            wildcard.bind(new InetSocketAddress(0));
+            specific.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                    ((InetSocketAddress) wildcard.getLocalAddress()).getPort()));
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     private static int positive(String name, int bytes) {
         if (bytes <= 0) {
             throw new IllegalArgumentException(name + " must be a positive number of bytes, was: " + bytes);
@@ -341,10 +373,17 @@ public class HttpServer implements Stoppable {
                     });
             // host null/blank/"0.0.0.0" → wildcard (all interfaces, the historical default); a specific
             // host (e.g. "localhost"/"127.0.0.1") binds that interface only — loopback is unreachable off-box.
-            InetSocketAddress bindAddress = (host == null || host.isBlank() || "0.0.0.0".equals(host))
+            boolean wildcard = host == null || host.isBlank() || "0.0.0.0".equals(host);
+            InetSocketAddress bindAddress = wildcard
                     ? new InetSocketAddress(requestedPort)
                     : new InetSocketAddress(host, requestedPort);
-            channel = bootstrap.bind(bindAddress).sync().channel();
+            Channel bound = bootstrap.bind(bindAddress).sync().channel();
+            for (int retry = 0; wildcard && requestedPort == 0 && retry < 16
+                    && loopbackHeld(((InetSocketAddress) bound.localAddress()).getPort()); retry++) {
+                bound.close().sync();
+                bound = bootstrap.bind(bindAddress).sync().channel();
+            }
+            channel = bound;
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
             port = isa.getPort();
             KarateLifecycle.register(this);
