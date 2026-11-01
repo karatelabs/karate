@@ -1801,6 +1801,23 @@ class MockE2eTest {
     }
 
     @Test
+    void testConfigureAuthOAuth1() {
+        ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+            Feature: Test OAuth 1.0 Auth via configure
+
+            Scenario: oauth1 auth signs the request into the Authorization header
+            * url 'http://localhost:%d'
+            * configure auth = { type: 'oauth1', consumerKey: 'ck', consumerSecret: 'cs', token: 'tok', tokenSecret: 'ts', signatureMethod: 'HMAC-SHA256', realm: 'Photos', timestamp: '1700000000', nonce: 'n0nce' }
+            * path '/auth/check'
+            * method get
+            * status 200
+            * match response.authorization == '#regex OAuth realm="Photos",oauth_consumer_key="ck",oauth_token="tok",oauth_signature_method="HMAC-SHA256",oauth_timestamp="1700000000",oauth_nonce="n0nce",oauth_version="1.0",oauth_signature="[A-Za-z0-9%%]{44,}"'
+            """.formatted(port));
+
+        assertPassed(sr);
+    }
+
+    @Test
     void testConfigureAuthBearer() {
         ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
             Feature: Test Bearer Auth via configure

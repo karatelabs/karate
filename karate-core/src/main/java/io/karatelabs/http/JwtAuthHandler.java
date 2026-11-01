@@ -299,7 +299,7 @@ public class JwtAuthHandler implements AuthHandler {
     }
 
     /** The URL without its {@code key} query params, matched decoded, the other pairs kept as written. */
-    private static String withoutParam(String url, String key) {
+    static String withoutParam(String url, String key) {
         int q = url == null ? -1 : url.indexOf('?');
         if (q < 0) {
             return url;

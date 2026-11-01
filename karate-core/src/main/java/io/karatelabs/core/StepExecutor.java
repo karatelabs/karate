@@ -43,6 +43,7 @@ import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.http.HttpResponse;
 import io.karatelabs.http.JwtAuthHandler;
+import io.karatelabs.http.OAuth1AuthHandler;
 import io.karatelabs.http.PasswordAuthHandler;
 import io.karatelabs.gherkin.GherkinParser;
 import io.karatelabs.js.EngineException;
@@ -2078,6 +2079,7 @@ public class StepExecutor {
             }
             case "aws" -> new AwsSigV4AuthHandler(auth);
             case "jwt" -> new JwtAuthHandler(auth);
+            case "oauth1" -> new OAuth1AuthHandler(auth);
             default -> null;
         };
     }
