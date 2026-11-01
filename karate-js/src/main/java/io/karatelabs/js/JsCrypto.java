@@ -42,12 +42,15 @@ class JsCrypto extends JsObject {
         return switch (name) {
             case "getRandomValues" -> (JsInvokable) args -> {
                 Object array = args.length > 0 ? args[0] : null;
-                byte[] bytes = array instanceof byte[] b ? b
-                        : array instanceof JsUint8Array u ? (byte[]) u.getJavaValue() : null;
-                if (bytes == null) {
-                    throw JsErrorException.typeError("getRandomValues expects a Uint8Array");
+                JsTypedArray view = array instanceof byte[] b ? new JsUint8Array(b)
+                        : array instanceof JsTypedArray t && t.kind.isInteger() ? t : null;
+                if (view == null) {
+                    throw JsErrorException.typeError("The \"typedArray\" argument must be an instance of Int8Array,"
+                            + " Int16Array, Int32Array, Uint8Array, Uint16Array, Uint32Array, or Uint8ClampedArray.");
                 }
-                RANDOM.nextBytes(bytes);
+                byte[] random = new byte[view.byteLength()];
+                RANDOM.nextBytes(random);
+                System.arraycopy(random, 0, view.bytes, view.byteOffset, random.length);
                 return array;
             };
             case "randomUUID" -> (JsInvokable) args -> UUID.randomUUID().toString();

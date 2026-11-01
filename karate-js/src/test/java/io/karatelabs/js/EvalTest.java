@@ -7,6 +7,29 @@ import static org.junit.jupiter.api.Assertions.*;
 class EvalTest extends EvalBase {
 
     @Test
+    void testDeepNestingParses() {
+        // generated code (ajv's validators) nests blocks well past a hundred parser levels
+        String nested = "if (x) {".repeat(300) + "x = 2;" + "}".repeat(300);
+        assertEquals(2, eval("var x = 1; " + nested + " x"));
+        assertEquals(2, eval("var f = new Function('x', '" + nested + " return x'); f(1)"));
+        assertEquals(2, eval("var x = 1; if (x == 0) {}" + " else if (x == 0) {}".repeat(1000) + " else { x = 2 } x"));
+    }
+
+    @Test
+    void testNestingPastTheStackIsARangeError() {
+        String nested = "(".repeat(100_000) + "1" + ")".repeat(100_000);
+        EngineException e = assertThrows(EngineException.class, () -> eval(nested));
+        assertTrue(e.getMessage().contains("Maximum call stack size exceeded"), e.getMessage());
+        assertEquals("RangeError", eval("try { new Function('return " + nested + "') } catch (e) { e.name }"));
+    }
+
+    @Test
+    void testEscapedStringKeys() {
+        assertEquals("[\"a\\nb\",\"aA\"]", eval("JSON.stringify(Object.keys({'a\\nb': 1, 'a\\x41': 2}))"));
+        assertEquals(1, eval("var o = {'a\\tb': 1}; o['a\\tb']"));
+    }
+
+    @Test
     void testDev() {
         // single-line if/else with blocks (baseline - already worked)
         assertEquals(true, eval("if (false) { false } else { true }"));

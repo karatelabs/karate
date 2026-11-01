@@ -110,10 +110,21 @@ class JsFunctionNode extends JsFunction {
         this(arrow, node, argNodes, body, declaredContext, false);
     }
 
+    /** A named function expression: declared in {@code nameScope}, the scope of its own name, whose parent is
+     *  where it was created — so it captures that context's let/const, as any closure does, but not its own name. */
+    JsFunctionNode(Node node, List<Node> argNodes, Node body, CoreContext nameScope, String name) {
+        this(false, node, argNodes, body, nameScope, false, nameScope.parent, name);
+    }
+
     // forceStrict overload — class bodies are always strict regardless of any
     // surrounding "use strict" directive (spec §15.7).
     JsFunctionNode(boolean arrow, Node node, List<Node> argNodes, Node body, CoreContext declaredContext,
                    boolean forceStrict) {
+        this(arrow, node, argNodes, body, declaredContext, forceStrict, declaredContext, null);
+    }
+
+    private JsFunctionNode(boolean arrow, Node node, List<Node> argNodes, Node body, CoreContext declaredContext,
+                           boolean forceStrict, CoreContext captureFrom, String ownName) {
         this.arrow = arrow;
         this.async = node.async;
         this.generator = node.generator;
@@ -128,7 +139,7 @@ class JsFunctionNode extends JsFunction {
                 || (body.type == NodeType.BLOCK && Interpreter.hasUseStrictDirective(body));
         this.length = expectedArgCount(argNodes);
         // Capture references to let/const Slots at creation time for closure semantics
-        this.capturedBindings = captureBindings(declaredContext);
+        this.capturedBindings = captureFrom == null ? null : captureBindings(captureFrom, ownName);
         // Slot-frame analysis: once per function-definition node (cached there),
         // null when the flag is off or the analyzer declines the shape. Eager
         // only for loop-containing bodies; loop-free bodies are analyzed at
@@ -166,12 +177,15 @@ class JsFunctionNode extends JsFunction {
     // call, and slotTable is republished from the node cache either way.
     private int callCount;
 
-    private static BindingsStore captureBindings(CoreContext context) {
+    private static BindingsStore captureBindings(CoreContext context, String exclude) {
         if (context.bindings == null) {
             return null;
         }
         Map<String, BindingSlot> snapshot = null;
         for (String key : context.bindings.keys()) {
+            if (key.equals(exclude)) {
+                continue;
+            }
             BindingSlot s = context.bindings.getSlot(key);
             if (s != null && s.scope != null) { // Only capture let/const bindings
                 if (snapshot == null) {

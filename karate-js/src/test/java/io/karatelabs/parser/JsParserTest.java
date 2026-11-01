@@ -198,8 +198,9 @@ class JsParserTest {
     void testStrings() {
         expr("'foo'", "foo");
         expr("\"foo\"", "foo");
-        expr("\"\\\"foo\\\"\"", "\\\"foo\\\"");
-        expr("'\\'foo\\''", "\\'foo\\'");
+        // a string literal's value is cooked: its escapes are resolved
+        expr("\"\\\"foo\\\"\"", "'\"foo\"'");
+        expr("'\\'foo\\''", "\"'foo'\"");
         expr("read('fooRbar')", "[$read,'(','fooRbar',')']");
     }
 

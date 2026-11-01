@@ -120,11 +120,11 @@ skip:
     - feature: Temporal
       reason: Temporal proposal not implemented
     - feature: TypedArray
-      reason: only Uint8Array is supported
+      reason: partial — no %TypedArray% constructor, subclassing, detached buffers or BigInt kinds
     - feature: Float16Array
       reason: Float16Array (ES2025) not implemented; Math.f16round depends on it
     - feature: ArrayBuffer
-      reason: ArrayBuffer semantics not implemented
+      reason: partial — no detach, resize or transfer
     - feature: resizable-arraybuffer
       reason: resizable ArrayBuffer (ES2024) not implemented; harness requires Int8Array
     - feature: cross-realm
@@ -132,7 +132,7 @@ skip:
     - feature: SharedArrayBuffer
       reason: SharedArrayBuffer not implemented
     - feature: DataView
-      reason: DataView not implemented
+      reason: partial — no detached-buffer checks
     - feature: Atomics
       reason: Atomics not supported
     - feature: WeakRef

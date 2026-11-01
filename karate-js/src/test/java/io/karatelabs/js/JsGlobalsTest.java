@@ -244,4 +244,45 @@ class JsGlobalsTest extends EvalBase {
         assertThrows(EngineException.class, () -> eval("new Uint32Array(-1)"));
     }
 
+    @Test
+    void testSetInterval() {
+        assertEquals("[\"x0\",\"x1\",\"x2\",\"t\"]", evalThen("var log = []; var n = 0;"
+                + " var id = setInterval(function (a) { log.push(a + n); if (++n === 3) clearInterval(id) }, 5, 'x');"
+                + " setTimeout(function () { log.push('t') }, 50); globalThis.L = log"));
+        assertEquals("[]", evalThen("var log = []; var i = setInterval(() => log.push('no'), 1); clearInterval(i); globalThis.L = log"));
+        assertEquals("[\"i\",\"i\",\"i\"]", evalThen("var log = [];"
+                + " var k = setInterval(() => { log.push('i'); if (log.length > 2) clearTimeout(k) }, 1); globalThis.L = log"));
+    }
+
+    @Test
+    void testSetImmediate() {
+        assertEquals("[\"sync\",\"micro\",3]", evalThen("var log = []; setImmediate(function (a, b) { log.push(a + b) }, 1, 2);"
+                + " Promise.resolve().then(() => log.push('micro')); log.push('sync'); globalThis.L = log"));
+        assertEquals("[\"yes\"]", evalThen("var log = []; var i = setImmediate(() => log.push('no')); clearImmediate(i);"
+                + " setTimeout(() => log.push('yes'), 1); globalThis.L = log"));
+    }
+
+    @Test
+    void testClearTimeoutAfterTheTimerFired() {
+        // the timer is due before clearTimeout runs: its queued callback must not run
+        assertEquals("[\"yes\"]", evalThen("var log = []; var i = setTimeout(() => log.push('no'), 0);"
+                + " for (var w = Date.now(); Date.now() - w < 20;); clearTimeout(i);"
+                + " setTimeout(() => log.push('yes'), 1); globalThis.L = log"));
+    }
+
+    @Test
+    void testNamedFunctionExpressionOutlivesItsEnclosingCall() {
+        assertEquals("[5,\"function\"]", evalThen("var log = []; (function () { const bar = 5, main = 1;"
+                + " setTimeout(function main() { log.push(bar, typeof main) }, 1) })(); globalThis.L = log"));
+        assertEquals("[\"foo\",\"bar\"]", evalThen("var log = []; (function () {"
+                + " const foo = () => new Promise(r => { log.push('foo'); setTimeout(r, 5) }); const bar = () => log.push('bar');"
+                + " (async function main() { await foo(); bar() })() })(); globalThis.L = log"));
+    }
+
+    /** Runs {@code text} to the end of its timers, then answers {@code JSON.stringify(L)}. */
+    private Object evalThen(String text) {
+        eval(text);
+        return engine.eval("JSON.stringify(L)");
+    }
+
 }

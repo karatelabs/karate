@@ -24,6 +24,7 @@
 package io.karatelabs.js;
 
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 /**
  * A unit of queued work owned by an {@link AsyncScope}. Every job holds exactly
@@ -76,22 +77,32 @@ abstract class AsyncJob {
         }
     }
 
-    /** A fired {@code setTimeout} callback. */
+    /** A fired {@code setTimeout} / {@code setImmediate} / {@code setInterval} callback: skipped
+     *  when cleared after it fired; an interval's {@code rearm} runs after a callback that did not throw. */
     static final class Timer extends AsyncJob {
 
         private final JsCallable callback;
         private final Object[] args;
         private final int id;
+        private final BooleanSupplier uncleared;
+        private final Runnable rearm;
 
-        Timer(int id, JsCallable callback, Object[] args) {
+        Timer(int id, JsCallable callback, Object[] args, BooleanSupplier uncleared, Runnable rearm) {
             this.id = id;
             this.callback = callback;
             this.args = args;
+            this.uncleared = uncleared;
+            this.rearm = rearm;
         }
 
         @Override
         void run(Engine engine) {
-            AsyncSupport.invokeQueuedCallback(engine, callback, args);
+            if (!uncleared.getAsBoolean()) {
+                return;
+            }
+            if (AsyncSupport.invokeQueuedCallback(engine, callback, args) && rearm != null) {
+                rearm.run();
+            }
         }
 
         @Override

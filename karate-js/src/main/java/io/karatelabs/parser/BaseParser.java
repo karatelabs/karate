@@ -38,7 +38,7 @@ public abstract class BaseParser {
 
     static final Logger logger = LoggerFactory.getLogger(BaseParser.class);
 
-    private static final int MAX_DEPTH = 128;
+    private static final int INITIAL_DEPTH = 128;
 
     protected final Resource resource;
     protected final List<Token> tokens;
@@ -48,8 +48,8 @@ public abstract class BaseParser {
 
     // Stack-based marker state (replaces linked Marker objects)
     private int stackPointer = 0;
-    private final int[] positionStack = new int[MAX_DEPTH];
-    private final Node[] nodeStack = new Node[MAX_DEPTH];
+    private int[] positionStack = new int[INITIAL_DEPTH];
+    private Node[] nodeStack = new Node[INITIAL_DEPTH];
 
     // Error recovery infrastructure
     protected final boolean errorRecoveryEnabled;
@@ -212,8 +212,14 @@ public abstract class BaseParser {
     // ========== End Error Recovery Methods ==========
 
     protected void enter(NodeType type) {
-        if (stackPointer >= MAX_DEPTH) {
-            throw new ParserException("too much recursion");
+        push(type);
+    }
+
+    // nesting is bounded by the Java stack of the recursive descent, as in V8 by its native stack
+    private void push(NodeType type) {
+        if (stackPointer == nodeStack.length) {
+            positionStack = Arrays.copyOf(positionStack, stackPointer * 2);
+            nodeStack = Arrays.copyOf(nodeStack, stackPointer * 2);
         }
         positionStack[stackPointer] = position;
         nodeStack[stackPointer] = new Node(type);
@@ -225,12 +231,7 @@ public abstract class BaseParser {
         if (peek() != token) {
             return false;
         }
-        if (stackPointer >= MAX_DEPTH) {
-            throw new ParserException("too much recursion");
-        }
-        positionStack[stackPointer] = position;
-        nodeStack[stackPointer] = new Node(type);
-        stackPointer++;
+        push(type);
         consumeNext();
         return true;
     }
@@ -246,12 +247,7 @@ public abstract class BaseParser {
                 return false;
             }
         }
-        if (stackPointer >= MAX_DEPTH) {
-            throw new ParserException("too much recursion");
-        }
-        positionStack[stackPointer] = position;
-        nodeStack[stackPointer] = new Node(type);
-        stackPointer++;
+        push(type);
         if (tokens != null) {
             consumeNext();
         }
@@ -267,12 +263,7 @@ public abstract class BaseParser {
         if (!peekAnyOf(tokens)) {
             return false;
         }
-        if (stackPointer >= MAX_DEPTH) {
-            throw new ParserException("too much recursion");
-        }
-        positionStack[stackPointer] = position;
-        nodeStack[stackPointer] = new Node(type);
-        stackPointer++;
+        push(type);
         consumeNext();
         return true;
     }

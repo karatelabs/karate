@@ -273,6 +273,11 @@ abstract class Prototype implements ObjectLike {
         return __proto__ == null ? null : __proto__.getMember(name);
     }
 
+    /** The built-in installed at {@code name}, whatever user code has since done to the property. */
+    final Object builtin(String name) {
+        return resolveBuiltin(name, null);
+    }
+
     private Object resolveBuiltin(String name, CoreContext ctx) {
         Object result = builtins.get(name);
         if (result instanceof LazyRef lr) {

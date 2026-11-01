@@ -24,6 +24,7 @@
 package io.karatelabs.js;
 
 import io.karatelabs.common.Xml;
+import io.karatelabs.parser.JsLexer;
 import io.karatelabs.parser.Token;
 import org.w3c.dom.Node;
 
@@ -301,7 +302,7 @@ public class Terms {
         return switch (token.type) {
             case S_STRING, D_STRING -> {
                 String text = token.getText();
-                yield text.substring(1, text.length() - 1);
+                yield JsLexer.unescapeStringLiteral(text.substring(1, text.length() - 1));
             }
             case NUMBER -> literalToNumber(token.getText());
             case BIGINT -> toBigInt(token.getText());
@@ -1275,15 +1276,9 @@ public class Terms {
             }
             lhs = toObjectLike(lhs);
         }
-        // Uint8Array / TextEncoder / TextDecoder: globals that are instances
-        // standing in for their constructor
+        // TextEncoder / TextDecoder: globals that are instances standing in for their constructor
         if (!(rhs instanceof JsFunction) && lhs.getClass() == rhs.getClass()) {
             return true;
-        }
-        // a typed array borrows Array.prototype's methods (there is no
-        // %TypedArray%.prototype chain yet) but is not an Array
-        if ((lhs instanceof JsUint8Array || lhs instanceof JsUint32Array) && rhs instanceof JsArrayConstructor) {
-            return false;
         }
         if (!(rhs instanceof ObjectLike objectRhs)) {
             return false;
@@ -1312,6 +1307,9 @@ public class Terms {
      * internal method is only defined on objects.
      */
     static boolean in(Object lhs, Object rhs, CoreContext context) {
+        if (rhs instanceof byte[] bytes) {
+            rhs = new JsUint8Array(bytes);
+        }
         if (!(rhs instanceof ObjectLike obj)) {
             throw JsErrorException.typeError(
                     "Cannot use 'in' operator to search for '"

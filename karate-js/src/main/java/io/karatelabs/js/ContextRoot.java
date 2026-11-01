@@ -161,8 +161,11 @@ class ContextRoot implements Context {
             "Infinity", "Java", "JSON", "Map", "Math", "NaN", "Number", "BigInt", "Boolean",
             "Object", "Promise", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
             "SyntaxError", "URIError", "EvalError", "AggregateError", "WeakMap", "WeakSet",
-            "TextEncoder", "TextDecoder", "Uint8Array", "Uint32Array", "crypto", "globalThis",
-            "setTimeout", "clearTimeout", "structuredClone", "performance",
+            "TextEncoder", "TextDecoder", "ArrayBuffer", "DataView", "Int8Array", "Uint8Array",
+            "Uint8ClampedArray", "Int16Array", "Uint16Array", "Int32Array", "Uint32Array", "Float32Array",
+            "Float64Array", "crypto", "globalThis",
+            "setTimeout", "clearTimeout", "setInterval", "clearInterval", "setImmediate", "clearImmediate",
+            "structuredClone", "performance",
             "isNaN", "isFinite", "eval", "Symbol", "Reflect");
 
     private static final Set<String> GLOBAL_SET = Set.copyOf(GLOBALS);
@@ -440,6 +443,8 @@ class ContextRoot implements Context {
                 case "String" -> new JsStringConstructor();
                 case "WeakMap" -> new JsWeakMapConstructor();
                 case "WeakSet" -> new JsWeakSetConstructor();
+                case "ArrayBuffer" -> new JsArrayBufferConstructor();
+                case "DataView" -> new JsDataViewConstructor();
                 case "Error" -> new JsErrorConstructor(JsErrorPrototype.ERROR, 1);
                 case "TypeError" -> new JsErrorConstructor(JsErrorPrototype.TYPE_ERROR, 1);
                 case "RangeError" -> new JsErrorConstructor(JsErrorPrototype.RANGE_ERROR, 1);
@@ -448,7 +453,7 @@ class ContextRoot implements Context {
                 case "URIError" -> new JsErrorConstructor(JsErrorPrototype.URI_ERROR, 1);
                 case "EvalError" -> new JsErrorConstructor(JsErrorPrototype.EVAL_ERROR, 1);
                 case "AggregateError" -> new JsErrorConstructor(JsErrorPrototype.AGGREGATE_ERROR, 2);
-                default -> null;
+                default -> JsTypedArrayConstructor.of(name);
             };
             if (c != null) {
                 builtinConstructors.put(name, c);
@@ -520,11 +525,17 @@ class ContextRoot implements Context {
             case "Array", "Date", "Function", "Error", "Map", "Number", "BigInt", "Boolean",
                  "Object", "Promise", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
                  "SyntaxError", "URIError", "EvalError", "AggregateError",
-                 "WeakMap", "WeakSet" -> builtinConstructor(key);
+                 "WeakMap", "WeakSet", "ArrayBuffer", "DataView", "Int8Array", "Uint8Array", "Uint8ClampedArray",
+                 "Int16Array", "Uint16Array", "Int32Array", "Uint32Array", "Float32Array",
+                 "Float64Array" -> builtinConstructor(key);
             // the top-level `this` object, under its spec name
             case "globalThis" -> thisObject;
             case "setTimeout" -> new JsBuiltinMethod("setTimeout", 2, AsyncSupport::setTimeout);
             case "clearTimeout" -> new JsBuiltinMethod("clearTimeout", 1, AsyncSupport::clearTimeout);
+            case "setInterval" -> new JsBuiltinMethod("setInterval", 2, AsyncSupport::setInterval);
+            case "clearInterval" -> new JsBuiltinMethod("clearInterval", 1, AsyncSupport::clearTimeout);
+            case "setImmediate" -> new JsBuiltinMethod("setImmediate", 1, AsyncSupport::setImmediate);
+            case "clearImmediate" -> new JsBuiltinMethod("clearImmediate", 1, AsyncSupport::clearTimeout);
             case "Infinity" -> Double.POSITIVE_INFINITY;
             case "Java" -> new JsJava(bridge);
             case "JSON" -> new JsJson();
@@ -535,8 +546,6 @@ class ContextRoot implements Context {
             case "TextDecoder" -> new JsTextDecoder();
             case "TextEncoder" -> new JsTextEncoder();
             case "crypto" -> new JsCrypto();
-            case "Uint8Array" -> new JsUint8Array(0);
-            case "Uint32Array" -> new JsUint32Array(new int[0]);
             // Minimal Reflect — only `construct` and `apply` are wired so the
             // test262 isConstructor harness works. Full Reflect stays gated
             // via the `feature: Reflect` skip in expectations.yaml.

@@ -96,8 +96,7 @@ public class IterUtils {
             // One chain read per GetIterator call (loop setup), not per step.
             Object fn = readMember(jsArray, SYMBOL_ITERATOR, context);
             if (fn instanceof JsBuiltinMethod m && m.delegate() == SYMBOL_ITERATOR_METHOD) {
-                // a Uint8Array's bytes live in its buffer, read via List.get
-                return listIterator(jsArray instanceof JsUint8Array ? jsArray : jsArray.list);
+                return listIterator(jsArray.list);
             }
             if (isJsErrored(context)) {
                 return exhaustedIterator(); // a throwing @@iterator getter propagates

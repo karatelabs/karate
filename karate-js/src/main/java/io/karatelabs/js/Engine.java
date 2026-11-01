@@ -511,7 +511,13 @@ public class Engine {
     }
 
     private Object evalInternal(Resource resource, Map<String, Object> localVars) {
-        return evalInternal(parser(resource).parse(), localVars);
+        Node program;
+        try {
+            program = parser(resource).parse();
+        } catch (StackOverflowError e) {
+            throw JsErrorException.stackExceededAtBoundary();
+        }
+        return evalInternal(program, localVars);
     }
 
     private Object evalInternal(Node program, Map<String, Object> localVars) {

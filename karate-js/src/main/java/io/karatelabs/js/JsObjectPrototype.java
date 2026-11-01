@@ -50,6 +50,9 @@ class JsObjectPrototype extends Prototype {
      */
     static final JsCallable DEFAULT_TO_STRING = (context, args) -> {
         Object o = context.getThisObject();
+        if (o instanceof byte[] bytes) {
+            o = new JsUint8Array(bytes);
+        }
         if (o instanceof ObjectLike ol) {
             Object tag = ol.getMember("@@toStringTag");
             if (tag instanceof String s) {

@@ -103,6 +103,11 @@ public interface JavaInvokable extends JavaCallable {
 | Map | JsMap | Map | extends JsObject |
 | Set | JsSet | Set | extends JsObject |
 | Uint8Array | JsUint8Array | byte[] | JsBinaryValue → JsValue |
+| Int8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array | JsTypedArray | List | extends JsArray |
+| ArrayBuffer | JsArrayBuffer | JsObject | extends JsObject |
+| DataView | JsDataView | JsObject | extends JsObject |
+
+> **Typed arrays.** A typed array is a little-endian view of an ArrayBuffer's bytes (`JsTypedArray`: kind, bytes, byte offset, length); `JsUint8Array` is its Uint8Array kind. A new Uint8Array that is not a view of a buffer is a `byte[]` (so it crosses to Java unchanged), and a view of part of a buffer crosses as a copy of its bytes. A `byte[]` value is a Uint8Array over its own bytes, so its `buffer` is a fresh ArrayBuffer over the same bytes each read. The prototypes are `%TypedArray%.prototype` and one per kind (`JsTypedArrayPrototype`); the element methods whose steps match Array's run `Array.prototype`'s built-ins, so `map` / `filter` / `slice` / `subarray` answer the receiver's kind and `sort` without a comparator is numeric. Writes convert per kind and an index outside the view is dropped; `length` is fixed.
 
 > **Java → JS, the `byte[]` carve-out.** A Java array crossing *into* JS becomes a `JsArray` (→ `List` when unwrapped) — **except `byte[]`, which is wrapped as `JsUint8Array`** (binary). So a Java method returning `byte[]` round-trips back to `byte[]` at the external-call boundary instead of degrading to a `List<Byte>`. This carve-out holds on every inbound path: literal/value conversion (`Terms.toJsValue` / `toJsArray`) **and** reflective Java method returns + field reads (`JavaUtils.convertIfArray`). Locked by `ExternalBridgeTest` (`Base64.decode(...)` → `byte[]`; `DemoPojo.bytes()` → `byte[]` with `Uint8Array` `.length`/indexing in JS).
 
@@ -1132,7 +1137,7 @@ function gets the promise, not an auto-awaited value (blocking unwrap is opt-in:
   `race`, `any`. `new` on an async function is a `TypeError` —
   `JsFunctionNode.isConstructable` returns false for `async` as for arrows.
 
-### setTimeout / clearTimeout
+### Timers: setTimeout, setInterval, setImmediate
 
 Registered in `ContextRoot.initGlobal` alongside `Promise` and `globalThis`. One
 shared lazy single-thread scheduler (`ThreadUtils.daemonFactory("js-timer-")`),
@@ -1142,11 +1147,17 @@ registered with `KarateLifecycle` on first use — see
 `CoreContext.getEngine()`, validated against `Engine.current()`; scheduling
 without a definite engine is a `TypeError`, not a guess. Ids are engine-local
 (`AsyncScope.nextTimerId`), and each record is a `LIVE → FIRED | CANCELLED` CAS,
-so a callback can never run after `clearTimeout` returned and the timer thread
-may only win that CAS and `publishSuccessor` — never run JS. Delay coercion:
-`NaN` / negative / non-numeric → 0, fractional → floored, infinite →
-`Integer.MAX_VALUE`; a missing or non-callable callback is a `TypeError`; extra
-args pass through. **No `setInterval` by design** — it never quiesces.
+and the timer thread may only win that CAS and `publishSuccessor` — never run JS.
+A fired record stays in the scope's timer map until its job runs, so a clear
+that lands after the fire but before the job still wins: a callback never runs
+after `clearTimeout` returned. Delay coercion: `NaN` / negative / non-numeric → 0,
+fractional → floored, infinite → `Integer.MAX_VALUE`; a missing or non-callable
+callback is a `TypeError`; extra args pass through. `setImmediate` is a timer of
+no delay. `setInterval` (at least 1 ms) re-arms a fresh record under the same id
+after each callback that did not throw, due one period after the last due time
+so the period does not drift, until `clearInterval`; one id space serves every
+`clear*`, as in Node. An uncleared interval keeps the eval from quiescing, as a
+far-future timer does (deviation 3).
 
 ### Job ordering — the microtask checkpoint
 
@@ -1176,8 +1187,7 @@ browser would.
 3. `Engine.eval` blocks to quiescence by design; a far-future timer blocks it
    (interrupt and the drain cap are the escape hatches), and fair-lock order
    among runnable activations is approximate, not the spec's job ordering.
-4. No `queueMicrotask`, no `setInterval`, no async iterators — `for await` is
-   rejected at parse time.
+4. No `queueMicrotask`, no async iterators — `for await` is rejected at parse time.
 
 > **Spec invariant.** Pinned by `JsAsyncAwaitTest` (19 cases — parse and call
 > shape, contextual-keyword back-compat), `JsPromiseTest` (60 — promise surface,
@@ -1705,9 +1715,8 @@ attribute, and tombstone lives on the `BindingSlot`.
 `globalThis` as a lazy global resolving to the `JsGlobalThis` that backs
 top-level `this`, so `globalThis === this` at top level and the two see one
 store. Absent from the
-global surface: `WeakMap` / `WeakSet` / `Proxy` / `ArrayBuffer` / `DataView`
-(and the Iterator helpers); `Uint8Array` is the only binary type, per the
-§Type Mapping table (known deviations — see TEST262.md Active priorities).
+global surface: `Proxy`, `SharedArrayBuffer`, `BigInt64Array` / `BigUint64Array`
+and the Iterator helpers (known deviations — see TEST262.md Active priorities).
 
 So `this.foo = 1; foo` and `foo = 1; this.foo` see the same value (no
 divergence — same store). Lazy built-ins land hidden via

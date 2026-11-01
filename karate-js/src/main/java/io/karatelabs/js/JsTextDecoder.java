@@ -39,10 +39,23 @@ class JsTextDecoder extends JsObject implements JsCallable {
                 if (args.length == 0) {
                     return "";
                 }
-                if (args[0] instanceof byte[] bytes) {
+                Object input = args[0];
+                if (input instanceof byte[] bytes) {
                     return new String(bytes, StandardCharsets.UTF_8);
                 }
-                return "";
+                if (input instanceof JsArrayBuffer buffer) {
+                    return new String(buffer.data, StandardCharsets.UTF_8);
+                }
+                if (input instanceof JsTypedArray t) {
+                    return new String(t.bytes, t.byteOffset, t.byteLength(), StandardCharsets.UTF_8);
+                }
+                if (input instanceof JsDataView v) {
+                    return new String(v.buffer.data, v.byteOffset, v.byteLength, StandardCharsets.UTF_8);
+                }
+                if (input == null || input == Terms.UNDEFINED) {
+                    return "";
+                }
+                throw JsErrorException.typeError("The \"input\" argument must be an instance of ArrayBuffer or ArrayBufferView");
             };
             default -> null;
         };

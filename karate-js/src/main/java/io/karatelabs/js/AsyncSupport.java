@@ -723,37 +723,66 @@ final class AsyncSupport {
     /** Owner resolution is from the call's own context, validated against the
      *  thread's current engine — scheduling without a definite engine is an
      *  error, not a guess. */
-    private static Engine timerEngine(Context context) {
+    private static Engine timerEngine(Context context, String fn) {
         Engine engine = context == null ? null : context.getEngine();
         if (engine == null || engine != Engine.current()) {
-            throw JsErrorException.typeError("setTimeout: no engine is executing on this thread");
+            throw JsErrorException.typeError(fn + ": no engine is executing on this thread");
         }
         return engine;
     }
 
     static Object setTimeout(Context context, Object[] args) {
-        Engine engine = timerEngine(context);
+        return arm(context, args, 2, coerceDelay(arg(args, 1)), "setTimeout", false);
+    }
+
+    /** A timer of no delay: it runs after the microtasks queued before it, in order with other timers. */
+    static Object setImmediate(Context context, Object[] args) {
+        return arm(context, args, 1, 0, "setImmediate", false);
+    }
+
+    /** As in Node, an interval is at least 1 ms. */
+    static Object setInterval(Context context, Object[] args) {
+        return arm(context, args, 2, Math.max(1, coerceDelay(arg(args, 1))), "setInterval", true);
+    }
+
+    /** {@code args[0]} is the callback and {@code args[extraFrom..]} the arguments it is called with. */
+    private static Object arm(Context context, Object[] args, int extraFrom, long delay, String fn, boolean repeat) {
+        Engine engine = timerEngine(context, fn);
         AsyncScope scope = engine.currentScope();
         if (scope == null) {
-            throw JsErrorException.typeError("setTimeout requires an active evaluation");
+            throw JsErrorException.typeError(fn + " requires an active evaluation");
         }
         Object callback = arg(args, 0);
         if (!(callback instanceof JsCallable target)) {
-            throw JsErrorException.typeError("setTimeout: callback is not a function");
+            throw JsErrorException.typeError(fn + ": callback is not a function");
         }
-        long delay = coerceDelay(arg(args, 1));
-        Object[] extra = args.length > 2 ? Arrays.copyOfRange(args, 2, args.length) : EMPTY_ARGS;
+        Object[] extra = args.length > extraFrom ? Arrays.copyOfRange(args, extraFrom, args.length) : EMPTY_ARGS;
+        int id = scope.nextTimerId();
+        if (repeat) {
+            scope.addInterval(id);
+        }
+        schedule(scope, id, target, extra, delay, repeat ? delay : 0, nowMillis() + delay, fn);
+        return id;
+    }
+
+    private static long nowMillis() {
+        return System.nanoTime() / 1_000_000;
+    }
+
+    /** {@code interval}: 0 for a one-shot timer; for an interval the next fire is due {@code interval} after
+     *  {@code due}, this one's due time, so the period does not drift by the callback's run time. */
+    private static void schedule(AsyncScope scope, int id, JsCallable target, Object[] extra, long delay,
+                                 long interval, long due, String fn) {
         if (KarateLifecycle.phase() != KarateLifecycle.Phase.RUNNING) {
             // refuse before a token is acquired — scheduling is about to be
             // rejected anyway, and an unbacked token would strand the drain
-            throw new EngineInterruptedException("setTimeout: karate is shutting down");
+            throw new EngineInterruptedException(fn + ": karate is shutting down");
         }
         AsyncToken token = scope.acquire("timer");
         if (token == null) {
             throw new EngineInterruptedException();
         }
         AsyncActivation.anyAsync = true;
-        int id = scope.nextTimerId();
         AsyncScope.TimerRecord record = new AsyncScope.TimerRecord(scope, id, token);
         scope.addTimer(record);
         TimerScheduler timer = scheduler();
@@ -762,16 +791,18 @@ final class AsyncSupport {
         if (!timer.register(record)) {
             scope.removeTimer(id);
             retireTimer(record);
-            throw new EngineInterruptedException("setTimeout: karate is shutting down");
+            throw new EngineInterruptedException(fn + ": karate is shutting down");
         }
+        Runnable rearm = interval == 0 ? null : () -> rearm(scope, id, target, extra, interval, due + interval);
         ScheduledFuture<?> future;
         try {
             future = timer.schedule(() -> {
                 // foreign thread: may only win the CAS and publish, never run JS
                 if (record.fire()) {
                     forgetTimer(record);
-                    scope.removeTimer(id);
-                    scope.publishSuccessor(record.token, AsyncJob.one(new AsyncJob.Timer(id, target, extra)));
+                    // the record stays in the scope's map until the job runs, so a clear in between still wins
+                    scope.publishSuccessor(record.token, AsyncJob.one(new AsyncJob.Timer(id, target, extra,
+                            () -> scope.removeTimer(id) == record, rearm)));
                 }
             }, delay);
         } catch (RuntimeException e) {
@@ -779,16 +810,32 @@ final class AsyncSupport {
             // unwind the record and its token, or nothing ever releases them
             scope.removeTimer(id);
             retireTimer(record);
-            throw new EngineInterruptedException("setTimeout: " + e);
+            throw new EngineInterruptedException(fn + ": " + e);
         }
         record.future = future;
         if (!record.isLive()) {
             // retired between the arm and the assignment — the future is ours to drop
             future.cancel(false);
         }
-        return id;
     }
 
+    /** Runs on the JS thread after an interval's callback: the next fire, unless it was cleared or the scope closed. */
+    private static void rearm(AsyncScope scope, int id, JsCallable target, Object[] extra, long interval, long due) {
+        if (!scope.isIntervalLive(id)) {
+            return;
+        }
+        long now = nowMillis();
+        // a callback that overran its period fires next as soon as it can, then keeps the period from there
+        long next = Math.max(due, now);
+        try {
+            schedule(scope, id, target, extra, next - now, interval, next, "setInterval");
+        } catch (EngineInterruptedException e) {
+            // the scope or the runtime is closing: nothing is left to fire into
+            scope.removeInterval(id);
+        }
+    }
+
+    /** {@code clearTimeout}, {@code clearInterval} and {@code clearImmediate}: one id space, as in Node. */
     static Object clearTimeout(Context context, Object[] args) {
         Engine engine = context == null ? null : context.getEngine();
         AsyncScope scope = engine == null ? null : engine.currentScope();
@@ -800,6 +847,7 @@ final class AsyncSupport {
         if (n == null || Double.isNaN(n.doubleValue())) {
             return Terms.UNDEFINED;
         }
+        scope.removeInterval(n.intValue());
         AsyncScope.TimerRecord record = scope.removeTimer(n.intValue());
         if (record != null) {
             retireTimer(record);
@@ -828,11 +876,14 @@ final class AsyncSupport {
         return (long) Math.floor(d);
     }
 
-    static void invokeQueuedCallback(Engine engine, JsCallable callback, Object[] args) {
+    /** False when the callback threw, after reporting it. */
+    static boolean invokeQueuedCallback(Engine engine, JsCallable callback, Object[] args) {
         Completion outcome = invoke(engine, callback, args, null);
         if (outcome.threw()) {
             reportFailure(engine, "uncaught exception in timer callback", outcome.reason());
+            return false;
         }
+        return true;
     }
 
     //=== unhandled rejections =========================================================================================

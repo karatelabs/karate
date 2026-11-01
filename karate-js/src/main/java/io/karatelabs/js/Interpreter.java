@@ -1053,7 +1053,7 @@ class Interpreter {
             return fn;
         }
         CoreContext fnScope = new CoreContext(context.root, context, context.depth, node, ContextScope.BLOCK, null);
-        JsFunctionNode fn = new JsFunctionNode(false, node, fnArgs(node.get(i + 1)), node.getLast(), fnScope);
+        JsFunctionNode fn = new JsFunctionNode(node, fnArgs(node.get(i + 1)), node.getLast(), fnScope, name);
         fnScope.declare(name, fn, BindScope.FUNCTION, true);
         return fn;
     }
@@ -2362,12 +2362,7 @@ class Interpreter {
     private static Object evalLitExpr(Node node, CoreContext context) {
         node = node.getFirst();
         if (node.isToken()) {
-            Object value = Terms.literalValue(node.token);
-            // Unescape string literals at runtime
-            if (value instanceof String s && (node.token.type == TokenType.S_STRING || node.token.type == TokenType.D_STRING)) {
-                return unescapeString(s);
-            }
-            return value;
+            return Terms.literalValue(node.token);
         }
         return switch (node.type) {
             case NodeType.LIT_ARRAY -> evalLitArray(node, context);

@@ -71,8 +71,13 @@ class JsFunctionPrototype extends Prototype {
                     this.args = list;
                 } else {
                     Object first = list.getFirst();
+                    if (first instanceof byte[] bytes) {
+                        first = new JsUint8Array(bytes);
+                    }
                     if (first instanceof List) {
                         this.args = JsArray.rawElements((List<Object>) first);
+                    } else if (first instanceof ObjectLike arrayLike && !(first instanceof JsCallable)) {
+                        this.args = arrayLikeElements(arrayLike);
                     } else {
                         this.args = new ArrayList<>();
                     }
@@ -80,6 +85,21 @@ class JsFunctionPrototype extends Prototype {
             } else {
                 this.args = list;
             }
+        }
+
+        /** CreateListFromArrayLike (§7.3.18) of an object that is not a list: {@code arguments}, {@code {length: n}}. */
+        private static List<Object> arrayLikeElements(ObjectLike arrayLike) {
+            Object length = arrayLike.getMember("length");
+            long n = length == null ? 0 : Terms.toUint32(length);
+            if (n > JsArray.DENSE_PAD_LIMIT) {
+                throw JsErrorException.stackExceeded();
+            }
+            List<Object> out = new ArrayList<>((int) n);
+            for (int i = 0; i < n; i++) {
+                Object v = arrayLike.getMember(String.valueOf(i));
+                out.add(v == null ? Terms.UNDEFINED : v);
+            }
+            return out;
         }
 
         // an apply() array list is the JsArray's own backing list, so a

@@ -1155,6 +1155,16 @@ class PropertyAccess {
             // otherwise silently overwrite a frozen index or extend a sealed
             // array. Hot path stays branch-light: {@code isExtensible()} is a
             // single boolean read.
+            JsTypedArray typed = object instanceof byte[] bytes ? new JsUint8Array(bytes)
+                    : object instanceof JsTypedArray t ? t : null;
+            if (typed != null) {
+                Object oldValue = typed.getElement(i);
+                typed.setIndexed(i, value, context);
+                if (i < typed.length && !context.isStopped()) {
+                    firePropertySet(context, String.valueOf(i), typed.getElement(i), oldValue, object, trackingNode);
+                }
+                return;
+            }
             if (object instanceof JsArray array
                     && (array.hasIndexedDescriptor(i) || !array.isExtensible())) {
                 setByName(object, String.valueOf(i), value, context, trackingNode);
@@ -1183,13 +1193,6 @@ class PropertyAccess {
                     list.add(value);
                 }
                 firePropertySet(context, String.valueOf(i), value, oldValue, object, trackingNode);
-                return;
-            } else if (object instanceof byte[] bytes) {
-                if (value instanceof Number v) {
-                    Object oldValue = i < bytes.length ? bytes[i] & 0xFF : Terms.UNDEFINED;
-                    bytes[i] = (byte) (v.intValue() & 0xFF);
-                    firePropertySet(context, String.valueOf(i), v.intValue() & 0xFF, oldValue, object, trackingNode);
-                }
                 return;
             }
         }
@@ -1268,6 +1271,11 @@ class PropertyAccess {
             }
             Object oldValue = objectLike.getMember(name);
             objectLike.putMember(name, value, context, context.strict);
+            firePropertySet(context, name, value, oldValue, object, trackingNode);
+        } else if (object instanceof byte[] bytes) {
+            JsUint8Array typed = new JsUint8Array(bytes);
+            Object oldValue = typed.getMember(name);
+            typed.putMember(name, value, context, context.strict);
             firePropertySet(context, name, value, oldValue, object, trackingNode);
         } else if (object instanceof Map) {
             Map<String, Object> map = (Map<String, Object>) object;

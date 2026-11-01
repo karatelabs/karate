@@ -25,10 +25,12 @@ package io.karatelabs.js;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -71,6 +73,8 @@ final class AsyncScope {
     // generator is deliberately absent — it is inert and survives scope close.
     private List<GeneratorActivation> generators;
     private Map<Integer, TimerRecord> timers;
+    // setInterval ids not yet cleared: each fire re-arms a fresh record under the same id
+    private Set<Integer> intervals;
     private Map<CompletionStage<?>, JsPromise> stageCache;
     private List<JsPromise> trackedRejections;
 
@@ -348,6 +352,29 @@ final class AsyncScope {
         }
     }
 
+    void addInterval(int id) {
+        synchronized (lock) {
+            if (intervals == null) {
+                intervals = new HashSet<>();
+            }
+            intervals.add(id);
+        }
+    }
+
+    boolean isIntervalLive(int id) {
+        synchronized (lock) {
+            return !closed && intervals != null && intervals.contains(id);
+        }
+    }
+
+    void removeInterval(int id) {
+        synchronized (lock) {
+            if (intervals != null) {
+                intervals.remove(id);
+            }
+        }
+    }
+
     //=== CompletionStage identity cache ===============================================================================
 
     /**
@@ -450,6 +477,7 @@ final class AsyncScope {
                 timerSnapshot = new ArrayList<>(timers.values());
                 timers.clear();
             }
+            intervals = null;
             stageCache = null;
             lock.notifyAll();
         }
