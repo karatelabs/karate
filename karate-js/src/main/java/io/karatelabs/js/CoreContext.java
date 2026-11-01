@@ -550,6 +550,13 @@ class CoreContext implements Context {
      *  instead of two. Returns {@link #NOT_FOUND} when the name is unbound;
      *  TDZ and {@link JsLazy} behave exactly as in {@link #get}. */
     Object getOrNotFound(String key) {
+        return getOrNotFound(key, null);
+    }
+
+    /** {@link #getOrNotFound}, also publishing to a non-null {@code caller}'s
+     *  {@link #callReceiver} the object a {@code with} statement resolved the name
+     *  on (WithBaseObject, §9.1.1.2.10) — a call's {@code this} — or null. */
+    Object getOrNotFound(String key, CoreContext caller) {
         if ("this".equals(key)) {
             return thisObject;
         }
@@ -578,7 +585,11 @@ class CoreContext implements Context {
         if (s == null) {
             return NOT_FOUND;
         }
-        return readSlot(s, key);
+        Object v = readSlot(s, key);
+        if (caller != null) {
+            caller.callReceiver = s.withBase;
+        }
+        return v;
     }
 
     void put(String key, Object value) {

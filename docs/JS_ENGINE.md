@@ -1508,8 +1508,9 @@ record: a name the object has (`in`, minus `@@unscopables`) reads and writes the
 property; anything else, `arguments` included, is the enclosing context's. A
 closure created in the body keeps the context as its lexical parent. A function
 containing `with` takes no slot frame (its annotations would bypass the object).
-Strict code rejects it at parse. Not done: the with-base object as `this` of a
-call resolved through it.
+Strict code rejects it at parse. A call whose callee name resolves on the object
+(`f()`, `(f)()`, a tagged template) gets the object as `this` (WithBaseObject);
+one resolved past it, to a binding or the global object, does not.
 
 **Script top level and REPL re-declaration.** `evalProgram` instantiates the
 script's lexical names before hoisting (`LexicalScope.instantiateGlobal`). A

@@ -277,14 +277,14 @@ class PropertyAccess {
      * object) through {@link CoreContext#callReceiver} — read it immediately
      * after this returns, before any further evaluation (see the field's
      * contract note). For method calls like obj.method(), the receiver is
-     * obj; for direct calls like foo(), it is null.
+     * obj; for direct calls like foo(), it is null, or the object of the
+     * {@code with} statement that binds foo.
      */
     static Object getCallable(Node node, CoreContext context) {
         return switch (node.type) {
             case REF_EXPR -> {
-                Object c = getRefExpr(node, context, true);
                 context.callReceiver = null;
-                yield c;
+                yield getRefExpr(node, context, true);
             }
             case REF_DOT_EXPR -> getCallableRefDotExpr(node, context);
             case REF_BRACKET_EXPR -> getCallableRefBracketExpr(node, context);
@@ -696,7 +696,7 @@ class PropertyAccess {
     // enough to inline reliably.
     private static Object getRefExprByName(Node node, CoreContext context, boolean functionCall) {
         String name = node.getText();
-        Object result = context.getOrNotFound(name);
+        Object result = context.getOrNotFound(name, functionCall ? context : null);
         if (result == CoreContext.NOT_FOUND) {
             if (functionCall && "import".equals(name)) {
                 throw JsErrorException.typeError("A dynamic import callback was not specified.");
@@ -866,7 +866,8 @@ class PropertyAccess {
 
     // Unwraps PAREN_EXPR -> [(, EXPR_LIST[EXPR[<inner>]], )] to preserve the
     // inner reference for receiver binding — `(a.b)()` must call with `this = a`,
-    // and `(a?.b)()` likewise when `a?.b` resolves. Only single-expression parens
+    // `(a?.b)()` likewise when `a?.b` resolves, and `(f)()` a with statement's
+    // object as `f()` does. Only single-expression parens
     // qualify; comma operators (`(a, b)()`) drop the reference per spec.
     // Parens also terminate the optional chain — a short-circuit inside the
     // parens surfaces as undefined here, so the outer call gets a "not a function"
@@ -880,7 +881,8 @@ class PropertyAccess {
                 inner = onlyExpr.getFirst();
             }
         }
-        if (inner != null && (inner.type == NodeType.REF_DOT_EXPR
+        if (inner != null && (inner.type == NodeType.REF_EXPR && inner.getFirst().isToken()
+                || inner.type == NodeType.REF_DOT_EXPR
                 || inner.type == NodeType.REF_BRACKET_EXPR
                 || inner.type == NodeType.PAREN_EXPR)) {
             Object result = getCallable(inner, context);

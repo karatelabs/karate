@@ -149,4 +149,30 @@ class DeclarationInstantiationTest extends EvalBase {
         assertThrows(RuntimeException.class, () -> eval("with ({}) function f() {}"));
     }
 
+    @Test
+    void withStatementCallGetsTheObjectAsThis() {
+        assertEquals(1, eval("var o = {x: 1, f: function() { return this.x }}; with (o) { f() }"));
+        assertEquals(1, eval("var o = {x: 1, f: function() { return this.x }}; with (o) f()"));
+        assertEquals(true, eval("var o = {f: function() { return this }}; var r; with (o) { r = f() } r === o"));
+        // the nearest object that binds the name is this
+        assertEquals("inner,outer", eval("var a = {n: 'outer', g: function() { return this.n }};"
+                + " var b = {n: 'inner', f: function() { return this.n }};"
+                + " with (a) { with (b) { var r = [f(), g()] } } r.join()"));
+        // a name on the global object, or a binding, calls with this undefined
+        assertEquals(true, eval("function h() { return this } with ({}) { var r = h() } r === globalThis"));
+        assertEquals("undefined", eval("function h() { 'use strict'; return typeof this } with ({}) { var r = h() } r"));
+        assertEquals(true, eval("var o = {h: function() { return this }}; with (o) { let h = function() { return this }; var r = h() } r === globalThis"));
+        // a closure made in the body keeps the object as this
+        assertEquals(5, eval("var fns = []; with ({x: 5, f: function() { return this.x }}) { fns.push(function() { return f() }) } fns[0]()"));
+        // @@unscopables hides it: the outer binding is called without the object
+        assertEquals(true, eval("function f() { return this } var o = {f: function() { return 'own' }}; o[Symbol.unscopables] = {f: true};"
+                + " with (o) { var r = f() } r === globalThis"));
+        // built-ins and tagged templates take the object too
+        assertEquals("1,2", eval("var a = [1]; with (a) { push(2) } a.join()"));
+        assertEquals(1, eval("var o = {x: 1, t: function() { return this.x }}; with (o) { t`s` }"));
+        assertEquals(true, eval("var o = {f: function() { return this }}; with (o) { var r = (f)() } r === o"));
+        // the getter runs once
+        assertEquals(1, eval("var n = 0; var o = {get f() { n++; return function() {} }}; with (o) { f() } n"));
+    }
+
 }

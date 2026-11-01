@@ -89,15 +89,19 @@ final class WithContext extends CoreContext {
     }
 
     @Override
-    Object getOrNotFound(String key) {
+    Object getOrNotFound(String key, CoreContext caller) {
         BindingSlot s = own(key);
         if (s != null) {
             return readSlot(s, key);
         }
         if (binds(key)) {
-            return object.getMember(key, object, this);
+            Object v = object.getMember(key, object, this);
+            if (caller != null) {
+                caller.callReceiver = object;
+            }
+            return v;
         }
-        return parent.getOrNotFound(key);
+        return parent.getOrNotFound(key, caller);
     }
 
     @Override
