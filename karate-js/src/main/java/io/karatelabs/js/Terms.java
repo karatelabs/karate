@@ -1327,9 +1327,13 @@ public class Terms {
      * object (per spec §13.10.1 step 7), since the {@code [[HasProperty]]}
      * internal method is only defined on objects.
      */
+    @SuppressWarnings("unchecked")
     static boolean in(Object lhs, Object rhs, CoreContext context) {
-        if (rhs instanceof byte[] bytes) {
-            rhs = new JsUint8Array(bytes);
+        // a host Map, List or array (JSON.parse's nested values among them) is an object, as property access reads it
+        if (rhs instanceof Map<?, ?> map && !(rhs instanceof ObjectLike)) {
+            rhs = new JsObject((Map<String, Object>) map);
+        } else if (HostMirror.kind(rhs) != HostMirror.Kind.NONE) {
+            rhs = toObjectLike(rhs);
         }
         if (!(rhs instanceof ObjectLike obj)) {
             throw JsErrorException.typeError(

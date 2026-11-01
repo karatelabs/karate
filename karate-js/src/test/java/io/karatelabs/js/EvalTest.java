@@ -1989,6 +1989,16 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testInOperatorOnParsedJsonAndHostValues() {
+        assertEquals(true, eval("var d = JSON.parse('{\"args\": {\"test\": \"123\"}, \"list\": [1]}'); 'test' in d.args"));
+        assertEquals(false, eval("var d = JSON.parse('{\"args\": {\"test\": \"123\"}}'); 'nope' in d.args"));
+        assertEquals(true, eval("var d = JSON.parse('{\"list\": [1, 2]}'); 1 in d.list && 'length' in d.list"));
+        assertEquals(true, eval("'toString' in JSON.parse('{\"a\": {}}').a"));
+        assertEquals(true, eval("'host' in data && 0 in list", "{data: {host: 'h'}, list: ['x']}"));
+        assertEquals(false, eval("'nope' in data", "{data: {host: 'h'}}"));
+    }
+
+    @Test
     void testInOperatorTypeErrorOnNonObject() {
         // RHS must be an object — primitives and null/undefined throw TypeError
         assertThrows(Exception.class, () -> eval("'foo' in null"));
