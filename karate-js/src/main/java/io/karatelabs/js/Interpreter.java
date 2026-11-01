@@ -2206,7 +2206,13 @@ class Interpreter {
             } else if (JsParser.isProtoSetter(elem)) {
                 setLiteralPrototype(result, evalExpr(elem.get(afterKeyPos + 1), context), context);
             } else {
-                putLiteralValue(result, key, symKey, evalExpr(elem.get(afterKeyPos + 1), context));
+                Node valueNode = elem.get(afterKeyPos + 1);
+                Object value = evalExpr(valueNode, context);
+                if (symKey == null && value instanceof JsFunction fn && (fn.name == null || fn.name.isEmpty())
+                        && isAnonymousFunctionDefinition(valueNode)) {
+                    fn.name = key; // §13.2.5.5 PropertyDefinitionEvaluation: NamedEvaluation with the key
+                }
+                putLiteralValue(result, key, symKey, value);
             }
             // A property whose key or value threw ends the literal, as for an array or an
             // argument list — the remaining properties are not evaluated.
@@ -2215,6 +2221,27 @@ class Interpreter {
             }
         }
         return result;
+    }
+
+    /** §8.4.3 IsAnonymousFunctionDefinition: an unnamed function, arrow or class expression, through parentheses. */
+    static boolean isAnonymousFunctionDefinition(Node node) {
+        Node n = node;
+        while (n.type == NodeType.EXPR || n.type == NodeType.PAREN_EXPR) {
+            Node inner = null;
+            for (int i = 0; i < n.size(); i++) {
+                if (!n.get(i).isToken()) {
+                    if (inner != null) {
+                        return false;
+                    }
+                    inner = n.get(i);
+                }
+            }
+            if (inner == null) {
+                return false;
+            }
+            n = inner;
+        }
+        return n.type == NodeType.FN_EXPR || n.type == NodeType.FN_ARROW_EXPR || n.type == NodeType.CLASS_EXPR;
     }
 
     /** A computed key that evaluated to a minted symbol stores by identity;

@@ -583,4 +583,13 @@ class JsArrayTest extends EvalBase {
                 + "try { Array.prototype.splice.call(o, 0, 0, null) } catch (e) { e.name }"));
     }
 
+    @Test
+    void testCallbackAndComparatorMessages() {
+        assertEquals("TypeError: undefined is not a function", eval("try { [1].map() } catch (e) { e.name + ': ' + e.message }"));
+        assertEquals("TypeError: number 1 is not a function", eval("try { [1].forEach(1) } catch (e) { e.name + ': ' + e.message }"));
+        assertEquals("TypeError: string \"x\" is not a function", eval("try { [1].filter('x') } catch (e) { e.name + ': ' + e.message }"));
+        assertEquals("TypeError: The comparison function must be either a function or undefined: 1",
+                eval("try { [2, 1].sort(1) } catch (e) { e.name + ': ' + e.message }"));
+    }
+
 }

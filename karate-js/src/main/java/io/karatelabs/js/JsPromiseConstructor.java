@@ -87,7 +87,9 @@ class JsPromiseConstructor extends JsFunction {
         }
         Object executor = AsyncSupport.arg(args, 0);
         if (!(executor instanceof JsCallable callable)) {
-            throw JsErrorException.typeError("Promise resolver is not a function");
+            throw JsErrorException.typeError("Promise resolver "
+                    + (executor instanceof ObjectLike && !(executor instanceof java.util.List) ? "#<Object>"
+                    : Terms.toStringCoerce(executor, null)) + " is not a function");
         }
         JsPromise promise = newPromise(context);
         AtomicBoolean claimed = new AtomicBoolean();

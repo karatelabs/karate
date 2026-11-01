@@ -965,4 +965,17 @@ class JsObjectTest extends EvalBase {
         assertFalse(it.hasNext());
     }
 
+    @Test
+    void testToObjectOfNullOrUndefinedMessages() {
+        String message = "TypeError: Cannot convert undefined or null to object";
+        for (String js : new String[]{"Object.keys()", "Object.values(null)", "Object.entries(undefined)", "Object.assign()",
+                "Object.getPrototypeOf(null)", "Object.prototype.hasOwnProperty.call(null, 'a')"}) {
+            assertEquals(message, eval("try { " + js + " } catch (e) { e.name + ': ' + e.message }"), js);
+        }
+        assertEquals("TypeError: Object prototype may only be an Object or null: undefined",
+                eval("try { Object.create() } catch (e) { e.name + ': ' + e.message }"));
+        assertEquals("[object Null]", eval("Object.prototype.toString.call(null)"));
+        assertEquals("[object Undefined]", eval("Object.prototype.toString.call()"));
+    }
+
 }

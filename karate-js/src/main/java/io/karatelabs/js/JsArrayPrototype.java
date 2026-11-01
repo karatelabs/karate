@@ -469,7 +469,8 @@ class JsArrayPrototype extends Prototype {
         if (args.length > 0 && args[0] instanceof JsCallable callable) {
             return callable;
         }
-        throw JsErrorException.typeError(methodName + " callback is not a function");
+        throw JsErrorException.typeError(Terms.typedDescription(args.length > 0 ? args[0] : Terms.UNDEFINED)
+                + " is not a function");
     }
 
     /** Spec {@code Call(callbackfn, thisArg, …)} hookup for the iteration
@@ -950,7 +951,16 @@ class JsArrayPrototype extends Prototype {
         return new JsArray(mappedResult);
     }
 
+    private static void requireComparator(Object[] args) {
+        if (args.length > 0 && args[0] != Terms.UNDEFINED && !(args[0] instanceof JsCallable)) {
+            throw JsErrorException.typeError("The comparison function must be either a function or undefined: "
+                    + (args[0] instanceof ObjectLike && !(args[0] instanceof List) ? "#<Object>"
+                    : Terms.toStringCoerce(args[0], null)));
+        }
+    }
+
     private Object sort(Context context, Object[] args) {
+        requireComparator(args);
         // Spec §23.1.3.30 Array.prototype.sort:
         //   1. O = ToObject(this).  2. len = ToLength(Get(O, "length")).
         //   Gather present items: items = [Get(O, k) for k in [0,len) if
@@ -1148,10 +1158,7 @@ class JsArrayPrototype extends Prototype {
      * are read through the proto chain (treated as undefined for the sort).
      */
     private Object toSorted(Context context, Object[] args) {
-        if (args.length > 0 && args[0] != Terms.UNDEFINED && args[0] != null
-                && !(args[0] instanceof JsCallable)) {
-            throw JsErrorException.typeError("toSorted comparator must be a function");
-        }
+        requireComparator(args);
         CoreContext cc = context instanceof CoreContext cx ? cx : null;
         ObjectLike target = toReceiver(context.getThisObject());
         if (target == null) return Terms.UNDEFINED;

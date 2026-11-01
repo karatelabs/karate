@@ -274,7 +274,8 @@ class SlotFrameTest {
     @Test
     void nameInferenceOnSlotWrites() {
         assertEquals("g", evalBoth("function f() { var g = function () {}; return g.name; } f()"));
-        assertEquals("p", evalBoth("function f(p) { return p.name; } f(function () {})"));
+        assertEquals("", evalBoth("function f(p) { return p.name; } f(function () {})")); // an argument is not named
+        assertEquals("p", evalBoth("function f(p = function () {}) { return p.name; } f()"));
         assertEquals("a", evalBoth("function f() { var a; a = function () {}; return a.name; } f()"));
     }
 

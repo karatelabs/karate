@@ -59,7 +59,7 @@ class JsNumberPrototype extends Prototype {
             }
             int radix = Terms.objectToNumber(args[0]).intValue();
             if (radix < 2 || radix > 36) {
-                throw JsErrorException.rangeError("toString() radix must be between 2 and 36");
+                throw JsErrorException.rangeError("toString() radix argument must be between 2 and 36");
             }
             if (radix != 10) {
                 double d = n.doubleValue();
@@ -127,7 +127,7 @@ class JsNumberPrototype extends Prototype {
         if (d == Double.POSITIVE_INFINITY) return "Infinity";
         if (d == Double.NEGATIVE_INFINITY) return "-Infinity";
         if (precision < 1 || precision > 100) {
-            throw JsErrorException.rangeError("toPrecision() precision must be between 1 and 100");
+            throw JsErrorException.rangeError("toPrecision() argument must be between 1 and 100");
         }
         if (d == 0.0) {
             // Spec §21.1.3.4: zero uses fixed notation with (precision - 1) trailing zeros

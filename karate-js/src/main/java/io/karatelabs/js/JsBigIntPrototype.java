@@ -60,7 +60,7 @@ class JsBigIntPrototype extends Prototype {
             }
             int radix = Terms.objectToNumber(radixArg).intValue();
             if (radix < 2 || radix > 36) {
-                throw JsErrorException.rangeError("toString() radix must be between 2 and 36");
+                throw JsErrorException.rangeError("toString() radix argument must be between 2 and 36");
             }
             return n.toString(radix);
         }

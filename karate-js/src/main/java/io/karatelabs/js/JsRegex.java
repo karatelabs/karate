@@ -91,10 +91,10 @@ public class JsRegex extends JsObject {
         int javaFlags = translateJsFlags(this.flags);
         try {
             // unescape js-specific regex syntax that differs from Java
-            String javaPattern = translateJsRegexToJava(this.pattern);
+            String javaPattern = translateJsRegexToJava(this.pattern, this.flags.contains("u") || this.flags.contains("v"));
             this.javaPattern = Pattern.compile(javaPattern, javaFlags);
         } catch (PatternSyntaxException e) {
-            throw JsErrorException.syntaxError("Invalid regular expression: /" + pattern + "/ - " + e.getMessage());
+            throw invalid(pattern, flags, e);
         }
     }
 
@@ -102,16 +102,40 @@ public class JsRegex extends JsObject {
         super(null, JsRegexPrototype.INSTANCE);
         this.pattern = pattern;
         this.flags = flags != null ? flags : "";
+        for (int i = 0; i < this.flags.length(); i++) {
+            char f = this.flags.charAt(i);
+            if ("dgimsuvy".indexOf(f) == -1 || this.flags.indexOf(f) != i) {
+                throw JsErrorException.syntaxError("Invalid flags supplied to RegExp constructor '" + this.flags + "'");
+            }
+        }
         this.global = this.flags.contains("g");
         this.sticky = this.flags.contains("y");
         this.groupNames = extractGroupNames(this.pattern);
         int javaFlags = translateJsFlags(this.flags);
         try {
-            String javaPattern = translateJsRegexToJava(this.pattern);
+            String javaPattern = translateJsRegexToJava(this.pattern, this.flags.contains("u") || this.flags.contains("v"));
             this.javaPattern = Pattern.compile(javaPattern, javaFlags);
         } catch (PatternSyntaxException e) {
-            throw JsErrorException.syntaxError("Invalid regular expression: /" + pattern + "/ - " + e.getMessage());
+            throw invalid(pattern, this.flags, e);
         }
+    }
+
+    private static JsErrorException invalid(String pattern, String flags, PatternSyntaxException e) {
+        String desc = e.getDescription();
+        if (desc.startsWith("Unclosed group")) {
+            desc = "Unterminated group";
+        } else if (desc.startsWith("Unclosed character class")) {
+            desc = "Unterminated character class";
+        } else if (desc.startsWith("Dangling meta character")) {
+            desc = "Nothing to repeat";
+        } else if (desc.startsWith("Unmatched closing ')'")) {
+            desc = "Unmatched ')'";
+        } else if (desc.startsWith("Illegal character range")) {
+            desc = "Range out of order in character class";
+        } else if (desc.startsWith("Illegal/unsupported escape")) {
+            desc = "Invalid escape";
+        }
+        return JsErrorException.syntaxError("Invalid regular expression: /" + pattern + "/" + flags + ": " + desc);
     }
 
     // Scan a JS regex source for named-capture group names `(?<name>…)`,
@@ -171,8 +195,8 @@ public class JsRegex extends JsObject {
 
     // Inside a JS character class `[` and `&` are literal, where Java reads a nested class and `&&`
     // intersection; `[^]` matches any character and `[]` none (§22.2.1).
-    static String translateJsRegexToJava(String jsPattern) {
-        if (jsPattern.indexOf('[') < 0 && jsPattern.indexOf("\\0") < 0) {
+    static String translateJsRegexToJava(String jsPattern, boolean unicode) {
+        if (jsPattern.indexOf('[') < 0 && jsPattern.indexOf("\\0") < 0 && (unicode || jsPattern.indexOf('{') < 0)) {
             return jsPattern;
         }
         int n = jsPattern.length();
@@ -186,6 +210,11 @@ public class JsRegex extends JsObject {
                     // NUL (§22.2.2.9 CharacterEscape); Java reads a lone \0 as a broken octal
                     // escape. \0 with an octal digit after it is Annex B octal in both.
                     sb.append("\\x00");
+                } else if ((e == 'p' || e == 'P' || e == 'u' && unicode) && i + 1 < n && jsPattern.charAt(i + 1) == '{') {
+                    int close = jsPattern.indexOf('}', i + 1); // a property or code point escape keeps its braces
+                    int end = close < 0 ? n : close + 1;
+                    sb.append(c).append(e).append(jsPattern, i + 1, end);
+                    i = end - 1;
                 } else {
                     sb.append(c).append(e);
                 }
@@ -209,11 +238,33 @@ public class JsRegex extends JsObject {
                 sb.append(c);
             } else if (inClass && (c == '[' || c == '&')) {
                 sb.append('\\').append(c);
+            } else if (!unicode && !inClass && c == '{' && !isQuantifier(jsPattern, i)) {
+                sb.append("\\{"); // Annex B: a brace that does not open a quantifier is literal
             } else {
                 sb.append(c);
             }
         }
         return sb.toString();
+    }
+
+    private static boolean isQuantifier(String p, int open) {
+        int i = open + 1;
+        int n = p.length();
+        int digits = 0;
+        while (i < n && Character.isDigit(p.charAt(i))) {
+            i++;
+            digits++;
+        }
+        if (digits == 0) {
+            return false;
+        }
+        if (i < n && p.charAt(i) == ',') {
+            i++;
+            while (i < n && Character.isDigit(p.charAt(i))) {
+                i++;
+            }
+        }
+        return i < n && p.charAt(i) == '}';
     }
 
     private static int translateJsFlags(String flags) {

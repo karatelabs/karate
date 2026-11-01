@@ -354,7 +354,7 @@ class JsStringPrototype extends Prototype {
         double d = Terms.objectToNumber(args[0]).doubleValue();
         if (Double.isNaN(d)) return "";
         if (d < 0 || Double.isInfinite(d)) {
-            throw JsErrorException.rangeError("Invalid count value");
+            throw JsErrorException.rangeError("Invalid count value: " + Terms.toStringCoerce(args[0], null));
         }
         int count = (int) d;
         return s.repeat(count);
@@ -681,7 +681,6 @@ class JsStringPrototype extends Prototype {
 
     private Object at(Context context, Object[] args) {
         String s = thisString(context, "at");
-        if (args.length == 0) return Terms.UNDEFINED;
         int index = argInt(args, 0, 0);
         if (index < 0) {
             index = s.length() + index;
@@ -700,7 +699,7 @@ class JsStringPrototype extends Prototype {
             case "NFD" -> java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD);
             case "NFKC" -> java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFKC);
             case "NFKD" -> java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFKD);
-            default -> throw JsErrorException.rangeError("The normalization form should be one of NFC, NFD, NFKC, NFKD");
+            default -> throw JsErrorException.rangeError("The normalization form should be one of NFC, NFD, NFKC, NFKD.");
         };
     }
 

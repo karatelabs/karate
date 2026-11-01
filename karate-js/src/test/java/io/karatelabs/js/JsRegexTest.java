@@ -349,4 +349,30 @@ class JsRegexTest extends EvalBase {
         assertEquals(true, eval("/\\\\0/.test('\\\\0')"));
     }
 
+    @Test
+    void testBraceThatIsNotAQuantifierIsLiteral() {
+        assertEquals("<a>", eval("'{a}'.replace(/{([a-z])}/g, '<$1>')"));
+        assertEquals(true, eval("/a{2}/.test('aa')"));
+        assertEquals(true, eval("/a{,2}/.test('a{,2}')"));
+        assertEquals(true, eval("/\\p{Lu}/u.test('A')"));
+        assertEquals("SyntaxError", eval("try { new RegExp('a{', 'u') } catch (e) { e.name }"));
+    }
+
+    @Test
+    void testRegExpOfARegExp() {
+        assertEquals(true, eval("var r = /a/g; RegExp(r) === r"));
+        assertEquals("g", eval("new RegExp(/a/g).flags"));
+        assertEquals("^[A-Z]", eval("new RegExp(/^[A-Z]/).source"));
+        assertEquals("W", eval("'Weekday'.match(RegExp(/^[A-Z]/))[0]"));
+        assertEquals("(?:)", eval("new RegExp(undefined).source"));
+    }
+
+    @Test
+    void testInvalidRegExpMessages() {
+        assertEquals("SyntaxError: Invalid regular expression: /(/: Unterminated group",
+                eval("try { new RegExp('(') } catch (e) { e.name + ': ' + e.message }"));
+        assertEquals("SyntaxError: Invalid flags supplied to RegExp constructor 'z'",
+                eval("try { new RegExp('a', 'z') } catch (e) { e.name + ': ' + e.message }"));
+    }
+
 }

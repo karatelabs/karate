@@ -58,9 +58,9 @@ class JsStringConstructor extends JsFunction {
     private Object fromCharCode(Object[] args) {
         StringBuilder sb = new StringBuilder();
         for (Object arg : args) {
-            if (arg instanceof Number num) {
-                sb.append((char) num.intValue());
-            }
+            Number num = arg instanceof Number n ? n : Terms.objectToNumber(arg);
+            double d = num == null ? Double.NaN : num.doubleValue();
+            sb.append(Double.isFinite(d) ? (char) (long) d : (char) 0);
         }
         return sb.toString();
     }

@@ -367,6 +367,7 @@ class JsFunctionNode extends JsFunction {
             // trailing COMMA is appended by the parser for every arg but the last,
             // so look up EQ/EXPR by index rather than via getLast().
             Object argValue = i < args.length ? args[i] : Terms.UNDEFINED;
+            boolean fromDefault = false;
             if (argValue == Terms.UNDEFINED
                     && argNode.type == NodeType.FN_DECL_ARG
                     && argNode.size() >= 3
@@ -374,6 +375,7 @@ class JsFunctionNode extends JsFunction {
                     && argNode.get(1).token.type == TokenType.EQ
                     && argNode.get(2).type == NodeType.EXPR) {
                 argValue = Interpreter.eval(argNode.get(2), functionContext);
+                fromDefault = Interpreter.isAnonymousFunctionDefinition(argNode.get(2));
             }
             if (first.type == NodeType.LIT_ARRAY || first.type == NodeType.LIT_OBJECT) {
                 Interpreter.evalAssign(first, functionContext, BindScope.VAR, argValue, true);
@@ -383,15 +385,14 @@ class JsFunctionNode extends JsFunction {
                 // publish the field mid-invocation, and a slot read from it would
                 // dereference a frame this invocation decided not to attach.
                 int slot = table == null ? -1 : table.paramSlots[i];
+                // an argument keeps its own name; only a default's anonymous function takes the parameter's
+                if (fromDefault && argValue instanceof JsFunction fn && (fn.name == null || fn.name.isEmpty())) {
+                    fn.name = argName;
+                }
                 if (slot >= 0) {
-                    // Same name inference put→declare would apply, then a plain
-                    // slot write (params are function-level and unshadowed).
-                    if (argValue instanceof JsFunction fn && (fn.name == null || fn.name.isEmpty())) {
-                        fn.name = argName;
-                    }
                     functionContext.frame[slot] = argValue;
                 } else {
-                    functionContext.put(argName, argValue);
+                    functionContext.declare(argName, argValue, null, true, false);
                 }
             }
         }

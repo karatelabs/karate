@@ -219,19 +219,26 @@ public class Expect implements SimpleObject {
         };
     }
 
+    /** chai's type-detect: a primitive's or function's typeof, else the lower-cased {@code Object.prototype.toString} tag. */
+    static String typeName(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        if (value instanceof List) {
+            return "array";
+        }
+        String type = Terms.typeOf(value);
+        return "object".equals(type) ? Terms.toStringTag(value).toLowerCase() : type;
+    }
+
     @SuppressWarnings("unchecked")
     private SimpleObject initExpectToBe() {
         return key -> switch (key) {
             case "not" -> new Expect(subject, !negated, onResult, throwOnFailure, contextSupplier).expectToBe;
             case "that", "and", "which" -> this;
             case "a", "an" -> handleChainable(rhs -> {
-                String expected = rhs + "";
-                String actual;
-                if (subject instanceof List) {
-                    actual = "array";
-                } else {
-                    actual = Terms.typeOf(subject);
-                }
+                String expected = String.valueOf(rhs).toLowerCase();
+                String actual = typeName(subject);
                 return expected.equals(actual) ? null : "actual: " + actual + ", expected: " + expected;
             });
             case "true", "false", "_true", "_false" -> {

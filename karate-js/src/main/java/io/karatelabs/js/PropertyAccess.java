@@ -698,6 +698,9 @@ class PropertyAccess {
         String name = node.getText();
         Object result = context.getOrNotFound(name);
         if (result == CoreContext.NOT_FOUND) {
+            if (functionCall && "import".equals(name)) {
+                throw JsErrorException.typeError("A dynamic import callback was not specified.");
+            }
             throw JsErrorException.referenceError(name + " is not defined");
         }
         if (functionCall && context.root.bridge != null && result instanceof ExternalAccess ea) {

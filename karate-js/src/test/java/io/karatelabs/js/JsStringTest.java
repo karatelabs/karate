@@ -373,4 +373,12 @@ class JsStringTest extends EvalBase {
         assertEquals("\\u{41}", eval("'\\\\u{41}'"));
     }
 
+    @Test
+    void testArgumentCoercions() {
+        assertEquals("a", eval("'abc'.at()"));
+        assertEquals("\u0000", eval("String.fromCharCode('a')"));
+        assertEquals("A", eval("String.fromCharCode('65')"));
+        assertEquals("RangeError: Invalid count value: -1", eval("try { 'a'.repeat(-1) } catch (e) { e.name + ': ' + e.message }"));
+    }
+
 }

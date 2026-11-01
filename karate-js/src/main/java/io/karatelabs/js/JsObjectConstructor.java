@@ -215,15 +215,12 @@ class JsObjectConstructor extends JsFunction {
      *  Object/keys/15.2.3.14-1-4 and -1-5). */
     private static void requireObjectCoercible(Object[] args, String op) {
         if (args.length < 1 || args[0] == null || args[0] == Terms.UNDEFINED) {
-            throw JsErrorException.typeError(op + " called on null or undefined");
+            throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
     }
 
     private Object assign(Context context, Object[] args) {
-        if (args.length == 0) {
-            return new LinkedHashMap<>();
-        }
-        if (args[0] == null || args[0] == Terms.UNDEFINED) {
+        if (args.length == 0 || args[0] == null || args[0] == Terms.UNDEFINED) {
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
         CoreContext cc = context instanceof CoreContext c ? c : null;
@@ -318,8 +315,13 @@ class JsObjectConstructor extends JsFunction {
     }
 
     private Object create(Context context, Object[] args) {
+        Object protoArg = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        if (protoArg != null && !(protoArg instanceof ObjectLike)) {
+            throw JsErrorException.typeError("Object prototype may only be an Object or null: "
+                    + Terms.toStringCoerce(protoArg, null));
+        }
         JsObject newObj = new JsObject();
-        if (args.length > 0 && args[0] instanceof ObjectLike proto) {
+        if (protoArg instanceof ObjectLike proto) {
             newObj.setPrototype(proto);
         }
         // Second argument: property descriptors (same shape as Object.defineProperties).
@@ -338,6 +340,9 @@ class JsObjectConstructor extends JsFunction {
         // wrongly returned null instead of Object.prototype.
         if (args.length > 0 && args[0] instanceof ObjectLike ol) {
             return ol.getPrototype();
+        }
+        if (args.length == 0 || args[0] == null || args[0] == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
         return null;
     }

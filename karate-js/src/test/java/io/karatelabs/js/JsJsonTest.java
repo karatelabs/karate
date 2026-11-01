@@ -431,4 +431,21 @@ class JsJsonTest extends EvalBase {
         assertEquals(Map.of("a", "b"), eval("JSON.parse('{\"a\":\"b\"}', null)"));
         assertEquals(Map.of("a", "b"), eval("JSON.parse('{\"a\":\"b\"}', 'not a function')"));
     }
+
+    @Test
+    void testStringifyAndParseWithoutArguments() {
+        assertEquals("undefined", eval("typeof JSON.stringify()"));
+        assertEquals("SyntaxError", eval("try { JSON.parse() } catch (e) { e.name }"));
+        assertEquals(true, eval("JSON.parse(123) === 123 && JSON.parse(true) === true && JSON.parse(null) === null"));
+        assertEquals("SyntaxError", eval("try { JSON.parse({}) } catch (e) { e.name }"));
+    }
+
+    @Test
+    void testStringifyDropsBuiltinAndHostFunctions() {
+        assertEquals("{}", eval("JSON.stringify(console)"));
+        assertEquals("{\"b\":1}", eval("JSON.stringify({a: Math.max, b: 1})"));
+        assertEquals("[null]", eval("JSON.stringify([parseInt])"));
+        assertEquals("undefined", eval("typeof JSON.stringify(Symbol)"));
+    }
+
 }

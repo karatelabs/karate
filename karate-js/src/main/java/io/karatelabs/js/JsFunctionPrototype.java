@@ -144,7 +144,7 @@ class JsFunctionPrototype extends Prototype {
     // "[object Null]" and for RequireObjectCoercible-gated built-ins to throw
     // TypeError on null/undefined receivers.
     private static Object bindForCall(JsCallable callable, Object thisObject, CoreContext cc) {
-        if (callable instanceof JsBuiltinMethod) {
+        if (callable instanceof JsBuiltinMethod || callable == JsObjectPrototype.DEFAULT_TO_STRING) {
             return thisObject;
         }
         boolean strict = callable instanceof JsFunctionNode jfn && jfn.strict;

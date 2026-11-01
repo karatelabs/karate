@@ -758,4 +758,20 @@ class JsFunctionTest extends EvalBase {
         assertEquals(1, eval("Function('return 1')()"));
     }
 
+    @Test
+    void testFunctionNameFromObjectLiteralKeyAndDefaultOnly() {
+        assertEquals("a", eval("({a: function () {}}).a.name"));
+        assertEquals("a", eval("var o = {a: function () {}}; var v = o.a; v.name"));
+        assertEquals("", eval("function f(cb) { return cb.name }; f(function () {})"));
+        assertEquals("cb", eval("function f(cb = function () {}) { return cb.name }; f()"));
+        assertEquals("f", eval("var f = function () {}; f.name"));
+    }
+
+    @Test
+    void testGeneratorAndAsyncFunctionTags() {
+        assertEquals("[object GeneratorFunction]", eval("Object.prototype.toString.call(function* () {})"));
+        assertEquals("[object AsyncFunction]", eval("Object.prototype.toString.call(async () => 1)"));
+        assertEquals("[object Function]", eval("Object.prototype.toString.call(function () {})"));
+    }
+
 }

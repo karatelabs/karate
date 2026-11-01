@@ -48,19 +48,18 @@ class JsObjectPrototype extends Prototype {
      * Declared BEFORE {@link #INSTANCE} so static-init order initializes it
      * first — the constructor reads it via {@code install("toString", DEFAULT_TO_STRING)}.
      */
-    static final JsCallable DEFAULT_TO_STRING = (context, args) -> {
-        Object o = context.getThisObject();
+    static final JsCallable DEFAULT_TO_STRING = (context, args) -> "[object " + tag(context.getThisObject()) + "]";
+
+    static String tag(Object o) {
         if (o instanceof byte[] bytes) {
             o = new JsUint8Array(bytes);
         }
-        if (o instanceof ObjectLike ol) {
-            Object tag = ol.getMember("@@toStringTag");
-            if (tag instanceof String s) {
-                return "[object " + s + "]";
-            }
+        // a host SimpleObject answers only its own names, and may refuse any other
+        if (o instanceof ObjectLike ol && !(o instanceof SimpleObject) && ol.getMember("@@toStringTag") instanceof String s) {
+            return s;
         }
-        return "[object " + builtinTag(o) + "]";
-    };
+        return builtinTag(o);
+    }
 
     static final JsObjectPrototype INSTANCE = new JsObjectPrototype();
 
@@ -78,6 +77,11 @@ class JsObjectPrototype extends Prototype {
         if (o instanceof JsBoolean || o instanceof Boolean) return "Boolean";
         if (o instanceof JsString || o instanceof String) return "String";
         if (o instanceof JsNumber || o instanceof Number) return "Number";
+        if (o instanceof JsFunctionNode fn) {
+            // the @@toStringTag of GeneratorFunction.prototype and its siblings
+            return fn.generator ? (fn.async ? "AsyncGeneratorFunction" : "GeneratorFunction")
+                    : fn.async ? "AsyncFunction" : "Function";
+        }
         if (o instanceof JsFunction) return "Function";
         if (o instanceof JsObject jo && jo.isJsFunction()) return "Function";
         // Bare JsCallable (e.g. JsInvokable lambdas in initGlobal) — not an
@@ -102,7 +106,7 @@ class JsObjectPrototype extends Prototype {
         // Terms.requireObjectCoercible's so debug output is consistent.
         install("valueOf", 0, (context, args) -> {
             Object thisObj = context.getThisObject();
-            Terms.requireObjectCoercible(thisObj, "Object.prototype.valueOf");
+            requireObject(thisObj);
             return thisObj;
         });
         install("hasOwnProperty", 1, this::hasOwnProperty);
@@ -121,6 +125,12 @@ class JsObjectPrototype extends Prototype {
         // Spec §20.1.3.1: Object.prototype.constructor === Object — resolved
         // per access against the reading Engine's constructor instance.
         installConstructor("Object");
+    }
+
+    private static void requireObject(Object thisObj) {
+        if (thisObj == null || thisObj == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("Cannot convert undefined or null to object");
+        }
     }
 
     private static Object defineAccessor(Context context, Object[] args, boolean isGetter) {
@@ -217,7 +227,7 @@ class JsObjectPrototype extends Prototype {
         }
         String prop = args.length == 0 ? "undefined" : Terms.toPropertyKey(args[0]);
         Object thisObj = context.getThisObject();
-        Terms.requireObjectCoercible(thisObj, "Object.prototype.propertyIsEnumerable");
+        requireObject(thisObj);
         // Reuse hasOwnProperty's own-key check, then layer the enumerable bit on top.
         // Returns false for non-own keys (including missing) and for own keys
         // whose attribute byte has ENUMERABLE cleared.
@@ -247,7 +257,7 @@ class JsObjectPrototype extends Prototype {
         JsSymbol sym = args.length == 0 ? null : JsSymbol.keyedBy(args[0]);
         String prop = args.length == 0 ? "undefined" : Terms.toPropertyKey(args[0]);
         Object thisObj = context.getThisObject();
-        Terms.requireObjectCoercible(thisObj, "Object.prototype.hasOwnProperty");
+        requireObject(thisObj);
         if (sym != null) {
             return thisObj instanceof JsObject jo && jo.hasSymbol(sym);
         }

@@ -1192,6 +1192,27 @@ public class Terms {
         return value == UNDEFINED;
     }
 
+    /** The tag {@code Object.prototype.toString} reports: {@code "Error"} for an Error, {@code "Null"} for null. */
+    public static String toStringTag(Object value) {
+        return JsObjectPrototype.tag(value);
+    }
+
+    /** V8's operand text in a built-in's "... is not a function" TypeError. */
+    static String typedDescription(Object value) {
+        if (value == UNDEFINED) {
+            return "undefined";
+        }
+        if (value == null) {
+            return "object null";
+        }
+        String type = typeOf(value);
+        return switch (type) {
+            case "number", "boolean", "bigint" -> type + " " + toStringCoerce(value, null);
+            case "string" -> "string \"" + value + "\"";
+            default -> type;
+        };
+    }
+
     public static String typeOf(Object value) {
         if (value instanceof String) {
             return "string";

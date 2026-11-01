@@ -46,12 +46,21 @@ class JsRegexConstructor extends JsFunction {
 
     @Override
     public Object call(Context context, Object... args) {
-        if (args.length == 0) {
-            return new JsRegex();
+        Object source = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        Object flagsArg = args.length > 1 ? args[1] : Terms.UNDEFINED;
+        CoreContext cc = context instanceof CoreContext c ? c : null;
+        String flags = flagsArg == Terms.UNDEFINED ? null : Terms.toStringCoerce(flagsArg, cc);
+        if (source instanceof JsRegex re) {
+            CallInfo callInfo = context.getCallInfo();
+            Object matcher = re.getMember("@@match");
+            boolean isRegExp = matcher == null || matcher == Terms.UNDEFINED || Terms.isTruthy(matcher); // §7.2.8 IsRegExp
+            if (flags == null && (callInfo == null || !callInfo.constructor) && isRegExp && re.getMember("constructor") == this) {
+                return re; // §22.2.4.1 step 4: RegExp(re) answers re itself
+            }
+            return new JsRegex(re.pattern, flags == null ? re.flags : flags);
         }
-        String pattern = args[0].toString();
-        String flags = args.length > 1 ? args[1].toString() : "";
-        return new JsRegex(pattern, flags);
+        String pattern = source == Terms.UNDEFINED ? "(?:)" : Terms.toStringCoerce(source, cc);
+        return new JsRegex(pattern, flags == null ? "" : flags);
     }
 
     // RegExp.escape (ES2025). Spec §22.2.7.1: TypeError on non-String input;

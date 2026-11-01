@@ -55,7 +55,7 @@ public class JsJson extends JsObject {
 
     private static JsCallable stringify() {
         return (context, args) -> {
-            Object value = args[0];
+            Object value = args.length > 0 ? args[0] : Terms.UNDEFINED;
             Object replacer = args.length > 1 ? args[1] : null;
             Object space = args.length > 2 ? args[2] : null;
 
@@ -96,7 +96,7 @@ public class JsJson extends JsObject {
             // the bare toString the generic formatJson gives a non-container root.
             // §25.5.2: an unrepresentable root (undefined, a function) is JS
             // undefined, not the text "undefined" the generic formatter emits
-            if (value instanceof JsUndefined || value instanceof JsFunction) {
+            if (value instanceof JsUndefined || "function".equals(Terms.typeOf(value))) {
                 return Terms.UNDEFINED;
             }
             return StringUtils.formatJsonValue(value, pretty, indentStr);
@@ -159,6 +159,9 @@ public class JsJson extends JsObject {
         if (value instanceof JsFunction) {
             return value; // JSON has no functions; the formatter drops / nulls them
         }
+        if ("function".equals(Terms.typeOf(value))) {
+            return Terms.UNDEFINED; // a built-in or host function, e.g. console.log
+        }
         // §25.5.2: a Symbol value is unrepresentable — omitted as a property,
         // null as an array element. Ahead of the JsValue unwrap because a
         // JsSymbol is a JsObject and would otherwise recurse into "{}".
@@ -177,7 +180,7 @@ public class JsJson extends JsObject {
         if (value instanceof Number n && !Double.isFinite(n.doubleValue())) {
             return null;
         }
-        if (!(value instanceof Map<?, ?>) && !(value instanceof List<?>)) {
+        if (!(value instanceof Map<?, ?>) && !(value instanceof List<?>) && !(value instanceof ObjectLike)) {
             return value;
         }
         if (!seen.add(value)) {
@@ -269,7 +272,8 @@ public class JsJson extends JsObject {
 
     private static JsCallable parse() {
         return (context, args) -> {
-            Object result = JsonParser.parse((String) args[0]);
+            Object text = args.length > 0 ? args[0] : Terms.UNDEFINED;
+            Object result = JsonParser.parse(text instanceof String s ? s : Terms.toStringCoerce(text, cc(context)));
             if (args.length > 1 && args[1] instanceof JsCallable reviver) {
                 // spec §25.5.1 step 7: the parsed root is revived as the "" property
                 // of a synthetic wrapper — the holder the reviver sees as its `this`

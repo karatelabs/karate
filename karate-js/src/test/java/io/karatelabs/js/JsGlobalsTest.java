@@ -285,4 +285,16 @@ class JsGlobalsTest extends EvalBase {
         return engine.eval("JSON.stringify(L)");
     }
 
+    @Test
+    void testEncodeUriWithoutArgument() {
+        assertEquals("undefined", eval("encodeURIComponent()"));
+        assertEquals("undefined", eval("encodeURI()"));
+    }
+
+    @Test
+    void testDynamicImportIsATypeError() {
+        assertEquals("TypeError: A dynamic import callback was not specified.",
+                eval("try { import('x') } catch (e) { e.name + ': ' + e.message }"));
+    }
+
 }

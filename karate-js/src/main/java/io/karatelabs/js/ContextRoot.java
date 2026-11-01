@@ -483,7 +483,7 @@ class ContextRoot implements Context {
                 return !Double.isNaN(d) && !Double.isInfinite(d);
             };
             case "encodeURIComponent" -> (JsInvokable) args -> {
-                String encoded = URLEncoder.encode(Terms.toStringCoerce(args[0], null), StandardCharsets.UTF_8);
+                String encoded = URLEncoder.encode(Terms.toStringCoerce(args.length == 0 ? Terms.UNDEFINED : args[0], null), StandardCharsets.UTF_8);
                 return encoded.replace("+", "%20")
                         .replace("%21", "!").replace("%27", "'").replace("%28", "(")
                         .replace("%29", ")").replace("%7E", "~").replace("%2A", "*");
@@ -491,7 +491,7 @@ class ContextRoot implements Context {
             case "decodeURIComponent" -> new JsBuiltinMethod("decodeURIComponent", 1, (ctx, args) ->
                     decode(firstArgToString(ctx, args), ""));
             case "encodeURI" -> (JsInvokable) args -> {
-                String encoded = URLEncoder.encode(Terms.toStringCoerce(args[0], null), StandardCharsets.UTF_8);
+                String encoded = URLEncoder.encode(Terms.toStringCoerce(args.length == 0 ? Terms.UNDEFINED : args[0], null), StandardCharsets.UTF_8);
                 return encoded.replace("+", "%20")
                         .replace("%21", "!").replace("%23", "#").replace("%24", "$")
                         .replace("%26", "&").replace("%27", "'").replace("%28", "(")
@@ -574,6 +574,11 @@ class ContextRoot implements Context {
      * a fresh {@link JsSymbol} with a key of its own.
      */
     private static final class SymbolStandIn extends JsObject implements JsCallable {
+        @Override
+        boolean isJsFunction() {
+            return true;
+        }
+
         @Override
         public Object call(Context context, Object[] args) {
             Object description = args.length == 0 ? Terms.UNDEFINED : args[0];
