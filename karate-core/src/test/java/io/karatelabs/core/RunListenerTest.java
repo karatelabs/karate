@@ -25,6 +25,7 @@ package io.karatelabs.core;
 
 import io.karatelabs.common.Resource;
 import io.karatelabs.gherkin.Feature;
+import io.karatelabs.gherkin.Step;
 import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpResponse;
 import io.karatelabs.match.Match;
@@ -200,6 +201,24 @@ class RunListenerTest {
         assertNotNull(json);
         assertTrue(json.isEmpty());
         assertTrue(event.getTimeStamp() > 0);
+    }
+
+    @Test
+    void testStepRunEventCarriesTheKeyword() {
+        Feature feature = Feature.read(Resource.text("""
+                Feature: f
+                Scenario: s
+                Given url baseUrl
+                * def a = 1
+                """));
+        List<Step> steps = feature.getSections().getFirst().getScenario().getSteps();
+        Map<String, Object> url = StepRunEvent.enter(steps.get(0), null).toJson();
+        assertEquals("Given", url.get("prefix"));
+        assertEquals("url", url.get("keyword"));
+        assertEquals("baseUrl", url.get("text"));
+        Map<String, Object> def = StepRunEvent.enter(steps.get(1), null).toJson();
+        assertEquals("def", def.get("keyword"));
+        assertEquals("a = 1", def.get("text"));
     }
 
     @Test

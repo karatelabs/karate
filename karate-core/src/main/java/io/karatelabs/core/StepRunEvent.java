@@ -75,6 +75,9 @@ public record StepRunEvent(
         if (step != null) {
             map.put("line", step.getLine());
             map.put("prefix", step.getPrefix());
+            if (step.getKeyword() != null) {
+                map.put("keyword", step.getKeyword());
+            }
             map.put("text", step.getText());
         }
         if (type == RunEventType.STEP_EXIT && result != null) {
