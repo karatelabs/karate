@@ -71,6 +71,7 @@ public class HttpRequest implements SimpleObject {
     // false pins this request only; true leaves it to the client's configure followRedirects
     private boolean followRedirects = true;
     private boolean defaultUserAgent = true;
+    private boolean defaultHost = true;
 
     /**
      * Set the {@link HttpClient} used by {@link #proceed(String)} to forward this request.
@@ -245,6 +246,15 @@ public class HttpRequest implements SimpleObject {
     /** false sends no User-Agent unless this request carries one, where the client would send its own. */
     public void setDefaultUserAgent(boolean defaultUserAgent) {
         this.defaultUserAgent = defaultUserAgent;
+    }
+
+    public boolean isDefaultHost() {
+        return defaultHost;
+    }
+
+    /** false sends no Host unless this request carries one, where the client would send the target's. */
+    public void setDefaultHost(boolean defaultHost) {
+        this.defaultHost = defaultHost;
     }
 
     public String getBodyDisplay() {

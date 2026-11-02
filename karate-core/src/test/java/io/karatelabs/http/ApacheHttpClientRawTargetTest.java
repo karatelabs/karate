@@ -48,7 +48,11 @@ class ApacheHttpClientRawTargetTest {
                     }
                     cookies.add(String.valueOf(cookie));
                     OutputStream out = socket.getOutputStream();
-                    String response = requestLine.contains("/redirect")
+                    String whatwg = requestLine.contains("/to-absolute") ? "http://localhost:" + serverSocket.getLocalPort() + "/query?q={(\"*\")}&b=a b#frag"
+                            : requestLine.contains("/to-relative") ? "query/%|{x}?q={(\"*\")}" : null;
+                    String response = whatwg != null
+                            ? "HTTP/1.1 302 Found\r\nLocation: " + whatwg + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                            : requestLine.contains("/redirect")
                             ? "HTTP/1.1 302 Found\r\nLocation: landed?x=1\r\nSet-Cookie: a=1; Path=/\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                             : "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
                     out.write(response.getBytes(StandardCharsets.US_ASCII));
@@ -109,6 +113,30 @@ class ApacheHttpClientRawTargetTest {
                 "GET /start/%/|/redirect?q={^} HTTP/1.1",
                 "GET /start/%25/%7C/landed?x=1 HTTP/1.1"), requestLines);
         assertEquals("a=1", cookies.get(1));
+    }
+
+    @Test
+    void aLocationUriRejectsIsFollowedAsAWhatwgParserSendsIt() {
+        assertEquals("GET /query?q={(%22*%22)}&b=a%20b HTTP/1.1", send("/to-absolute"));
+        assertEquals("GET /dir/query/%|%7Bx%7D?q={(%22*%22)} HTTP/1.1", send("/dir/to-relative"));
+    }
+
+    @Test
+    void noDefaultHostSendsNone() throws Exception {
+        try (ApacheHttpClient client = new ApacheHttpClient()) {
+            HttpRequest request = new HttpRequest();
+            request.setUrl("http://localhost:" + serverSocket.getLocalPort() + "/");
+            request.setMethod("GET");
+            request.setDefaultHost(false);
+            assertEquals(200, client.invoke(request).getStatus());
+            request = new HttpRequest();
+            request.setUrl("http://localhost:" + serverSocket.getLocalPort() + "/");
+            request.setMethod("GET");
+            request.putHeader("Host", "mine");
+            request.setDefaultHost(false);
+            client.invoke(request);
+        }
+        assertEquals(List.of("mine"), hostHeaders, "none, then the request's own");
     }
 
     @Test

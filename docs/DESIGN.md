@@ -477,6 +477,8 @@ Cookies are Karate's to manage (`cookie`, `cookies`, `responseCookies`): the cli
 
 A request with no `User-Agent` header gets the client's own (`Apache-HttpClient/<version>`). `HttpRequest.setDefaultUserAgent(false)` sends none for that request, its followed redirects included; a `User-Agent` header the request carries is still sent.
 
+A request with no `Host` header gets the target's. `HttpRequest.setDefaultHost(false)` sends none for that request, its followed redirects included; a `Host` header the request carries is still sent. A `Location` that `java.net.URI` rejects (a raw `{`, `"`, space) is followed and sent as a WHATWG URL parser (a browser's, Node's) sends it — `"`, space, `<`, `>`, controls and non-ASCII percent-encoded, as are `{`, `}` and `` ` `` in the path and `'` in the query; `|` and a query's `{` raw — where it used to fail *Invalid redirect URI*; a `Location` `java.net.URI` accepts is sent as before.
+
 ### Inheritance and propagation
 
 Variables and configuration have different scope semantics for `call read(...)`:

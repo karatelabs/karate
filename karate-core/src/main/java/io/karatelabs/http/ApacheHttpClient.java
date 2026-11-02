@@ -555,6 +555,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     private static final String ORIGINAL_URL = "karate.originalUrl";
     private static final String NO_USER_AGENT = "karate.noUserAgent";
+    private static final String NO_HOST = "karate.noHost";
+    private static final String RAW_REDIRECT = "karate.rawRedirect";
 
     /**
      * Proxy credentials scoped to the proxy and, given a target, the NTLM or Digest account scoped
@@ -698,6 +700,9 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             if (!request.isDefaultUserAgent() && request.getHeader(HttpHeaders.USER_AGENT) == null) {
                 context.setAttribute(NO_USER_AGENT, true);
             }
+            if (!request.isDefaultHost() && request.getHeader(HttpHeaders.HOST) == null) {
+                context.setAttribute(NO_HOST, true);
+            }
             if (ntlmUsername != null || digestUsername != null) {
                 // the port resolved from the scheme, which is how the challenge's scope will name it
                 HttpHost target = RoutingSupport.normalize(RoutingSupport.determineHost(currentRequest), DefaultSchemePortResolver.INSTANCE);
@@ -767,7 +772,78 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 request = new BasicHttpRequest(request.getMethod(), request.getScheme(), request.getAuthority(),
                         HttpUtils.escapeForUri(request.getPath(), false));
             }
-            return super.getLocationURI(request, response, context);
+            URI uri = super.getLocationURI(request, response, context);
+            String location = response.getFirstHeader(HttpHeaders.LOCATION).getValue();
+            String[] forms = whatwgLocation(location);
+            if (!location.equals(forms[0])) {
+                String target = uri.getRawPath() + (uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery());
+                String escaped = targetOf(forms[0]);
+                if (target.endsWith(escaped)) {
+                    context.setAttribute(RAW_REDIRECT, new String[]{target,
+                            target.substring(0, target.length() - escaped.length()) + targetOf(forms[1])});
+                }
+            }
+            return uri;
+        }
+
+        @Override
+        protected URI createLocationURI(String location) throws org.apache.hc.core5.http.ProtocolException {
+            return super.createLocationURI(whatwgLocation(location)[0]);
+        }
+
+        private static String targetOf(String location) {
+            int scheme = location.indexOf("://");
+            if (scheme < 0) {
+                return location;
+            }
+            int path = location.indexOf('/', scheme + 3);
+            return path < 0 ? "" : location.substring(path);
+        }
+
+        /**
+         * A Location as java.net.URI accepts it and as a WHATWG URL parser (a browser's, Node's) sends it, fragment
+         * dropped: both percent-encode controls, non-ASCII bytes, a space, {@code "}, {@code <} and {@code >}, in the
+         * path also {@code `}, {@code {} and {@code }}, in the query also {@code '}; the first encodes whatever else
+         * java.net.URI rejects, which the second sends raw. A Location java.net.URI accepts is its own first form.
+         */
+        static String[] whatwgLocation(String location) {
+            int hash = location.indexOf('#');
+            String rest = hash < 0 ? location : location.substring(0, hash);
+            try {
+                new URI(location);
+                return new String[]{location, location};
+            } catch (URISyntaxException e) {
+                // encoded below
+            }
+            int scheme = rest.indexOf("://");
+            int start = scheme < 0 ? 0 : rest.indexOf('/', scheme + 3);
+            if (start < 0) {
+                return new String[]{rest, rest};
+            }
+            String head = rest.substring(0, start);
+            StringBuilder uri = new StringBuilder(head);
+            StringBuilder whatwg = new StringBuilder(head);
+            byte[] bytes = rest.substring(start).getBytes(StandardCharsets.UTF_8);
+            boolean query = false;
+            for (int i = 0; i < bytes.length; i++) {
+                int c = bytes[i] & 0xff;
+                query |= c == '?';
+                boolean encoded = c <= 0x20 || c >= 0x7f || c == '"' || c == '<' || c == '>'
+                        || (query ? c == '\'' : c == '`' || c == '{' || c == '}');
+                String escape = "%" + HEX.charAt(c >> 4) + HEX.charAt(c & 0x0F);
+                boolean legal = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+                        || "-_.!~*'();/?:@&=+$,".indexOf(c) != -1
+                        || (c == '%' && i + 2 < bytes.length && isHex(bytes[i + 1]) && isHex(bytes[i + 2]));
+                uri.append(encoded || !legal ? escape : String.valueOf((char) c));
+                whatwg.append(encoded ? escape : String.valueOf((char) c));
+            }
+            return new String[]{uri.toString(), whatwg.toString()};
+        }
+
+        private static final String HEX = "0123456789ABCDEF";
+
+        private static boolean isHex(byte b) {
+            return (b >= '0' && b <= '9') || (b >= 'a' && b <= 'f') || (b >= 'A' && b <= 'F');
         }
 
     }
@@ -837,6 +913,12 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         // runs after the client's RequestUserAgent has added its default
         if (context.getAttribute(NO_USER_AGENT) != null) {
             hr.removeHeaders(HttpHeaders.USER_AGENT);
+        }
+        if (context.getAttribute(NO_HOST) != null) {
+            hr.removeHeaders(HttpHeaders.HOST);
+        }
+        if (context.getAttribute(RAW_REDIRECT) instanceof String[] raw && raw[0].equals(hr.getPath())) {
+            hr.setPath(raw[1]);
         }
         request.setHeaders(toHeaders(hr));
         logger.logRequest(request);
