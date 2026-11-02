@@ -365,10 +365,8 @@ class Interpreter {
                         return;
                     }
                     key = Terms.toStringCoerce(keyValue, context);
-                } else if (keyType == S_STRING || keyType == D_STRING) {
-                    key = (String) Terms.literalValue(keyNode.token);
                 } else {
-                    key = keyNode.getText();
+                    key = keyTokenString(keyNode.token);
                 }
                 consumed.add(key);
                 Object v = Terms.UNDEFINED;
@@ -1717,11 +1715,15 @@ class Interpreter {
         return cm;
     }
 
+    /** A literal property name's key: a string's value, a number's ToString ({@code .5} is "0.5"), an identifier's text. */
     private static String keyTokenString(Token t) {
         if (t.type == S_STRING || t.type == D_STRING) {
             return (String) Terms.literalValue(t);
         }
-        return t.getText(); // IDENT or NUMBER
+        if (t.type == NUMBER) {
+            return Terms.toPropertyKey(Terms.literalValue(t));
+        }
+        return t.getText();
     }
 
     /** The member's key as evaluated — a {@link JsSymbol} for a computed key that
@@ -2188,10 +2190,8 @@ class Interpreter {
                 key = symKey != null ? null : Terms.toPropertyKey(keyValue, context);
             } else if (token == DOT_DOT_DOT) {
                 key = null; // spread has no key — handled below by spreadInto
-            } else if (token == S_STRING || token == D_STRING) {
-                key = (String) Terms.literalValue(keyNode.token);
-            } else { // IDENT, NUMBER
-                key = keyNode.getText();
+            } else {
+                key = keyTokenString(keyNode.token);
             }
             if (token == DOT_DOT_DOT) {
                 // {...AssignmentExpression} — CopyDataProperties of the operand's own
@@ -2324,9 +2324,8 @@ class Interpreter {
             Object keyValue = evalExpr(elem.get(2), context);
             symKey = JsSymbol.keyedBy(keyValue);
             key = symKey != null ? symKey.toString() : Terms.toPropertyKey(keyValue, context);
-        } else if (keyChild.token != null
-                && (keyChild.token.type == S_STRING || keyChild.token.type == D_STRING)) {
-            key = (String) Terms.literalValue(keyChild.token);
+        } else if (keyChild.token != null) {
+            key = keyTokenString(keyChild.token);
         } else {
             key = keyChild.getText();
         }

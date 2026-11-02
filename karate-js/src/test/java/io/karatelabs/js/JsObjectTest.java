@@ -456,6 +456,15 @@ class JsObjectTest extends EvalBase {
     }
 
     @Test
+    void aNumericLiteralKeyIsItsNumbersString() {
+        assertEquals("0.1|0.2|1.5|1000|16 b b", eval("var o = {.1: 'a', .2: 'b', 1e3: 'c', 0x10: 'd', 1.50: 'e'};"
+                + " Object.keys(o).sort().join('|') + ' ' + o['0.2'] + ' ' + o[.2]"));
+        assertEquals(1, eval("({get 1e1() { return 1; }})['10']"));
+        assertEquals(2, eval("var {0x2: two} = {2: 2}; two"));
+        assertEquals(3, eval("class K { static 1e1() { return 3; } }; K['10']()"));
+    }
+
+    @Test
     void testObjectApi() {
         matchEval("Object.keys({ a: 1, b: 2 })", "['a', 'b']");
         matchEval("Object.values({ a: 1, b: 2 })", "[1, 2]");
