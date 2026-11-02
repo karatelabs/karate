@@ -32,10 +32,16 @@ public interface OAuth2AuthHandler extends AuthHandler {
     /** The current access token, fetched or refreshed when needed; {@code builder} is the request it is for, left unchanged. */
     String getAccessToken(HttpRequestBuilder builder);
 
+    /** The server answered 401 to {@code accessToken}: if it is still the cached one, the next request fetches another. */
+    default void rejected(String accessToken) {
+    }
+
     @Override
     default void apply(HttpRequestBuilder builder) {
-        builder.header("Authorization", "Bearer " + getAccessToken(builder));
+        builder.header("Authorization", BEARER + getAccessToken(builder));
     }
+
+    String BEARER = "Bearer ";
 
     @Override
     default String getType() {

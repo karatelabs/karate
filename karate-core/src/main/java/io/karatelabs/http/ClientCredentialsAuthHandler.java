@@ -16,7 +16,7 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
     private static final Logger logger = LoggerFactory.getLogger(ClientCredentialsAuthHandler.class);
 
     private final Map<String, Object> config;
-    private Map<String, Object> token;
+    private OAuth2Token token;
 
     public ClientCredentialsAuthHandler(Map<String, Object> config) {
         this.config = config;
@@ -95,12 +95,25 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
         }
     }
 
+    /** Synchronized so that threads sharing this handler wait on one token request rather than each sending their own. */
     @Override
-    public String getAccessToken(HttpRequestBuilder builder) {
-        if (token == null) {
-            token = requestToken(builder.forkNewBuilder(), config, builder.getUrl());
+    public synchronized String getAccessToken(HttpRequestBuilder builder) {
+        if (token == null || token.isExpired()) {
+            OAuth2Token next = OAuth2Token.fromMap(requestToken(builder.forkNewBuilder(), config, builder.getUrl()));
+            if (next.getAccessToken() == null) {
+                token = null;
+                return "null";
+            }
+            token = next;
         }
-        return String.valueOf(token.get("access_token"));
+        return token.getAccessToken();
+    }
+
+    @Override
+    public synchronized void rejected(String accessToken) {
+        if (token != null && accessToken.equals(token.getAccessToken())) {
+            token = null;
+        }
     }
 
     @Override
