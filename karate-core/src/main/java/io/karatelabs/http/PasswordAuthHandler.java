@@ -18,51 +18,44 @@ public class PasswordAuthHandler implements OAuth2AuthHandler {
     private static final Logger logger = LoggerFactory.getLogger(PasswordAuthHandler.class);
 
     private final Map<String, Object> config;
-    private OAuth2Token token;
+    private final OAuth2TokenCache cache = new OAuth2TokenCache();
 
     public PasswordAuthHandler(Map<String, Object> config) {
         this.config = config;
     }
 
     @Override
-    public synchronized void rejected(OAuth2Token rejected) {
-        if (token != null && token == rejected) {
-            // expired, so the next request refreshes with the refresh token or signs in again
-            token = new OAuth2Token(token.getAccessToken(), token.getTokenType(), token.getRefreshToken(), 0, token.getScope());
-        }
+    public void rejected(OAuth2Token rejected) {
+        cache.rejected(rejected);
     }
 
-    /** Synchronized so that threads sharing this handler wait on one token request rather than each sending their own. */
     @Override
     public String getAccessToken(HttpRequestBuilder builder) {
         return getToken(builder).getAccessToken();
     }
 
     @Override
-    public synchronized OAuth2Token getToken(HttpRequestBuilder builder) {
-        if (token == null || token.isExpired()) {
-            OAuth2Token next = null;
-            if (token != null && token.hasRefreshToken()) {
-                try {
-                    next = requestToken(builder, form("refresh_token", "refresh_token", token.getRefreshToken()));
-                    if (!next.hasRefreshToken()) {
-                        next = new OAuth2Token(next.getAccessToken(), next.getTokenType(), token.getRefreshToken(), next.getExpiresAt(), next.getScope());
-                    }
-                } catch (OAuth2Exception e) {
-                    logger.warn("token refresh failed, requesting a new token: {}", e.getMessage());
-                }
+    public OAuth2Token getToken(HttpRequestBuilder builder) {
+        return cache.get(expired -> fetch(builder, expired));
+    }
+
+    /** Refreshes {@code expired} with its refresh token if it has one, else (or if the refresh is refused) signs in again. */
+    private OAuth2Token fetch(HttpRequestBuilder builder, OAuth2Token expired) {
+        if (expired != null && expired.hasRefreshToken()) {
+            try {
+                OAuth2Token next = requestToken(builder, form("refresh_token", "refresh_token", expired.getRefreshToken()));
+                return next.hasRefreshToken() ? next
+                        : new OAuth2Token(next.getAccessToken(), next.getTokenType(), expired.getRefreshToken(), next.getExpiresAt(), next.getScope());
+            } catch (OAuth2Exception e) {
+                logger.warn("token refresh failed, requesting a new token: {}", e.getMessage());
             }
-            if (next == null) {
-                Map<String, Object> form = form("password", "username", config.get("username"));
-                form.put("password", config.get("password"));
-                if (config.get("scope") != null) {
-                    form.put("scope", config.get("scope"));
-                }
-                next = requestToken(builder, form);
-            }
-            token = next;
         }
-        return token;
+        Map<String, Object> form = form("password", "username", config.get("username"));
+        form.put("password", config.get("password"));
+        if (config.get("scope") != null) {
+            form.put("scope", config.get("scope"));
+        }
+        return requestToken(builder, form);
     }
 
     private Map<String, Object> form(String grantType, String key, Object value) {
