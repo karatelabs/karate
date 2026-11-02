@@ -642,6 +642,14 @@ public class KarateConfig implements SimpleObject {
                         }
                     }
                 }
+                case "hawk" -> {
+                    for (String key : List.of("authId", "authKey", "algorithm", "timestamp", "nonce", "extraData", "app",
+                            "delegation", "includePayloadHash")) {
+                        if (map.containsKey(key)) {
+                            this.auth.put(key, map.get(key));
+                        }
+                    }
+                }
                 case "jwt" -> {
                     // header and payload may be maps; isSecretBase64Encoded a boolean
                     for (String key : List.of("algorithm", "secret", "privateKey", "payload", "header", "isSecretBase64Encoded",

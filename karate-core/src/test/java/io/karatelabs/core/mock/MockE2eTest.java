@@ -1818,6 +1818,23 @@ class MockE2eTest {
     }
 
     @Test
+    void testConfigureAuthHawk() {
+        ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+            Feature: Test Hawk Auth via configure
+
+            Scenario: hawk auth signs the request into the Authorization header
+            * url 'http://localhost:%d'
+            * configure auth = { type: 'hawk', authId: 'id1', authKey: 'k3y', algorithm: 'sha256', timestamp: '1700000000', nonce: 'n0nce1', extraData: 'x' }
+            * path '/auth/check'
+            * method get
+            * status 200
+            * match response.authorization == '#regex Hawk id="id1", ts="1700000000", nonce="n0nce1", ext="x", mac="[A-Za-z0-9+/]{43}="'
+            """.formatted(port));
+
+        assertPassed(sr);
+    }
+
+    @Test
     void testConfigureAuthBearer() {
         ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
             Feature: Test Bearer Auth via configure

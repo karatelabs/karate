@@ -39,6 +39,7 @@ import io.karatelabs.http.BasicAuthHandler;
 import io.karatelabs.http.BearerAuthHandler;
 import io.karatelabs.http.ClientCredentialsAuthHandler;
 import io.karatelabs.http.DigestAuthHandler;
+import io.karatelabs.http.HawkAuthHandler;
 import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.http.HttpResponse;
@@ -2080,6 +2081,7 @@ public class StepExecutor {
             case "aws" -> new AwsSigV4AuthHandler(auth);
             case "jwt" -> new JwtAuthHandler(auth);
             case "oauth1" -> new OAuth1AuthHandler(auth);
+            case "hawk" -> new HawkAuthHandler(auth);
             default -> null;
         };
     }
