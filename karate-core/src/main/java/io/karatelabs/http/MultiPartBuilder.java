@@ -188,18 +188,16 @@ public class MultiPartBuilder {
                     }
                 }
                 byte[] encoded = value == null ? HttpUtils.ZERO_BYTES : Json.toBytes(value);
+                // no filename is an inline value; an empty one is still written, as a file part with no name
                 String filename = (String) map.get("filename");
-                if (filename == null) {
-                    filename = ""; // will be treated as an inline value, behaves like null
-                }
                 String transferEncoding = (String) map.get("transferEncoding");
                 String partContentType = (String) map.get("contentType");
-                if (partContentType == null && (!filename.isEmpty() || !isPlainValue(value))) {
+                if (partContentType == null && (filename != null && !filename.isEmpty() || !isPlainValue(value))) {
                     partContentType = contentType;
                 }
                 parts.add(new Part(name, filename, withCharset(partContentType, map), transferEncoding, null, encoded));
                 final Charset nullable = cs;
-                MemoryFileUpload item = new MemoryFileUpload(name, filename, contentType, transferEncoding, cs, encoded.length) {
+                MemoryFileUpload item = new MemoryFileUpload(name, filename == null ? "" : filename, contentType, transferEncoding, cs, encoded.length) {
                     @Override
                     public Charset getCharset() {
                         return nullable; // workaround for netty api strictness
@@ -364,7 +362,7 @@ public class MultiPartBuilder {
             StringBuilder head = new StringBuilder();
             head.append("--").append(boundary).append(CRLF);
             head.append("Content-Disposition: form-data; name=\"").append(part.name).append('"');
-            if (part.filename != null && !part.filename.isEmpty()) {
+            if (part.filename != null) {
                 head.append("; filename=\"").append(part.filename).append('"');
                 if (!StandardCharsets.US_ASCII.newEncoder().canEncode(part.filename)) {
                     head.append("; filename*=UTF-8''").append(encodeHeaderParam(part.filename));

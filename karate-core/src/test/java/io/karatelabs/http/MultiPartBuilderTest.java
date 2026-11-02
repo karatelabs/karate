@@ -36,6 +36,22 @@ class MultiPartBuilderTest {
     }
 
     @Test
+    void testAnEmptyFilenameIsWritten() {
+        MultiPartBuilder builder = new MultiPartBuilder(true, "UTF-8");
+        Map<String, Object> map = new HashMap<>();
+        map.put("name", "upload");
+        map.put("value", "");
+        map.put("filename", "");
+        builder.part(map);
+        String body = body(builder);
+        String b = builder.getBoundary();
+        assertEquals("--" + b + CRLF
+                + "Content-Disposition: form-data; name=\"upload\"; filename=\"\"" + CRLF + CRLF
+                + CRLF
+                + "--" + b + "--" + CRLF, body);
+    }
+
+    @Test
     void testTextPartWithExplicitContentType() {
         MultiPartBuilder builder = new MultiPartBuilder(true, "UTF-8");
         Map<String, Object> map = new HashMap<>();
