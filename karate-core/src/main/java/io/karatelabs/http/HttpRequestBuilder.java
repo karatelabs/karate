@@ -145,9 +145,16 @@ public class HttpRequestBuilder implements SimpleObject {
         if (client == null) {
             throw new RuntimeException("http client not set");
         }
+        AuthHandler auth = authHandler;
         reset();
         HttpResponse response = client.invoke(request);
         response.setRequest(request);
+        if (response.getStatus() == 401 && auth instanceof OAuth2AuthHandler oauth2) {
+            String sent = request.getHeader("Authorization");
+            if (sent != null && sent.startsWith(OAuth2AuthHandler.BEARER)) {
+                oauth2.rejected(sent.substring(OAuth2AuthHandler.BEARER.length()));
+            }
+        }
         // conversion-side stamp for ANY client, on every lane that reaches this builder —
         // the step executor re-stamps the gherkin lanes, but karate.http() has only this
         if (configSupplier != null) {

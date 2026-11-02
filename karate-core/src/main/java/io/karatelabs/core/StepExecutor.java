@@ -45,6 +45,7 @@ import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.http.HttpResponse;
 import io.karatelabs.http.JwtAuthHandler;
 import io.karatelabs.http.OAuth1AuthHandler;
+import io.karatelabs.http.OAuth2AuthHandler;
 import io.karatelabs.http.PasswordAuthHandler;
 import io.karatelabs.gherkin.GherkinParser;
 import io.karatelabs.js.EngineException;
@@ -2071,12 +2072,13 @@ public class StepExecutor {
                 if (auth.containsKey("clientAuthentication")) {
                     oauth2Config.put("client_authentication", auth.get("clientAuthentication"));
                 }
-                if ("password".equals(auth.get("grantType"))) {
+                boolean password = "password".equals(auth.get("grantType"));
+                if (password) {
                     oauth2Config.put("username", auth.get("username"));
                     oauth2Config.put("password", auth.get("password"));
-                    yield new PasswordAuthHandler(oauth2Config);
                 }
-                yield new ClientCredentialsAuthHandler(oauth2Config);
+                oauth2Config.put("grant_type", password ? "password" : "client_credentials");
+                yield oauth2Handler(oauth2Config);
             }
             case "aws" -> new AwsSigV4AuthHandler(auth);
             case "jwt" -> new JwtAuthHandler(auth);
@@ -2084,6 +2086,25 @@ public class StepExecutor {
             case "hawk" -> new HawkAuthHandler(auth);
             default -> null;
         };
+    }
+
+    // without a Suite, the last OAuth2 handler this scenario built, reused while its config is unchanged
+    private Map<String, Object> oauth2Config;
+    private OAuth2AuthHandler oauth2Handler;
+
+    /** The OAuth2 handler for this config, shared suite-wide so its token is fetched once and reused until it expires. */
+    private OAuth2AuthHandler oauth2Handler(Map<String, Object> config) {
+        java.util.function.Function<Map<String, Object>, OAuth2AuthHandler> create = c -> "password".equals(c.get("grant_type"))
+                ? new PasswordAuthHandler(c) : new ClientCredentialsAuthHandler(c);
+        Suite suite = getSuite();
+        if (suite != null) {
+            return suite.oauth2Handler(config, create);
+        }
+        if (!config.equals(oauth2Config)) {
+            oauth2Config = config;
+            oauth2Handler = create.apply(config);
+        }
+        return oauth2Handler;
     }
 
     private void executeUrl(Step step) {

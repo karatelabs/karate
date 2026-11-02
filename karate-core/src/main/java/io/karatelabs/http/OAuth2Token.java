@@ -9,14 +9,22 @@ public class OAuth2Token {
     private final String refreshToken;
     private final long expiresAt; // Absolute time (System.currentTimeMillis())
     private final String scope;
+    private final long skewMillis;
 
     public OAuth2Token(String accessToken, String tokenType, String refreshToken,
                        long expiresAt, String scope) {
+        this(accessToken, tokenType, refreshToken, expiresAt, scope, System.currentTimeMillis());
+    }
+
+    OAuth2Token(String accessToken, String tokenType, String refreshToken,
+                long expiresAt, String scope, long issuedAt) {
         this.accessToken = accessToken;
         this.tokenType = tokenType;
         this.refreshToken = refreshToken;
         this.expiresAt = expiresAt;
         this.scope = scope;
+        // renewed a little early: a tenth of its lifetime, at most a minute, so a short-lived token is still reused
+        this.skewMillis = Math.max(0, Math.min(60000, (expiresAt - issuedAt) / 10));
     }
 
     /**
@@ -27,13 +35,16 @@ public class OAuth2Token {
         String tokenType = (String) data.getOrDefault("token_type", "Bearer");
         String refreshToken = (String) data.get("refresh_token");
 
-        // Handle both Integer and Long for expires_in
+        long expiresIn = 3600; // RFC 6749 §5.1 makes expires_in optional: an hour when absent
         Object expiresInObj = data.get("expires_in");
-        int expiresIn = 3600; // Default 1 hour
-        if (expiresInObj instanceof Integer) {
-            expiresIn = (Integer) expiresInObj;
-        } else if (expiresInObj instanceof Long) {
-            expiresIn = ((Long) expiresInObj).intValue();
+        if (expiresInObj instanceof Number number) {
+            expiresIn = number.longValue();
+        } else if (expiresInObj instanceof String text) {
+            try {
+                expiresIn = Long.parseLong(text.trim());
+            } catch (NumberFormatException e) {
+                // not a number: keep the default
+            }
         }
 
         String scope = (String) data.get("scope");
@@ -43,11 +54,9 @@ public class OAuth2Token {
         return new OAuth2Token(accessToken, tokenType, refreshToken, expiresAt, scope);
     }
 
-    /**
-     * Check if token is expired (with 60 second buffer)
-     */
+    /** Expired, or within its skew of expiring: a tenth of the lifetime it was issued with, at most 60 seconds. */
     public boolean isExpired() {
-        return System.currentTimeMillis() >= (expiresAt - 60000);
+        return System.currentTimeMillis() >= (expiresAt - skewMillis);
     }
 
     /**

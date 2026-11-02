@@ -25,7 +25,16 @@ public class PasswordAuthHandler implements OAuth2AuthHandler {
     }
 
     @Override
-    public String getAccessToken(HttpRequestBuilder builder) {
+    public synchronized void rejected(String accessToken) {
+        if (token != null && accessToken.equals(token.getAccessToken())) {
+            // expired, so the next request refreshes with the refresh token or signs in again
+            token = new OAuth2Token(token.getAccessToken(), token.getTokenType(), token.getRefreshToken(), 0, token.getScope());
+        }
+    }
+
+    /** Synchronized so that threads sharing this handler wait on one token request rather than each sending their own. */
+    @Override
+    public synchronized String getAccessToken(HttpRequestBuilder builder) {
         if (token == null || token.isExpired()) {
             OAuth2Token next = null;
             if (token != null && token.hasRefreshToken()) {

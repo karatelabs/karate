@@ -77,14 +77,8 @@ class OAuth2TokenManagerTest {
         OAuth2TokenManager manager = new OAuth2TokenManager(config);
 
         // Store a token expiring in 30 seconds (within 60-second buffer)
-        long expiresAt = System.currentTimeMillis() + 30000;
-        OAuth2Token token = new OAuth2Token(
-            "about-to-expire",
-            "Bearer",
-            "refresh-token",
-            expiresAt,
-            "read"
-        );
+        long now = System.currentTimeMillis();
+        OAuth2Token token = new OAuth2Token("about-to-expire", "Bearer", "refresh-token", now + 30000, "read", now - 3600000);
 
         manager.storeToken(token);
 
