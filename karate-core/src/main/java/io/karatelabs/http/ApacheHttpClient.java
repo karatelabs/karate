@@ -27,6 +27,7 @@ import io.karatelabs.output.HttpLogger;
 import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import org.apache.hc.client5.http.RedirectException;
+import org.apache.hc.client5.http.auth.AuthSchemeFactory;
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.NTCredentials;
 import org.apache.hc.client5.http.auth.StandardAuthScheme;
@@ -44,6 +45,7 @@ import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
 import org.apache.hc.client5.http.impl.io.ManagedHttpClientConnectionFactory;
 import org.apache.hc.client5.http.impl.DefaultSchemePortResolver;
 import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.auth.NTLMSchemeFactory;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
@@ -59,6 +61,7 @@ import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.client5.http.ssl.TrustSelfSignedStrategy;
 import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.config.Http1Config;
+import org.apache.hc.core5.http.config.RegistryBuilder;
 import org.apache.hc.core5.http.io.SocketConfig;
 import org.apache.hc.core5.http.message.BasicHttpRequest;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
@@ -480,6 +483,12 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         // its target: see credentialsProvider().
         if (digestUsername != null) {
             configBuilder.setTargetPreferredAuthSchemes(List.of(StandardAuthScheme.DIGEST));
+        }
+        // httpclient5's default schemes leave NTLM out, so an NTLM challenge would go unanswered
+        if (ntlmUsername != null) {
+            clientBuilder.setDefaultAuthSchemeRegistry(RegistryBuilder.<AuthSchemeFactory>create()
+                    .register(StandardAuthScheme.NTLM, NTLMSchemeFactory.INSTANCE).build());
+            configBuilder.setTargetPreferredAuthSchemes(List.of(StandardAuthScheme.NTLM));
         }
         // Configure proxy
         proxyScope = null;
