@@ -2078,6 +2078,8 @@ public class StepExecutor {
                     oauth2Config.put("password", auth.get("password"));
                 }
                 oauth2Config.put("grant_type", password ? "password" : "client_credentials");
+                // keyed on the absolute token URL: a relative one names a different endpoint per request host
+                oauth2Config.put("url", ClientCredentialsAuthHandler.tokenUrl(oauth2Config, http().getUrl()));
                 yield oauth2Handler(oauth2Config);
             }
             case "aws" -> new AwsSigV4AuthHandler(auth);

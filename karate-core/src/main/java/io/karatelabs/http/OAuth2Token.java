@@ -49,7 +49,9 @@ public class OAuth2Token {
 
         String scope = (String) data.get("scope");
 
-        long expiresAt = System.currentTimeMillis() + (expiresIn * 1000L);
+        long now = System.currentTimeMillis();
+        // saturates rather than overflows for a huge expires_in
+        long expiresAt = expiresIn > (Long.MAX_VALUE - now) / 1000 ? Long.MAX_VALUE : now + expiresIn * 1000;
 
         return new OAuth2Token(accessToken, tokenType, refreshToken, expiresAt, scope);
     }

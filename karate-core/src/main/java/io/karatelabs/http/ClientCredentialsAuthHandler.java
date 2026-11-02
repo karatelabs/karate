@@ -97,21 +97,24 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
 
     /** Synchronized so that threads sharing this handler wait on one token request rather than each sending their own. */
     @Override
-    public synchronized String getAccessToken(HttpRequestBuilder builder) {
+    public synchronized OAuth2Token getToken(HttpRequestBuilder builder) {
         if (token == null || token.isExpired()) {
             OAuth2Token next = OAuth2Token.fromMap(requestToken(builder.forkNewBuilder(), config, builder.getUrl()));
-            if (next.getAccessToken() == null) {
-                token = null;
-                return "null";
-            }
-            token = next;
+            // an answer without an access token is not kept, so the next request asks again
+            token = next.getAccessToken() == null ? null : next;
+            return next;
         }
-        return token.getAccessToken();
+        return token;
     }
 
     @Override
-    public synchronized void rejected(String accessToken) {
-        if (token != null && accessToken.equals(token.getAccessToken())) {
+    public String getAccessToken(HttpRequestBuilder builder) {
+        return String.valueOf(getToken(builder).getAccessToken());
+    }
+
+    @Override
+    public synchronized void rejected(OAuth2Token rejected) {
+        if (token == rejected) {
             token = null;
         }
     }

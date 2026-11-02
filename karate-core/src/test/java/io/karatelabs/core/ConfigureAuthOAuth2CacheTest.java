@@ -149,6 +149,39 @@ class ConfigureAuthOAuth2CacheTest {
     }
 
     @Test
+    void aRelativeTokenUrlGetsEachServerItsOwnToken() throws Exception {
+        java.util.List<String> otherSeen = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        HttpServer other = HttpServer.start(0, request -> {
+            if (request.pathMatches("/token")) {
+                return HttpResponse.json("{\"access_token\":\"other\",\"expires_in\":3600}");
+            }
+            String authorization = String.valueOf(request.getHeader("Authorization"));
+            otherSeen.add(authorization);
+            return HttpResponse.text(200, authorization);
+        });
+        try {
+            SuiteResult result = run(1, """
+                    Feature:
+                    Scenario:
+                    * configure auth = { type: 'oauth2', grantType: 'client_credentials', accessTokenUrl: '/token', clientId: 'app', clientSecret: 's3c' }
+                    * url 'BASE'
+                    * path '/a'
+                    * method get
+                    * match response == 'Bearer t1'
+                    * url 'OTHER'
+                    * path '/a'
+                    * method get
+                    * match response == 'Bearer other'
+                    """.replace("OTHER", "http://localhost:" + other.getPort()));
+            assertPassed(result);
+            assertEquals(1, fetches.get());
+            assertEquals(java.util.List.of("Bearer other"), otherSeen);
+        } finally {
+            other.stopAsync();
+        }
+    }
+
+    @Test
     void anotherAuthConfigFetchesItsOwnToken() throws Exception {
         SuiteResult result = run(1, """
                 Feature:
