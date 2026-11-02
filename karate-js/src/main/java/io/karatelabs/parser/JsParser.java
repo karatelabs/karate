@@ -2984,11 +2984,19 @@ public class JsParser extends BaseParser {
         return exit();
     }
 
-    // Tokens that can begin a (non-computed) class member name. `get`/`set`/
-    // `static`/`constructor` all lex as IDENT and are disambiguated in
+    // Tokens that can begin a (non-computed) class member name: an IdentifierName
+    // (reserved words included, `delete() {}`), a literal or a private name.
+    // `get`/`set`/`static`/`constructor` all lex as IDENT and are disambiguated in
     // class_element by whether another key token follows.
-    private static final EnumSet<TokenType> T_CLASS_KEY_NAME =
-            EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, PRIVATE_NAME);
+    private static final EnumSet<TokenType> T_CLASS_KEY_NAME = buildClassKeySet();
+
+    private static EnumSet<TokenType> buildClassKeySet() {
+        EnumSet<TokenType> s = EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, PRIVATE_NAME);
+        for (TokenType t : TokenType.values()) {
+            if (t.keyword) s.add(t);
+        }
+        return s;
+    }
 
     // ES6 class declaration / expression. Phase 1: constructor + methods +
     // static methods + get/set accessors + computed keys. No `extends` / `super`

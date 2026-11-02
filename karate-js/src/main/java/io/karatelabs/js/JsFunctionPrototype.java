@@ -179,6 +179,11 @@ class JsFunctionPrototype extends Prototype {
                 : new Object[0];
         JsFunction bound = new JsFunction() {
             @Override
+            public boolean isConstructable() {
+                return target.isConstructable();
+            }
+
+            @Override
             public Object call(Context ctx, Object[] callArgs) {
                 Object[] all;
                 if (preBound.length == 0) {
@@ -187,6 +192,10 @@ class JsFunctionPrototype extends Prototype {
                     all = new Object[preBound.length + callArgs.length];
                     System.arraycopy(preBound, 0, all, 0, preBound.length);
                     System.arraycopy(callArgs, 0, all, preBound.length, callArgs.length);
+                }
+                // [[Construct]] (§10.4.1.2): `new` on the bound function constructs the target, the bound this unused
+                if (ctx instanceof CoreContext cc && cc.callInfo != null && cc.callInfo.constructor && cc.callInfo.called == this) {
+                    return Interpreter.constructFromHost(target, all, cc);
                 }
                 if (ctx instanceof CoreContext cc) {
                     cc.thisObject = boundThis;

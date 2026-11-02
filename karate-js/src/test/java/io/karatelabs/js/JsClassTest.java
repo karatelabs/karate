@@ -68,6 +68,12 @@ class JsClassTest extends EvalBase {
     }
 
     @Test
+    void testReservedWordMemberNames() {
+        assertEquals("1,2,3,4", eval("class C { delete() { return 1 } static new() { return 2 } get default() { return 3 }\n"
+                + " in = 4 }\nvar c = new C(); [c.delete(), C.new(), c.default, c.in].join()"));
+    }
+
+    @Test
     void testClassExpression() {
         assertEquals(3, eval("var C = class { m() { return 3 } };\nnew C().m()"));
     }

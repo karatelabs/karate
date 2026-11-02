@@ -1986,7 +1986,8 @@ walk. A `\` anywhere else outside a literal is a lexer SyntaxError.
 **Reserved words as object-literal keys.** `T_OBJECT_ELEM` /
 `T_ACCESSOR_KEY_START` are built at class-init from every TokenType with
 `keyword == true`, so `{break: x}`, `{default: 1}`, `{class: foo}` parse as
-object literals and destructuring LHS patterns.
+object literals and destructuring LHS patterns; `T_CLASS_KEY_NAME` the same
+way, so a class member may be named `delete`, `new` or `default`.
 
 **Destructuring uses `ObjectLike.getMember`, not `Map.get`.**
 `Interpreter.destructurePattern` reads object-source properties via
@@ -2709,7 +2710,12 @@ ascending order, then named-prop keys, then `"length"`).
 new `JsFunction` whose `call(ctx, args)` sets `ctx.thisObject = boundThis`
 and prepends pre-bound args to the caller's args. `length` / `name` of the
 bound function are approximate (name is `"bound " + target.name`); call
-semantics are what matters.
+semantics are what matters. `new` on it constructs the target with the
+pre-bound args leading and the bound this unused (§10.4.1.2), as
+`new (F.bind.apply(F, args))()` relies on.
+
+**`JsFunction.named(name, fn)`** gives a host callable a JS `name`, so a
+method of a host object reads as `fn.name` and inspects as one.
 
 **The external-bridge fallback is last and invisible to the spec surface.**
 When an `ExternalBridge` is installed, a *missed* name on a primitive or

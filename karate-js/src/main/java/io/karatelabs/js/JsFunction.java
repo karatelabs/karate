@@ -45,6 +45,28 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
         super(null, JsFunctionPrototype.INSTANCE);
     }
 
+    /** A host function that JS sees named {@code name} ({@code fn.name}, inspection), not constructable. */
+    public static JsFunction named(String name, JavaCallable fn) {
+        JsFunction f = new JsFunction() {
+            @Override
+            public boolean isExternal() {
+                return fn.isExternal();
+            }
+
+            @Override
+            public boolean isConstructable() {
+                return false;
+            }
+
+            @Override
+            public Object call(Context context, Object... args) {
+                return fn.call(context, args);
+            }
+        };
+        f.name = name;
+        return f;
+    }
+
     @Override
     public boolean isExternal() {
         return false; // mark this as JS native while allowing Java code to cast to public JavaCallable

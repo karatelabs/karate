@@ -632,6 +632,27 @@ class JsFunctionTest extends EvalBase {
     }
 
     @Test
+    void testNamedHostFunction() {
+        Engine engine = new Engine();
+        engine.put("json", JsFunction.named("json", (context, args) -> args.length));
+        assertEquals(List.of("json", "function", 2), engine.eval("[json.name, typeof json, json(1, 2)]"));
+    }
+
+    @Test
+    void testNewOnBoundFunctionConstructsTheTarget() {
+        // §10.4.1.2: the bound this is ignored, the pre-bound args lead, the instance is the target's
+        matchEval("function H(a, b) { this.a = a; this.b = b; this.u = this.up(); }\n"
+                + "H.prototype.up = function () { return 'up'; };\n"
+                + "var B = H.bind(null, 1); var x = new B(2);\n"
+                + "[x.a, x.b, x.u, x instanceof H]", "[1, 2, 'up', true]");
+        // postman-collection's create(): new (Header.bind.apply(Header, args))()
+        matchEval("function H(a, b) { this.s = a + b; }\n"
+                + "new (H.bind.apply(H, [H, 'x', 'y']))().s", "xy");
+        matchEval("class C { constructor(v) { this.v = v } }\n"
+                + "new (C.bind({}, 7))().v", "7");
+    }
+
+    @Test
     void testFunctionDeclarationHoisting() {
         // function declarations hoist: code earlier in the script can still
         // reference them and assign properties (e.g. .prototype) to them.
