@@ -25,8 +25,8 @@ public class PasswordAuthHandler implements OAuth2AuthHandler {
     }
 
     @Override
-    public synchronized void rejected(String accessToken) {
-        if (token != null && accessToken.equals(token.getAccessToken())) {
+    public synchronized void rejected(OAuth2Token rejected) {
+        if (token != null && token == rejected) {
             // expired, so the next request refreshes with the refresh token or signs in again
             token = new OAuth2Token(token.getAccessToken(), token.getTokenType(), token.getRefreshToken(), 0, token.getScope());
         }
@@ -34,7 +34,12 @@ public class PasswordAuthHandler implements OAuth2AuthHandler {
 
     /** Synchronized so that threads sharing this handler wait on one token request rather than each sending their own. */
     @Override
-    public synchronized String getAccessToken(HttpRequestBuilder builder) {
+    public String getAccessToken(HttpRequestBuilder builder) {
+        return getToken(builder).getAccessToken();
+    }
+
+    @Override
+    public synchronized OAuth2Token getToken(HttpRequestBuilder builder) {
         if (token == null || token.isExpired()) {
             OAuth2Token next = null;
             if (token != null && token.hasRefreshToken()) {
@@ -57,7 +62,7 @@ public class PasswordAuthHandler implements OAuth2AuthHandler {
             }
             token = next;
         }
-        return token.getAccessToken();
+        return token;
     }
 
     private Map<String, Object> form(String grantType, String key, Object value) {

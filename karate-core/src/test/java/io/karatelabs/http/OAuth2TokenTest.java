@@ -131,6 +131,13 @@ class OAuth2TokenTest {
     }
 
     @Test
+    void aHugeExpiresInSaturatesRatherThanOverflows() {
+        OAuth2Token token = OAuth2Token.fromMap(Map.of("access_token", "a", "expires_in", Long.MAX_VALUE));
+        assertEquals(Long.MAX_VALUE, token.getExpiresAt());
+        assertFalse(token.isExpired());
+    }
+
+    @Test
     void expiresInMayBeAStringOrAnyNumber() {
         long now = System.currentTimeMillis();
         assertTrue(Math.abs(OAuth2Token.fromMap(Map.of("access_token", "a", "expires_in", "120")).getExpiresAt() - now - 120000) < 5000);

@@ -32,13 +32,27 @@ public interface OAuth2AuthHandler extends AuthHandler {
     /** The current access token, fetched or refreshed when needed; {@code builder} is the request it is for, left unchanged. */
     String getAccessToken(HttpRequestBuilder builder);
 
-    /** The server answered 401 to {@code accessToken}: if it is still the cached one, the next request fetches another. */
-    default void rejected(String accessToken) {
+    /** The cached token, fetched or renewed when needed; null from a handler that keeps no token to drop on a 401. */
+    default OAuth2Token getToken(HttpRequestBuilder builder) {
+        return null;
+    }
+
+    /**
+     * The server answered 401 to a request signed with {@code token}: if it is still the cached one, the next request
+     * fetches another. Compared by identity, as a renewal may return the same access token string.
+     */
+    default void rejected(OAuth2Token token) {
     }
 
     @Override
     default void apply(HttpRequestBuilder builder) {
-        builder.header("Authorization", BEARER + getAccessToken(builder));
+        OAuth2Token token = getToken(builder);
+        if (token == null) {
+            builder.header("Authorization", BEARER + getAccessToken(builder));
+        } else {
+            builder.header("Authorization", BEARER + token.getAccessToken());
+            builder.signedWith(token);
+        }
     }
 
     String BEARER = "Bearer ";

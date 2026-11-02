@@ -51,6 +51,7 @@ public class HttpRequestBuilder implements SimpleObject {
     private Set<Cookie> cookies;
     private String charset;
     private AuthHandler authHandler;
+    private OAuth2Token signedWith; // the OAuth2 token generation the last build signed with
     private String retryUntil;
 
     private final HttpClient client;
@@ -70,7 +71,12 @@ public class HttpRequestBuilder implements SimpleObject {
         cookies = null;
         charset = null;
         authHandler = null;
+        signedWith = null;
         retryUntil = null;
+    }
+
+    void signedWith(OAuth2Token token) {
+        signedWith = token;
     }
 
     /**
@@ -146,14 +152,12 @@ public class HttpRequestBuilder implements SimpleObject {
             throw new RuntimeException("http client not set");
         }
         AuthHandler auth = authHandler;
+        OAuth2Token signed = signedWith;
         reset();
         HttpResponse response = client.invoke(request);
         response.setRequest(request);
-        if (response.getStatus() == 401 && auth instanceof OAuth2AuthHandler oauth2) {
-            String sent = request.getHeader("Authorization");
-            if (sent != null && sent.startsWith(OAuth2AuthHandler.BEARER)) {
-                oauth2.rejected(sent.substring(OAuth2AuthHandler.BEARER.length()));
-            }
+        if (response.getStatus() == 401 && signed != null && auth instanceof OAuth2AuthHandler oauth2) {
+            oauth2.rejected(signed);
         }
         // conversion-side stamp for ANY client, on every lane that reaches this builder —
         // the step executor re-stamps the gherkin lanes, but karate.http() has only this
