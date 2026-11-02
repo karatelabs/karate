@@ -141,7 +141,7 @@ public class HttpResponse implements ObjectLike {
     /** Replaces any existing header of the same name, compared case-insensitively. */
     public void setHeader(String name, List<String> values) {
         if (headers == null) {
-            headers = new HashMap<>();
+            headers = new LinkedHashMap<>();
         } else {
             removeHeader(name);
         }
