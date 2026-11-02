@@ -140,9 +140,6 @@ public class Suite {
     private final Map<String, ReentrantLock> callOnceLockStore;
     private final Map<String, Map<String, Object>> setupOnceCacheStore;
 
-    // configure auth's OAuth2 handlers by their config: scenarios configuring the same auth share one token
-    private final Map<Map<String, Object>, io.karatelabs.http.OAuth2AuthHandler> oauth2Handlers = new ConcurrentHashMap<>();
-
     // Lock manager for @lock tag support (mutual exclusion across parallel scenarios)
     private final ScenarioLockManager lockManager = new ScenarioLockManager();
 
@@ -190,12 +187,6 @@ public class Suite {
     // SCENARIO_EXIT and on the FEATURE_EXIT result entry), so a stream consumer can identify one
     // execution across events without any state outside the stream.
     private final java.util.concurrent.atomic.AtomicInteger executionSequence = new java.util.concurrent.atomic.AtomicInteger();
-
-    /** The suite's OAuth2 handler for this {@code configure auth} config, created on first use. */
-    public io.karatelabs.http.OAuth2AuthHandler oauth2Handler(Map<String, Object> config,
-            java.util.function.Function<Map<String, Object>, io.karatelabs.http.OAuth2AuthHandler> create) {
-        return oauth2Handlers.computeIfAbsent(config, create);
-    }
 
     /** The next run-unique execution index (1-based). */
     public int nextExecutionIndex() {

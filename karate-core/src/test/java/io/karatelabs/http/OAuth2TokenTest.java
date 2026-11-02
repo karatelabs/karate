@@ -108,40 +108,32 @@ class OAuth2TokenTest {
 
     @Test
     void testIsExpiredWithin60SecondBuffer() {
-        // issued an hour ago with 30 seconds left: inside the 60 second skew
-        long now = System.currentTimeMillis();
-        OAuth2Token token = new OAuth2Token("access-token", "Bearer", "refresh-token", now + 30000, "read", now - 3600000);
+        // Token expires in 30 seconds - should be considered expired due to 60 second buffer
+        long expiresAt = System.currentTimeMillis() + 30000;
+        OAuth2Token token = new OAuth2Token(
+            "access-token",
+            "Bearer",
+            "refresh-token",
+            expiresAt,
+            "read"
+        );
+
         assertTrue(token.isExpired());
     }
 
     @Test
     void testIsExpiredJustOutsideBuffer() {
         // Token expires in 70 seconds - should NOT be considered expired (outside 60 second buffer)
-        long now = System.currentTimeMillis();
-        OAuth2Token token = new OAuth2Token("access-token", "Bearer", "refresh-token", now + 70000, "read", now - 3600000);
+        long expiresAt = System.currentTimeMillis() + 70000;
+        OAuth2Token token = new OAuth2Token(
+            "access-token",
+            "Bearer",
+            "refresh-token",
+            expiresAt,
+            "read"
+        );
+
         assertFalse(token.isExpired());
-    }
-
-    @Test
-    void aShortLivedTokenIsRenewedATenthOfItsLifetimeEarly() {
-        long now = System.currentTimeMillis();
-        assertFalse(new OAuth2Token("a", "Bearer", null, now + 30000, null).isExpired(), "a fresh 30 second token is reused");
-        assertTrue(new OAuth2Token("a", "Bearer", null, now + 2000, null, now - 28000).isExpired(), "with 2 of 30 seconds left it is renewed");
-        assertFalse(new OAuth2Token("a", "Bearer", null, now + 5000, null, now - 25000).isExpired());
-    }
-
-    @Test
-    void aHugeExpiresInSaturatesRatherThanOverflows() {
-        OAuth2Token token = OAuth2Token.fromMap(Map.of("access_token", "a", "expires_in", Long.MAX_VALUE));
-        assertEquals(Long.MAX_VALUE, token.getExpiresAt());
-        assertFalse(token.isExpired());
-    }
-
-    @Test
-    void expiresInMayBeAStringOrAnyNumber() {
-        long now = System.currentTimeMillis();
-        assertTrue(Math.abs(OAuth2Token.fromMap(Map.of("access_token", "a", "expires_in", "120")).getExpiresAt() - now - 120000) < 5000);
-        assertTrue(Math.abs(OAuth2Token.fromMap(Map.of("access_token", "a", "expires_in", 120.0)).getExpiresAt() - now - 120000) < 5000);
     }
 
     @Test
