@@ -16,7 +16,7 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
     private static final Logger logger = LoggerFactory.getLogger(ClientCredentialsAuthHandler.class);
 
     private final Map<String, Object> config;
-    private OAuth2Token token;
+    private final OAuth2TokenCache cache = new OAuth2TokenCache();
 
     public ClientCredentialsAuthHandler(Map<String, Object> config) {
         this.config = config;
@@ -95,16 +95,9 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
         }
     }
 
-    /** Synchronized so that threads sharing this handler wait on one token request rather than each sending their own. */
     @Override
-    public synchronized OAuth2Token getToken(HttpRequestBuilder builder) {
-        if (token == null || token.isExpired()) {
-            OAuth2Token next = OAuth2Token.fromMap(requestToken(builder.forkNewBuilder(), config, builder.getUrl()));
-            // an answer without an access token is not kept, so the next request asks again
-            token = next.getAccessToken() == null ? null : next;
-            return next;
-        }
-        return token;
+    public OAuth2Token getToken(HttpRequestBuilder builder) {
+        return cache.get(expired -> OAuth2Token.fromMap(requestToken(builder.forkNewBuilder(), config, builder.getUrl())));
     }
 
     @Override
@@ -113,10 +106,8 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
     }
 
     @Override
-    public synchronized void rejected(OAuth2Token rejected) {
-        if (token == rejected) {
-            token = null;
-        }
+    public void rejected(OAuth2Token rejected) {
+        cache.rejected(rejected);
     }
 
     @Override
