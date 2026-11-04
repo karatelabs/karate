@@ -637,7 +637,8 @@ class AuthorizationCodeAuthHandlerTest {
             try (java.net.http.HttpClient web = java.net.http.HttpClient.newHttpClient()) {
                 otherPath.set(web.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://localhost:" + callbackPort + "/callback?code=wrong")).build(),
                         java.net.http.HttpResponse.BodyHandlers.discarding()).statusCode());
-                web.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(configured + "?code=cb-code&state=s")).build(),
+                web.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(configured + "?code=cb-code&state="
+                        + authUrl.replaceAll(".*[?&]state=([^&]+).*", "$1"))).build(),
                         java.net.http.HttpResponse.BodyHandlers.discarding());
             } catch (Exception e) {
                 return CompletableFuture.failedFuture(e);
@@ -655,6 +656,48 @@ class AuthorizationCodeAuthHandlerTest {
         assertEquals(404, otherPath.get(), "only the configured path receives the code");
         assertTrue(tokenBody.get().contains("code=cb-code"), tokenBody.get());
         assertTrue(tokenBody.get().contains("redirect_uri=" + encoded), tokenBody.get());
+    }
+
+    @Test
+    void testACallbackWithoutTheIssuedStateIsRefusedAndTheFlowWaitsForTheRealOne() throws Exception {
+        AtomicReference<String> tokenBody = new AtomicReference<>();
+        mockHandler.set(request -> {
+            HttpResponse response = new HttpResponse();
+            if (request.pathMatches("/token")) {
+                tokenBody.set(request.getBodyString());
+                response.setBody(Json.toBytes(Map.of("access_token", "real-token", "token_type", "Bearer")), ResourceType.JSON);
+            } else {
+                response.setBody(request.getHeader("authorization"), ResourceType.TEXT);
+            }
+            return response;
+        });
+        Map<String, Object> config = new HashMap<>();
+        config.put("authorizationUrl", "http://localhost:" + port + "/authorize");
+        config.put("url", "http://localhost:" + port + "/token");
+        config.put("client_id", "test-client");
+        config.put("callbackPort", 9881);
+        Map<String, Integer> statuses = new java.util.LinkedHashMap<>();
+        OAuth2BrowserCallback browser = (authUrl, redirectUri) -> {
+            String state = authUrl.replaceAll(".*[?&]state=([^&]+).*", "$1");
+            try (java.net.http.HttpClient web = java.net.http.HttpClient.newHttpClient()) {
+                for (String query : java.util.List.of("code=forged&state=attacker", "code=forged", "error=access_denied&state=attacker",
+                        "code=real&state=" + state)) {
+                    statuses.put(query, web.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(redirectUri + "?" + query)).build(),
+                            java.net.http.HttpResponse.BodyHandlers.discarding()).statusCode());
+                }
+            } catch (Exception e) {
+                return CompletableFuture.failedFuture(e);
+            }
+            return CompletableFuture.completedFuture("USE_CALLBACK_SERVER");
+        };
+        try (HttpClient client = new ApacheHttpClient()) {
+            HttpRequestBuilder http = new HttpRequestBuilder(client);
+            http.auth(new AuthorizationCodeAuthHandler(config, browser));
+            http.url("http://localhost:" + port + "/api/test");
+            assertEquals("Bearer real-token", http.invoke().getBodyString());
+        }
+        assertEquals(java.util.List.of(400, 400, 400, 200), java.util.List.copyOf(statuses.values()), statuses.toString());
+        assertTrue(tokenBody.get().contains("code=real"), tokenBody.get());
     }
 
     @Test

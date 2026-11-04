@@ -81,7 +81,7 @@ public class AuthorizationCodeAuthHandler implements OAuth2AuthHandler {
             String redirectUri = startCallbackServer(callbackServer);
 
             // 3. Build authorization URL
-            String authUrl = buildAuthorizationUrl(pkce, redirectUri);
+            String authUrl = buildAuthorizationUrl(pkce, redirectUri, callbackServer.getState());
             logger.debug("Authorization URL: {}", authUrl);
 
             // 4. Open browser and wait for authorization code
@@ -132,7 +132,7 @@ public class AuthorizationCodeAuthHandler implements OAuth2AuthHandler {
     /**
      * Build authorization URL with all required parameters
      */
-    private String buildAuthorizationUrl(PkceGenerator pkce, String redirectUri) {
+    private String buildAuthorizationUrl(PkceGenerator pkce, String redirectUri, String state) {
         String authzEndpoint = (String) config.get("authorizationUrl");
         if (authzEndpoint == null) {
             throw new OAuth2Exception("Missing 'authorizationUrl' in OAuth config");
@@ -157,8 +157,6 @@ public class AuthorizationCodeAuthHandler implements OAuth2AuthHandler {
             url.append("&scope=").append(urlEncode(scope));
         }
 
-        // Add state for CSRF protection
-        String state = generateState();
         url.append("&state=").append(urlEncode(state));
 
         return url.toString();
@@ -322,11 +320,6 @@ public class AuthorizationCodeAuthHandler implements OAuth2AuthHandler {
             return ports;
         }
         throw new OAuth2Exception("Invalid callbackPorts type: " + portsValue.getClass());
-    }
-
-    private String generateState() {
-        // Simple state generation - could be more sophisticated
-        return java.util.UUID.randomUUID().toString();
     }
 
     private String urlEncode(String value) {

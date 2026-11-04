@@ -5,11 +5,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Local HTTP server to capture OAuth redirect with authorization code.
  * Listens on http://127.0.0.1:PORT/callback, or on the port and path of a configured loopback redirect URI.
+ * A callback whose {@code state} is not {@link #getState()} is refused and leaves the code future pending (RFC 6749 §10.12).
  */
 public class LocalCallbackServer {
 
@@ -19,6 +21,7 @@ public class LocalCallbackServer {
     private CompletableFuture<String> codeFuture;
     private int port;
     private String path = "/callback";
+    private final String state = UUID.randomUUID().toString();
 
     /**
      * Start server on random available port
@@ -64,13 +67,15 @@ public class LocalCallbackServer {
 
         String code = request.getParam("code");
         String error = request.getParam("error");
-        String state = request.getParam("state");
 
-        logger.debug("Received OAuth callback: code={}, error={}, state={}",
-            code != null ? "present" : "null", error, state);
+        logger.debug("Received OAuth callback: code={}, error={}",
+            code != null ? "present" : "null", error);
 
         HttpResponse response = new HttpResponse();
-        if (code != null) {
+        if (!state.equals(request.getParam("state"))) {
+            logger.warn("OAuth callback ignored: its state is not the one this authorization sent");
+            sendErrorPage(response, "invalid_state", "This callback was not sent for this sign-in, so it was ignored.");
+        } else if (code != null) {
             codeFuture.complete(code);
             sendSuccessPage(response);
         } else {
@@ -130,6 +135,11 @@ public class LocalCallbackServer {
             """, error, description);
         response.setStatus(400);
         response.setBody(html, ResourceType.HTML);
+    }
+
+    /** The {@code state} the authorization request sends; only a callback carrying it is accepted. */
+    public String getState() {
+        return state;
     }
 
     public CompletableFuture<String> getCodeFuture() {

@@ -60,7 +60,7 @@ class LocalCallbackServerTest {
             String testCode = "test-auth-code-123";
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(redirectUri + "?code=" + testCode + "&state=test-state"))
+                .uri(URI.create(redirectUri + "?code=" + testCode + "&state=" + server.getState()))
                 .GET()
                 .build();
 
@@ -91,7 +91,7 @@ class LocalCallbackServerTest {
             // Simulate OAuth provider redirecting with error
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(redirectUri + "?error=access_denied&error_description=User+denied+access"))
+                .uri(URI.create(redirectUri + "?error=access_denied&error_description=User+denied+access&state=" + server.getState()))
                 .GET()
                 .build();
 
@@ -129,7 +129,7 @@ class LocalCallbackServerTest {
             String encodedCode = "test%2Fcode%3D123";  // "test/code=123" URL-encoded
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(redirectUri + "?code=" + encodedCode))
+                .uri(URI.create(redirectUri + "?code=" + encodedCode + "&state=" + server.getState()))
                 .GET()
                 .build();
 
@@ -146,23 +146,22 @@ class LocalCallbackServerTest {
     }
 
     @Test
-    void testCallbackWithStateParameter() throws Exception {
+    void testACallbackWithAnotherOrNoStateIsRefusedAndTheCodeStillAwaited() throws Exception {
         LocalCallbackServer server = new LocalCallbackServer();
         try {
             String redirectUri = server.start();
             CompletableFuture<String> codeFuture = server.getCodeFuture();
-
             HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(redirectUri + "?code=test-code&state=my-state-123"))
-                .GET()
-                .build();
-
-            client.send(request, HttpResponse.BodyHandlers.ofString());
-
-            // Code should still be extracted correctly
-            String code = codeFuture.get(1, TimeUnit.SECONDS);
-            assertEquals("test-code", code);
+            for (String query : new String[]{"?code=forged&state=other", "?code=forged", "?error=access_denied"}) {
+                HttpResponse<String> response = client.send(HttpRequest.newBuilder().uri(URI.create(redirectUri + query)).GET().build(),
+                        HttpResponse.BodyHandlers.ofString());
+                assertEquals(400, response.statusCode(), query);
+                assertTrue(response.body().contains("invalid_state"), response.body());
+                assertFalse(codeFuture.isDone(), query);
+            }
+            client.send(HttpRequest.newBuilder().uri(URI.create(redirectUri + "?code=real&state=" + server.getState())).GET().build(),
+                    HttpResponse.BodyHandlers.discarding());
+            assertEquals("real", codeFuture.get(1, TimeUnit.SECONDS));
         } finally {
             server.stop();
         }
@@ -242,14 +241,10 @@ class LocalCallbackServerTest {
 
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-            // Should get error page (no code parameter)
+            // Refused: no state, so the code future stays pending
             assertEquals(400, response.statusCode());
             assertTrue(response.body().contains("Authorization Failed"));
-
-            // Code future should complete exceptionally
-            assertThrows(ExecutionException.class, () -> {
-                codeFuture.get(1, TimeUnit.SECONDS);
-            });
+            assertFalse(codeFuture.isDone());
         } finally {
             server.stop();
         }
@@ -271,7 +266,7 @@ class LocalCallbackServerTest {
 
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(redirectUri + "?code=test"))
+                .uri(URI.create(redirectUri + "?code=test&state=" + server.getState()))
                 .GET()
                 .build();
 
