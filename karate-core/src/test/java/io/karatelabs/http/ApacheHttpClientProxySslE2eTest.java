@@ -32,10 +32,16 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.Authenticator;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.PasswordAuthentication;
+import java.net.Proxy;
+import java.net.ProxySelector;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketAddress;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -155,6 +161,129 @@ class ApacheHttpClientProxySslE2eTest {
             String expected = "Basic YWxpY2U6czNjcmV0";
             assertTrue(proxy.proxyAuthHeaders.contains(expected),
                     "expected Proxy-Authorization '" + expected + "' but got: " + proxy.proxyAuthHeaders);
+        }
+    }
+
+    @Test
+    void testLocalAddressKeepsTheExplicitProxy() throws Exception {
+        try (FakeProxy proxy = new FakeProxy()) {
+            assertPassed(runFeature(new ApacheHttpClient(), """
+                Feature: localAddress with a proxy
+
+                Scenario: bound locally, still through the proxy
+                * configure proxy = 'http://127.0.0.1:%d'
+                * configure localAddress = '127.0.0.1'
+                * url 'http://example.test'
+                * path '/hello'
+                * method get
+                * status 200
+                """.formatted(proxy.port())));
+            assertEquals(List.of("GET http://example.test/hello HTTP/1.1"), proxy.requestLines);
+        }
+    }
+
+    @Test
+    void testLocalAddressKeepsTheBypassListProxy() throws Exception {
+        try (FakeProxy proxy = new FakeProxy()) {
+            assertPassed(runFeature(new ApacheHttpClient(), """
+                Feature: localAddress with a proxy and a bypass list
+
+                Scenario: bound locally, a host not bypassed still through the proxy
+                * configure proxy = { uri: 'http://127.0.0.1:%d', nonProxyHosts: ['other.test'] }
+                * configure localAddress = '127.0.0.1'
+                * url 'http://example.test'
+                * path '/hello'
+                * method get
+                * status 200
+                """.formatted(proxy.port())));
+            assertEquals(List.of("GET http://example.test/hello HTTP/1.1"), proxy.requestLines);
+        }
+    }
+
+    @Test
+    void testLocalAddressKeepsTheSystemProxy() throws Exception {
+        try (FakeProxy proxy = new FakeProxy(); SystemProxy ignored = new SystemProxy(proxy, null)) {
+            assertPassed(runFeature(new ApacheHttpClient(), """
+                Feature: localAddress with the system proxy
+
+                Scenario: bound locally, still through the default ProxySelector's proxy
+                * configure localAddress = '127.0.0.1'
+                * url 'http://example.test'
+                * path '/hello'
+                * method get
+                * status 200
+                """));
+            assertEquals(List.of("GET http://example.test/hello HTTP/1.1"), proxy.requestLines);
+        }
+    }
+
+    @Test
+    void testTargetNtlmStillAnswersTheProxysBasic() throws Exception {
+        try (FakeProxy proxy = new FakeProxy()) {
+            proxy.requireProxyAuth = true;
+            assertPassed(runFeature(new ApacheHttpClient(), """
+                Feature: target NTLM behind a Basic proxy
+
+                Scenario: the proxy's Basic challenge is answered with the proxy account
+                * configure proxy = { uri: 'http://127.0.0.1:%d', username: 'alice', password: 's3cret' }
+                * configure auth = { type: 'ntlm', username: 'bob', password: 'secret2', domain: 'corp' }
+                * url 'http://example.test'
+                * path '/hello'
+                * method get
+                * status 200
+                """.formatted(proxy.port())));
+            assertEquals(List.of("Basic YWxpY2U6czNjcmV0"), proxy.proxyAuthHeaders);
+        }
+    }
+
+    @Test
+    void testTargetNtlmOrDigestStillAsksTheAuthenticatorForTheProxy() throws Exception {
+        for (String auth : List.of("{ type: 'ntlm', username: 'bob', password: 'secret2' }", "{ type: 'digest', username: 'bob', password: 'secret2' }")) {
+            try (FakeProxy proxy = new FakeProxy(); SystemProxy ignored = new SystemProxy(proxy, new PasswordAuthentication("alice", "s3cret".toCharArray()))) {
+                proxy.requireProxyAuth = true;
+                assertPassed(runFeature(new ApacheHttpClient(), """
+                    Feature: target auth behind the system proxy
+
+                    Scenario: the proxy's Basic challenge is answered by the default Authenticator
+                    * configure auth = %s
+                    * url 'http://example.test'
+                    * path '/hello'
+                    * method get
+                    * status 200
+                    """.formatted(auth)));
+                assertEquals(List.of("Basic YWxpY2U6czNjcmV0"), proxy.proxyAuthHeaders, auth);
+            }
+        }
+    }
+
+    /** The default ProxySelector answering {@code proxy}, and a default Authenticator answering only PROXY requests; restored on close. */
+    static final class SystemProxy implements AutoCloseable {
+
+        final ProxySelector selector = ProxySelector.getDefault();
+
+        SystemProxy(FakeProxy proxy, PasswordAuthentication account) {
+            ProxySelector.setDefault(new ProxySelector() {
+                @Override
+                public List<Proxy> select(URI uri) {
+                    return List.of(new Proxy(Proxy.Type.HTTP, new InetSocketAddress("127.0.0.1", proxy.port())));
+                }
+
+                @Override
+                public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+                }
+            });
+            Authenticator.setDefault(account == null ? null : new Authenticator() {
+                @Override
+                protected PasswordAuthentication getPasswordAuthentication() {
+                    return getRequestorType() == RequestorType.PROXY ? account : null;
+                }
+            });
+        }
+
+        @Override
+        public void close() {
+            ProxySelector.setDefault(selector);
+            Authenticator.setDefault(null);
         }
     }
 

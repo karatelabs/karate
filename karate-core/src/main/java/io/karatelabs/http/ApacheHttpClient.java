@@ -29,6 +29,8 @@ import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import org.apache.hc.client5.http.RedirectException;
 import org.apache.hc.client5.http.auth.AuthSchemeFactory;
 import org.apache.hc.client5.http.auth.AuthScope;
+import org.apache.hc.client5.http.auth.Credentials;
+import org.apache.hc.client5.http.auth.CredentialsProvider;
 import org.apache.hc.client5.http.auth.NTCredentials;
 import org.apache.hc.client5.http.auth.StandardAuthScheme;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
@@ -45,11 +47,15 @@ import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
 import org.apache.hc.client5.http.impl.io.ManagedHttpClientConnectionFactory;
 import org.apache.hc.client5.http.impl.DefaultSchemePortResolver;
 import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.auth.BasicSchemeFactory;
+import org.apache.hc.client5.http.impl.auth.BearerSchemeFactory;
+import org.apache.hc.client5.http.impl.auth.DigestSchemeFactory;
 import org.apache.hc.client5.http.impl.auth.NTLMSchemeFactory;
+import org.apache.hc.client5.http.impl.auth.ScramSchemeFactory;
+import org.apache.hc.client5.http.impl.auth.SystemDefaultCredentialsProvider;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
-import org.apache.hc.client5.http.impl.routing.DefaultRoutePlanner;
 import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.client5.http.protocol.RedirectLocations;
@@ -61,6 +67,7 @@ import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.client5.http.ssl.TrustSelfSignedStrategy;
 import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.config.Http1Config;
+import org.apache.hc.core5.http.config.Lookup;
 import org.apache.hc.core5.http.config.RegistryBuilder;
 import org.apache.hc.core5.http.io.SocketConfig;
 import org.apache.hc.core5.http.message.BasicHttpRequest;
@@ -484,14 +491,16 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         if (digestUsername != null) {
             configBuilder.setTargetPreferredAuthSchemes(List.of(StandardAuthScheme.DIGEST));
         }
-        // httpclient5's default schemes leave NTLM out, so an NTLM challenge would go unanswered
+        // Only a preference selects a scheme, so the registry holds every one: NTLM is preferred
+        // for the target alone, and the proxy keeps httpclient5's default preference.
+        clientBuilder.setDefaultAuthSchemeRegistry(AUTH_SCHEMES);
         if (ntlmUsername != null) {
-            clientBuilder.setDefaultAuthSchemeRegistry(RegistryBuilder.<AuthSchemeFactory>create()
-                    .register(StandardAuthScheme.NTLM, NTLMSchemeFactory.INSTANCE).build());
             configBuilder.setTargetPreferredAuthSchemes(List.of(StandardAuthScheme.NTLM));
         }
         // Configure proxy
         proxyScope = null;
+        HttpHost routeProxy = null;
+        ProxySelector routeSelector = null; // null: the default selector, as useSystemProperties() reads it
         if (proxyUri != null) {
             try {
                 URI proxy = new URI(proxyUri);
@@ -520,18 +529,26 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                         }
                     };
                     clientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(DefaultSchemePortResolver.INSTANCE, proxySelector));
+                    routeSelector = proxySelector;
                 } else {
                     clientBuilder.setProxy(proxyHost);
+                    routeProxy = proxyHost;
                 }
             } catch (Exception e) {
                 LOGGER.error("proxy config failed: {}", e.getMessage());
                 throw new RuntimeException(e);
             }
         }
-        // Configure local address binding via custom RoutePlanner
+        // An explicit planner replaces httpclient5's own, so this one keeps the proxy routing above
         if (localAddress != null) {
             final InetAddress addr = localAddress;
-            clientBuilder.setRoutePlanner(new DefaultRoutePlanner(DefaultSchemePortResolver.INSTANCE) {
+            final HttpHost fixedProxy = routeProxy;
+            clientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(DefaultSchemePortResolver.INSTANCE, routeSelector) {
+                @Override
+                protected HttpHost determineProxy(HttpHost target, HttpContext context) throws HttpException {
+                    return fixedProxy != null ? fixedProxy : super.determineProxy(target, context);
+                }
+
                 @Override
                 protected InetAddress determineLocalAddress(HttpHost firstHop, HttpContext context) {
                     return addr;
@@ -562,6 +579,15 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     private AuthScope proxyScope;
 
+    @SuppressWarnings("deprecation")
+    private static final Lookup<AuthSchemeFactory> AUTH_SCHEMES = RegistryBuilder.<AuthSchemeFactory>create()
+            .register(StandardAuthScheme.BASIC, BasicSchemeFactory.INSTANCE)
+            .register(StandardAuthScheme.DIGEST, DigestSchemeFactory.INSTANCE)
+            .register(StandardAuthScheme.BEARER, BearerSchemeFactory.INSTANCE)
+            .register(StandardAuthScheme.SCRAM_SHA_256, ScramSchemeFactory.INSTANCE)
+            .register(StandardAuthScheme.NTLM, NTLMSchemeFactory.INSTANCE)
+            .build();
+
     private static final String ORIGINAL_URL = "karate.originalUrl";
     private static final String NO_USER_AGENT = "karate.noUserAgent";
     private static final String NO_HOST = "karate.noHost";
@@ -571,9 +597,11 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
      * Proxy credentials scoped to the proxy and, given a target, the NTLM or Digest account scoped
      * to that origin and that challenge scheme. A wildcard scope would also answer a proxy's 407
      * Basic challenge, or another host's Digest challenge after a redirect, with the same account.
+     * With no proxy account configured, any other scope asks what the client would have asked
+     * without one: the default Authenticator and the proxy system properties.
      */
     @SuppressWarnings("deprecation")
-    private BasicCredentialsProvider credentialsProvider(HttpHost target) {
+    private CredentialsProvider credentialsProvider(HttpHost target) {
         BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
         if (proxyScope != null) {
             credsProvider.setCredentials(proxyScope, new UsernamePasswordCredentials(proxyUsername, proxyPassword.toCharArray()));
@@ -589,7 +617,14 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             credsProvider.setCredentials(new AuthScope(target, null, StandardAuthScheme.DIGEST), new UsernamePasswordCredentials(
                     digestUsername, digestPassword != null ? digestPassword.toCharArray() : new char[0]));
         }
-        return credsProvider;
+        if (proxyScope != null) {
+            return credsProvider;
+        }
+        CredentialsProvider system = new SystemDefaultCredentialsProvider();
+        return (scope, context) -> {
+            Credentials found = credsProvider.getCredentials(scope, context);
+            return found != null ? found : system.getCredentials(scope, context);
+        };
     }
 
     /**
