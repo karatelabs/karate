@@ -380,8 +380,9 @@ class JunitXmlWriterTest {
                 .parallel(1);
 
         String xml = Files.readString(reportDir.resolve("junit-xml/synthname.xml"));
-        assertTrue(xml.contains("* Scenario execution failed:"),
+        assertTrue(xml.contains("* karate-config.js failed"),
                 "synthetic step should render its display text as the step line:\n" + xml);
+        assertTrue(xml.contains("config is broken"), "the error itself is still reported:\n" + xml);
         assertTrue(xml.contains("some config-time chatter"),
                 "the step's log is separate content and must still be emitted:\n" + xml);
     }

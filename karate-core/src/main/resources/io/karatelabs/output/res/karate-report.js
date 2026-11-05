@@ -309,12 +309,24 @@ const KarateReport = {
     _BADGE_BASE: 'inline-block px-1.5 py-0.5 text-[0.65rem] font-medium rounded text-white align-middle',
 
     /**
-     * Common error-block markup (used 3x in _renderStep — step-level error
-     * inside detail, step-level error outside detail, nested-scenario error).
+     * Common error-block markup (used 2x in _renderStep — the step's own error,
+     * beneath its row, and a nested scenario's error).
      * Pass extra margin classes via marginCls; defaults to inline-step spacing.
      */
     _renderErrorBlock(errorText, marginCls = 'mx-3 my-1') {
         return `<div class="${marginCls} px-3 py-1.5 rounded bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs"><pre class="m-0 whitespace-pre-wrap">${this._esc(errorText)}</pre></div>`;
+    },
+
+    // A scenario card on its feature page: every feature page sits in feature-html/, and a
+    // card's id is its refId (the same link the timeline's scenario list builds).
+    _originHref(origin) {
+        return this._esc(origin.featureHtmlName + '.html#' + origin.refId);
+    },
+
+    _renderOriginLink(origin) {
+        if (!origin) return '';
+        return `<div class="mx-3 my-1 text-xs text-slate-600 dark:text-slate-300">Cached failure, not run again: the call ran, with its full trace, in `
+            + `<a class="text-accent hover:underline font-mono" href="${this._originHref(origin)}">${this._esc(origin.label)}</a></div>`;
     },
 
     _renderStep(step) {
@@ -386,6 +398,14 @@ const KarateReport = {
             }
         }
 
+        // A failure replayed from a run-once cache (callonce, setupOnce, callSingle): its trace
+        // lives under the scenario that ran it, so the row links there, without expanding this step.
+        if (step.cachedFailureOrigin) {
+            html += ` <a class="${badgeBase} bg-red-600 ml-1 hover:underline" href="${this._originHref(step.cachedFailureOrigin)}"`
+                + ` onclick="event.stopPropagation()"`
+                + ` title="cached failure - open the scenario that ran it: ${this._esc(step.cachedFailureOrigin.label)}">trace ${this._esc(step.cachedFailureOrigin.featureFileName + step.cachedFailureOrigin.refId)}</a>`;
+        }
+
         html += `</div>`;
         html += `<div class="${muted} ml-2 w-20 text-right shrink-0"><span class="text-xs tabular-nums">${step.durationMillis} ms</span></div>`;
         html += `</div>`; // end step-row
@@ -405,6 +425,13 @@ const KarateReport = {
                 html += `</tr>`;
             });
             html += `</table></div>`;
+        }
+
+        // A failure is shown, never folded away with the step's logs and calls: why the step
+        // failed is what the reader came for
+        if (step.error) {
+            html += this._renderErrorBlock(step.error);
+            html += this._renderOriginLink(step.cachedFailureOrigin);
         }
 
         // Detail section (hidden by default)
@@ -433,10 +460,6 @@ const KarateReport = {
                     html += this._renderEmbed(embed);
                 });
                 html += `</div>`;
-            }
-
-            if (step.error) {
-                html += this._renderErrorBlock(step.error);
             }
 
             // Call results (recursive)
@@ -469,7 +492,8 @@ const KarateReport = {
                         html += `<span class="${badgeBase} ${ns.cls}">${ns.label}</span>`;
                         html += `</span></div>`;
                         html += this.renderSteps(nested.steps);
-                        if (nested.error) {
+                        // as on the page itself: the scenario's error only when no step shows it
+                        if (nested.error && !(nested.steps || []).some(s => s.error)) {
                             html += this._renderErrorBlock(nested.error, 'my-1');
                         }
                         html += `</div>`;
@@ -480,8 +504,6 @@ const KarateReport = {
             }
 
             html += `</div>`; // end k-step-detail
-        } else if (step.error) {
-            html += this._renderErrorBlock(step.error);
         }
 
         html += `</div>`; // end k-step

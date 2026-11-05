@@ -487,37 +487,14 @@ public class StepExecutor {
             return;
         }
 
-        Map<String, Object> cache = fr.getCallOnceCache();
-        java.util.concurrent.locks.ReentrantLock lock = fr.getCallOnceLock();
-
-        // Fast path - check cache without lock
-        Object cached = cache.get(cacheKey);
-        if (cached != null) {
-            // Return deep copy to prevent cross-scenario mutation
-            runtime.setVariable(resultVar, StepUtils.deepCopy(cached));
-            return;
-        }
-
-        // Slow path - acquire lock for execution
-        lock.lock();
-        try {
-            // Double-check after acquiring lock
-            Object rechecked = cache.get(cacheKey);
-            if (rechecked != null) {
-                runtime.setVariable(resultVar, StepUtils.deepCopy(rechecked));
-                return;
-            }
-
-            // Not cached - execute the call
+        // A deep copy of the result is cached (a Map for a single call, a List for a loop call);
+        // a replaying scenario gets its own copy to prevent cross-scenario mutation
+        OnceCache.Result<Object> once = OnceCache.get(fr.getCallOnceCache(), fr.getCallOnceLock(), cacheKey, runtime, () -> {
             executeCallWithResult(callExpr, resultVar);
-
-            // Cache a deep copy of the result (may be Map for single call or List for loop call)
-            Object resultValue = runtime.getVariable(resultVar);
-            if (resultValue != null) {
-                cache.put(cacheKey, StepUtils.deepCopy(resultValue));
-            }
-        } finally {
-            lock.unlock();
+            return StepUtils.deepCopy(runtime.getVariable(resultVar));
+        });
+        if (once.cached()) {
+            runtime.setVariable(resultVar, StepUtils.deepCopy(once.value()));
         }
     }
 
@@ -2963,26 +2940,7 @@ public class StepExecutor {
             return;
         }
 
-        Map<String, Object> cache = fr.getCallOnceCache();
-        java.util.concurrent.locks.ReentrantLock lock = fr.getCallOnceLock();
-
-        // Fast path - check cache without lock
-        CallOnceResult cached = (CallOnceResult) cache.get(cacheKey);
-        if (cached != null) {
-            applyCachedCallOnceResult(cached);
-            return;
-        }
-
-        // Slow path - acquire lock for execution
-        lock.lock();
-        try {
-            // Double-check after acquiring lock (another thread may have populated cache)
-            CallOnceResult rechecked = (CallOnceResult) cache.get(cacheKey);
-            if (rechecked != null) {
-                applyCachedCallOnceResult(rechecked);
-                return;
-            }
-
+        OnceCache.Result<CallOnceResult> once = OnceCache.get(fr.getCallOnceCache(), fr.getCallOnceLock(), cacheKey, runtime, () -> {
             // Snapshot caller bindings before the call so we cache only the callee's
             // contribution — the full post-call binding set echoes back pre-existing caller
             // vars (notably Scenario Outline example-row vars), which would then overwrite the
@@ -2993,7 +2951,6 @@ public class StepExecutor {
             // Config is cached as a before/after pair for the same reason - see CallOnceResult.
             KarateConfig preCallConfig = runtime.getConfig().copy();
 
-            // Not cached - execute the call
             executeCall(step);
 
             Map<String, Object> delta = StepUtils.calleeDelta(preCallVars, runtime.getAllVariables());
@@ -3001,9 +2958,11 @@ public class StepExecutor {
             Map<String, Object> vars = (Map<String, Object>) StepUtils.deepCopy(delta);
             @SuppressWarnings("unchecked")
             Map<String, Map<String, Object>> cookieJarCopy = (Map<String, Map<String, Object>>) StepUtils.deepCopy(runtime.getCookieJar());
-            cache.put(cacheKey, new CallOnceResult(vars, preCallConfig, runtime.getConfig().copy(), cookieJarCopy));
-        } finally {
-            lock.unlock();
+            return new CallOnceResult(vars, preCallConfig, runtime.getConfig().copy(), cookieJarCopy);
+        });
+        // this scenario ran the call (in its own scope) unless the result came from the cache
+        if (once.cached()) {
+            applyCachedCallOnceResult(once.value());
         }
     }
 

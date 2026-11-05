@@ -623,9 +623,11 @@ class CucumberJsonWriterTest {
         List<Map<String, Object>> steps = (List<Map<String, Object>>) elements.get(0).get("steps");
 
         String name = (String) steps.get(0).get("name");
-        assertTrue(name.startsWith("Scenario execution failed:"), "step name should be the synthetic text, got: " + name);
-        assertTrue(name.contains("config is broken"), name);
-        assertFalse(name.contains("some config-time chatter"), "the log must not be used as the step name: " + name);
+        assertEquals("karate-config.js failed", name, "step name should be the synthetic text");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> stepResult = (Map<String, Object>) steps.get(0).get("result");
+        assertTrue(((String) stepResult.get("error_message")).contains("config is broken"),
+                "the error rides in the step's error_message: " + stepResult);
     }
 
 }

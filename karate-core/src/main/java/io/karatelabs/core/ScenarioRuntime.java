@@ -296,7 +296,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // In dry-run mode, skip config JS for non-@setup scenarios - @setup scenarios
         // still run fully so scenario outlines can resolve their example data (V1 parity).
         if (featureRuntime != null && featureRuntime.getSuite() != null && featureRuntime.isTopLevel()) {
-            if (!isDryRunSkip() && !suiteCancelled()) {
+            if (!isDryRunSkip() && !isSuiteCancelled()) {
                 // Config runs before call() makes this runtime current, so what it does on the thread (a
                 // mock it starts) would count for whatever scenario is current — a nesting Suite's.
                 ScenarioRuntime outerRuntime = CURRENT.get();
@@ -397,7 +397,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         return suite != null && suite.dryRun && !scenario.isSetup();
     }
 
-    private boolean suiteCancelled() {
+    boolean isSuiteCancelled() {
         Suite suite = featureRuntime != null ? featureRuntime.getSuite() : null;
         return suite != null && suite.isCancelled();
     }
@@ -582,7 +582,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             return null;
         } catch (Exception e) {
             logger.warn("Failed to evaluate {}: {}", displayName, e.getMessage());
-            throw new RuntimeException("Config evaluation failed: " + displayName + " - " + e.getMessage(), e);
+            throw new ConfigException(displayName, e);
         }
     }
 
@@ -629,22 +629,10 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             throw new RuntimeException("karate.setupOnce() requires a feature context");
         }
         String cacheKey = name == null ? "__default__" : name;
-        Map<String, Object> setupCache = featureRuntime.getSetupOnceCache();
-        Map<String, Object> cached = (Map<String, Object>) setupCache.get(cacheKey);
-        if (cached != null) {
-            // Return a shallow copy to prevent modifications affecting other scenarios
-            return new HashMap<>(cached);
-        }
-        synchronized (setupCache) {
-            // Double-check after acquiring lock
-            cached = (Map<String, Object>) setupCache.get(cacheKey);
-            if (cached != null) {
-                return new HashMap<>(cached);
-            }
-            Map<String, Object> result = executeSetup(name);
-            setupCache.put(cacheKey, result);
-            return new HashMap<>(result);
-        }
+        Map<String, Object> result = OnceCache.getSynchronized(featureRuntime.getSetupOnceCache(), cacheKey, this,
+                () -> executeSetup(name)).value();
+        // Return a shallow copy to prevent modifications affecting other scenarios
+        return new HashMap<>(result);
     }
 
     /**
@@ -722,36 +710,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // Use the same cache key format as the keyword: "callonce:call read('path')"
         String cacheKey = "callonce:call read('" + path + "')";
 
-        // Use feature-level cache (not suite-level) - callOnce is scoped per feature
-        Map<String, Object> cache = featureRuntime.getCallOnceCache();
-        java.util.concurrent.locks.ReentrantLock lock = featureRuntime.getCallOnceLock();
-
-        // Fast path - check cache without lock
-        Object cached = cache.get(cacheKey);
-        if (cached != null) {
-            // Deep copy to prevent cross-scenario mutation
-            return StepUtils.deepCopy(cached);
-        }
-
-        // Slow path - acquire lock for execution
-        lock.lock();
-        try {
-            // Double-check after acquiring lock
-            Object rechecked = cache.get(cacheKey);
-            if (rechecked != null) {
-                return StepUtils.deepCopy(rechecked);
-            }
-
-            // Not cached - execute the call
-            Object result = executeJsCall(path, arg);
-
-            // Cache a deep copy to prevent the caller from mutating the cache
-            cache.put(cacheKey, StepUtils.deepCopy(result));
-
-            return result;
-        } finally {
-            lock.unlock();
-        }
+        // Use feature-level cache (not suite-level) - callOnce is scoped per feature. A deep copy
+        // is cached and each caller gets its own copy, so no caller can mutate the cache.
+        Object cached = OnceCache.get(featureRuntime.getCallOnceCache(), featureRuntime.getCallOnceLock(), cacheKey, this,
+                () -> StepUtils.deepCopy(executeJsCall(path, arg))).value();
+        return StepUtils.deepCopy(cached);
     }
 
     /**
@@ -771,17 +734,24 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      * - { minutes: 15, dir: 'some/folder' } - custom cache directory
      * - Only JSON-like results (Map/List) are persisted to disk
      *
-     * Exceptions are cached and re-thrown on subsequent calls.
+     * A failure is cached too and re-thrown on subsequent calls, naming the scenario that ran
+     * it (see OnceCache).
      */
     public Object executeCallSingle(String path, Object arg) {
         if (featureRuntime == null || featureRuntime.getSuite() == null) {
             throw new RuntimeException("karate.callSingle() requires a Suite context");
         }
-
         Suite suite = featureRuntime.getSuite();
-        Map<String, Object> cache = suite.getCallSingleCache();
-        ReentrantLock lock = suite.getCallSingleLock();
+        OnceCache.Result<Object> result = OnceCache.get(suite.getCallSingleCache(), suite.getCallSingleLock(), path, this,
+                () -> loadCallSingle(path, arg));
+        if (result.cached()) {
+            logger.trace("[callSingle] memory cache hit: {}", path);
+        }
+        return StepUtils.deepCopy(result.value());
+    }
 
+    /** One callSingle under the Suite lock: from the disk cache when configured and fresh, else executed. */
+    private Object loadCallSingle(String path, Object arg) {
         // Get disk cache settings from config
         int cacheMinutes = config.getCallSingleCacheMinutes();
         String cacheDir = config.getCallSingleCacheDir();
@@ -790,99 +760,71 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             cacheDir = io.karatelabs.common.FileUtils.getBuildDir() + "/karate-temp/cache";
         }
 
-        // Fast path: check if already in memory cache (no locking needed)
-        if (cache.containsKey(path)) {
-            logger.trace("[callSingle] memory cache hit: {}", path);
-            return unwrapCachedResult(cache.get(path));
-        }
+        Object result = null;
+        File cacheFile = null;
 
-        // Slow path: acquire lock and execute
-        long startWait = System.currentTimeMillis();
-        logger.debug("[callSingle] waiting for lock: {}", path);
-        lock.lock();
-        try {
-            // Double-check: another thread may have cached while we waited
-            if (cache.containsKey(path)) {
-                long waitTime = System.currentTimeMillis() - startWait;
-                logger.info("[callSingle] lock acquired after {}ms, memory cache hit: {}", waitTime, path);
-                return unwrapCachedResult(cache.get(path));
-            }
+        // Check disk cache if configured
+        if (cacheMinutes > 0) {
+            String cleanedName = StringUtils.toIdString(path);
+            cacheFile = new File(cacheDir, cleanedName + ".txt");
+            long staleThreshold = System.currentTimeMillis() - (cacheMinutes * 60L * 1000L);
 
-            Object result = null;
-            File cacheFile = null;
-
-            // Check disk cache if configured
-            if (cacheMinutes > 0) {
-                String cleanedName = StringUtils.toIdString(path);
-                cacheFile = new File(cacheDir, cleanedName + ".txt");
-                long staleThreshold = System.currentTimeMillis() - (cacheMinutes * 60L * 1000L);
-
-                if (cacheFile.exists()) {
-                    long lastModified = cacheFile.lastModified();
-                    if (lastModified > staleThreshold) {
-                        try {
-                            String json = Files.readString(cacheFile.toPath());
-                            result = Json.parseLenient(json);
-                            logger.info("[callSingle] disk cache hit: {}", cacheFile);
-                        } catch (Exception e) {
-                            // a truncated or hand-edited file fails to parse, which is a
-                            // RuntimeException, not an IOException — falling back to executing
-                            // the feature beats failing every scenario until it is deleted
-                            result = null;
-                            logger.warn("[callSingle] disk cache read failed: {} - {}", cacheFile, e.getMessage());
-                        }
-                    } else {
-                        logger.info("[callSingle] disk cache stale: {} (modified {}ms ago, threshold {}min)",
-                                cacheFile, System.currentTimeMillis() - lastModified, cacheMinutes);
+            if (cacheFile.exists()) {
+                long lastModified = cacheFile.lastModified();
+                if (lastModified > staleThreshold) {
+                    try {
+                        String json = Files.readString(cacheFile.toPath());
+                        result = Json.parseLenient(json);
+                        logger.info("[callSingle] disk cache hit: {}", cacheFile);
+                    } catch (Exception e) {
+                        // a truncated or hand-edited file fails to parse, which is a
+                        // RuntimeException, not an IOException — falling back to executing
+                        // the feature beats failing every scenario until it is deleted
+                        result = null;
+                        logger.warn("[callSingle] disk cache read failed: {} - {}", cacheFile, e.getMessage());
                     }
                 } else {
-                    logger.debug("[callSingle] disk cache miss, will create: {}", cacheFile);
+                    logger.info("[callSingle] disk cache stale: {} (modified {}ms ago, threshold {}min)",
+                            cacheFile, System.currentTimeMillis() - lastModified, cacheMinutes);
                 }
+            } else {
+                logger.debug("[callSingle] disk cache miss, will create: {}", cacheFile);
             }
-
-            // Execute if not found in disk cache
-            if (result == null) {
-                logger.info("[callSingle] >> executing: {}", path);
-                long startExec = System.currentTimeMillis();
-
-                try {
-                    result = executeCallSingleInternal(path, arg);
-                } catch (Exception e) {
-                    // Cache the exception so subsequent calls also fail fast
-                    logger.warn("[callSingle] caching exception for: {} - {}", path, e.getMessage());
-                    cache.put(path, new CallSingleException(e));
-                    throw e;
-                }
-
-                long execTime = System.currentTimeMillis() - startExec;
-                logger.info("[callSingle] << executed in {}ms: {}", execTime, path);
-
-                // Write to disk cache if configured and result is JSON-like
-                if (cacheMinutes > 0 && cacheFile != null) {
-                    String notJsonLike = Json.isMapOrList(result) ? findNonJsonValue(result, "$") : "the result itself";
-                    if (notJsonLike == null) {
-                        try {
-                            cacheFile.getParentFile().mkdirs();
-                            String json = StringUtils.formatJson(result, false, false, false);
-                            Files.writeString(cacheFile.toPath(), json);
-                            logger.info("[callSingle] disk cache write: {}", cacheFile);
-                        } catch (IOException e) {
-                            logger.warn("[callSingle] disk cache write failed: {} - {}", cacheFile, e.getMessage());
-                        }
-                    } else {
-                        logger.warn("[callSingle] disk cache skipped (not JSON-like at {}): {}", notJsonLike, path);
-                    }
-                }
-            }
-
-            // Cache in memory
-            cache.put(path, result);
-            logger.debug("[callSingle] memory cached: {}", path);
-
-            return StepUtils.deepCopy(result);
-        } finally {
-            lock.unlock();
         }
+
+        // Execute if not found in disk cache
+        if (result == null) {
+            logger.info("[callSingle] >> executing: {}", path);
+            long startExec = System.currentTimeMillis();
+
+            try {
+                result = executeCallSingleInternal(path, arg);
+            } catch (Exception e) {
+                logger.warn("[callSingle] failed: {} - {}", path, e.getMessage());
+                throw e;
+            }
+
+            long execTime = System.currentTimeMillis() - startExec;
+            logger.info("[callSingle] << executed in {}ms: {}", execTime, path);
+
+            // Write to disk cache if configured and result is JSON-like
+            if (cacheMinutes > 0 && cacheFile != null) {
+                String notJsonLike = Json.isMapOrList(result) ? findNonJsonValue(result, "$") : "the result itself";
+                if (notJsonLike == null) {
+                    try {
+                        cacheFile.getParentFile().mkdirs();
+                        String json = StringUtils.formatJson(result, false, false, false);
+                        Files.writeString(cacheFile.toPath(), json);
+                        logger.info("[callSingle] disk cache write: {}", cacheFile);
+                    } catch (IOException e) {
+                        logger.warn("[callSingle] disk cache write failed: {} - {}", cacheFile, e.getMessage());
+                    }
+                } else {
+                    logger.warn("[callSingle] disk cache skipped (not JSON-like at {}): {}", notJsonLike, path);
+                }
+            }
+        }
+        return result;
     }
 
     /**
@@ -1028,25 +970,16 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         }
     }
 
-    /**
-     * Unwrap cached result - throws if it's a cached exception.
-     */
-    private Object unwrapCachedResult(Object cached) {
-        if (cached instanceof CallSingleException) {
-            throw new RuntimeException(((CallSingleException) cached).cause.getMessage(),
-                    ((CallSingleException) cached).cause);
-        }
-        return StepUtils.deepCopy(cached);
-    }
+    /** A karate-base.js / karate-config.js / env config that failed to evaluate, named for the report. */
+    static final class ConfigException extends RuntimeException {
 
-    /**
-     * Wrapper for cached exceptions to distinguish from null results.
-     */
-    private static class CallSingleException {
-        final Exception cause;
-        CallSingleException(Exception cause) {
-            this.cause = cause;
+        final String configName;
+
+        ConfigException(String configName, Exception cause) {
+            super("Config evaluation failed: " + configName + " - " + cause.getMessage(), cause);
+            this.configName = configName;
         }
+
     }
 
     private void inheritVariables() {
@@ -1276,8 +1209,10 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // were already replayed into the fresh LogContext above, so collecting here picks them up.
         if (configError != null) {
             long now = System.currentTimeMillis();
-            StepResult failure = StepResult.synthetic(
-                    "Scenario execution failed: " + configError.getMessage(), StepResult.Status.FAILED, now, configError);
+            // The step's text is a label, the error carries the detail: the HTML report, JUnit XML and
+            // Cucumber JSON all render the error beside the step, so a full message here reads twice.
+            String label = configError instanceof ConfigException ce ? ce.configName + " failed" : "config failed";
+            StepResult failure = StepResult.synthetic(label, StepResult.Status.FAILED, now, configError);
             LogContext ctx = LogContext.get();
             failure.setLog(ctx.collect());
             List<StepResult.Embed> configEmbeds = ctx.collectEmbeds();

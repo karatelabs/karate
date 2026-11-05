@@ -25,12 +25,14 @@ package io.karatelabs.output;
 
 import io.karatelabs.common.Json;
 import io.karatelabs.common.ResourceType;
+import io.karatelabs.core.CachedFailureException;
 import io.karatelabs.core.ReportAssets;
 import io.karatelabs.core.FeatureResult;
 import io.karatelabs.core.Globals;
 import io.karatelabs.core.ScenarioResult;
 import io.karatelabs.core.StepResult;
 import io.karatelabs.core.SuiteResult;
+import io.karatelabs.gherkin.Scenario;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -907,6 +909,10 @@ public final class HtmlReportWriter {
 
         if (step.getError() != null) {
             data.put("error", step.getError().getMessage());
+            Scenario origin = cachedFailureOrigin(step);
+            if (origin != null) {
+                data.put("cachedFailureOrigin", originData(origin));
+            }
         }
 
         // Embeds (images, HTML, etc.)
@@ -933,6 +939,50 @@ public final class HtmlReportWriter {
             data.put("callResults", callList);
         }
 
+        return data;
+    }
+
+    /**
+     * The scenario that ran the failed call this step's failure replays from a run-once cache
+     * (callonce, setupOnce, callSingle), or null. Found on the step's own error, else in its
+     * failed called features: a call
+     * step's "called feature failed" error carries only the callee's message, not the
+     * exception, so the replay is reached through the nested step results.
+     */
+    private static Scenario cachedFailureOrigin(StepResult step) {
+        for (Throwable t = step.getError(); t != null; t = t.getCause() == t ? null : t.getCause()) {
+            if (t instanceof CachedFailureException replay) {
+                return replay.getOrigin();
+            }
+        }
+        if (step.hasCallResults()) {
+            for (FeatureResult fr : step.getCallResults()) {
+                for (ScenarioResult sr : fr.getScenarioResults()) {
+                    if (!sr.isFailed() || sr.isReportDisabled()) {
+                        continue;
+                    }
+                    for (StepResult nested : sr.getStepResults()) {
+                        if (nested.isFailed()) {
+                            Scenario origin = cachedFailureOrigin(nested);
+                            if (origin != null) {
+                                return origin;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    // Where the report renders a scenario: its feature page and its card's anchor (the refId).
+    private static Map<String, Object> originData(Scenario origin) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("featureHtmlName", getFeatureFileName(origin.getFeature().getResource().getRelativePath()));
+        data.put("refId", origin.getRefId());
+        // the badge's text: a refId alone is ambiguous once the link leaves the page
+        data.put("featureFileName", origin.getFeature().getResource().getSimpleName());
+        data.put("label", CachedFailureException.describe(origin));
         return data;
     }
 
@@ -1023,6 +1073,10 @@ public final class HtmlReportWriter {
         if (path == null || path.isEmpty()) {
             path = (String) feature.get("name");
         }
+        return getFeatureFileName(path);
+    }
+
+    private static String getFeatureFileName(String path) {
         if (path == null || path.isEmpty()) {
             return "unknown";
         }

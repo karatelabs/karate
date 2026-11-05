@@ -132,6 +132,8 @@ Splitting `read(path) arg` is **quote- and nested-paren-aware** via `StepUtils.f
 | `callonce` | Feature-scoped | Shared setup within a feature |
 | `karate.callSingle()` | Suite-scoped | Global setup (e.g., auth token). Supports disk caching via `configure callSingleCache` |
 
+Every run-once cache — `callonce` (keyword, `def x = callonce`, `karate.callonce()`), `karate.setupOnce()` and `karate.callSingle()` — goes through `OnceCache`: a lock-free read, then under the lock a re-check and at most one execution, whose outcome is cached, **a failure included**. A failed call is not attempted again (re-running a failed setup per scenario only re-pays its retries and timeouts to fail the same way); a later caller fails at once with a `CachedFailureException` whose message leads with `(cached failure, it ran in <feature>[refId] <name>)`. That is needed because the called feature's trace (steps, HTTP, nested calls) is attached to the one top-level scenario that ran it — the scenario live on the thread, as `StepExecutor.addCallResult` routes it, walked up its call chain — and the HTML report links each replaying step to that scenario's card (`cachedFailureOrigin`, the badge on the step row). No origin is named when the call ran inside an `@setup` scenario (`karate.setup()` discards that result), and no link is drawn for a failure cached by another Suite sharing the cache (karate-gatling). A failure while the Suite is cancelled is not cached. A null result is not cached either, so such a call runs again.
+
 ## Line Number Filtering
 
 `Runner.path("features/users.feature:10:25")` — selects scenarios by line. **Bypasses all tag filters** including `@ignore`. Essential for IDE integrations.
