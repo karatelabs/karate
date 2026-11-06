@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1279,7 +1280,8 @@ public final class Runner {
         private void resolveDirectory(File dir, List<Feature> target, Path root, Path classpathRoot) {
             File[] files = dir.listFiles();
             if (files == null) return;
-
+            // listFiles() order is the filesystem's; sort so a folder suite runs the same everywhere
+            Arrays.sort(files, Comparator.comparing(File::getName));
             for (File file : files) {
                 if (file.isDirectory()) {
                     resolveDirectory(file, target, root, classpathRoot);

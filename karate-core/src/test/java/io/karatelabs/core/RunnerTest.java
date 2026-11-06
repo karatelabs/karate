@@ -401,6 +401,30 @@ class RunnerTest {
     }
 
     @Test
+    void testFolderRunsItsFeaturesInSortedOrder() throws Exception {
+        // listFiles() order is the filesystem's (APFS and ext4 differ); a folder suite must not depend on it
+        Path dir = tempDir.resolve("sorted");
+        List<String> names = List.of("m", "c", "x", "a", "q", "f", "z", "b", "k", "e", "s", "h");
+        for (String n : names) {
+            Path sub = dir.resolve(n.compareTo("k") < 0 ? "one" : "two");
+            Files.createDirectories(sub);
+            Files.writeString(sub.resolve(n + ".feature"), "Feature: " + n + "\n\nScenario: s\n* def a = 1\n");
+        }
+        Files.writeString(dir.resolve("n.feature"), "Feature: n\n\nScenario: s\n* def a = 1\n");
+
+        SuiteResult result = Runner.path(dir.toString())
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        List<String> ran = result.getFeatureResults().stream()
+                .map(fr -> fr.getFeature().getName()).toList();
+        // entries by name: n.feature, one/, two/ — each folder in turn by name
+        assertEquals(List.of("n", "a", "b", "c", "e", "f", "h", "k", "m", "q", "s", "x", "z"), ran);
+    }
+
+    @Test
     void testRunnerWithLineNumberFilterIgnoresTags() throws Exception {
         // Create a feature with @ignore tag
         Path feature = tempDir.resolve("ignore-scenario.feature");
