@@ -1228,12 +1228,7 @@ public final class Runner {
             if (file.isDirectory()) {
                 resolveDirectory(file, target, root, classpathRoot);
             } else if ((file.exists() || isOverlay(file)) && file.getName().endsWith(".feature")) {
-                Feature feature = readFeature(file.toPath(), root, classpathRoot);
-                target.add(feature);
-                // Store line filter for this feature
-                if (!lines.isEmpty()) {
-                    lineFilters.put(feature.getResource().getUri().toString(), lines);
-                }
+                select(readFeature(file.toPath(), root, classpathRoot), lines, target);
             } else if (actualPath.startsWith("classpath:")) {
                 // Handle classpath resources
                 String classpathPath = actualPath.substring("classpath:".length());
@@ -1247,12 +1242,7 @@ public final class Runner {
                     // it, one classpath: feature ran rooted at the process CWD and every leading-"/"
                     // reference inside it leaked out of the project.
                     Resource resource = Resource.path(actualPath, root, classpathRoot);
-                    Feature feature = Feature.read(resource);
-                    target.add(feature);
-                    // Store line filter for this feature
-                    if (!lines.isEmpty()) {
-                        lineFilters.put(feature.getResource().getUri().toString(), lines);
-                    }
+                    select(Feature.read(resource), lines, target);
                 } else {
                     // Directory - scan for .feature files
                     List<Resource> resources = Resource.scanClasspath(classpathPath, "feature", null, root);
@@ -1263,6 +1253,26 @@ public final class Runner {
                         target.add(feature);
                     }
                 }
+            }
+        }
+
+        /**
+         * One feature named by a path, with its line filter (empty = the whole feature). The same
+         * feature named again is not added twice: its lines merge ({@code f:3} and {@code f:9} run
+         * as {@code f:3:9}), and a whole-feature selection wins over any lines.
+         */
+        private void select(Feature feature, Set<Integer> lines, List<Feature> target) {
+            String uri = feature.getResource().getUri().toString();
+            boolean already = target.stream().anyMatch(f -> f.getResource().getUri().toString().equals(uri));
+            if (!already) {
+                target.add(feature);
+                if (!lines.isEmpty()) {
+                    lineFilters.put(uri, lines);
+                }
+            } else if (lines.isEmpty()) {
+                lineFilters.remove(uri);
+            } else if (lineFilters.containsKey(uri)) {
+                lineFilters.get(uri).addAll(lines);
             }
         }
 

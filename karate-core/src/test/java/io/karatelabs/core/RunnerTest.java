@@ -33,6 +33,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -368,6 +369,35 @@ class RunnerTest {
         assertEquals(1, result.getFeatureCount());
         // Two scenarios should run
         assertEquals(2, result.getScenarioPassedCount());
+    }
+
+    @Test
+    void testTwoLineSelectorsOnOneFeatureRunItOnceWithBothLines() throws Exception {
+        Path feature = tempDir.resolve("multi-scenario3.feature");
+        Files.writeString(feature, """
+            Feature: Multiple scenarios
+
+            Scenario: First scenario
+            * def a = 1
+
+            Scenario: Second scenario
+            * def b = 2
+
+            Scenario: Third scenario
+            * def c = 3
+            """);
+
+        SuiteResult result = Runner.path(feature + ":3", feature + ":9")
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(1, result.getFeatureCount());
+        List<String> names = result.getFeatureResults().get(0).getScenarioResults().stream()
+                .map(sr -> sr.getScenario().getName()).toList();
+        assertEquals(List.of("First scenario", "Third scenario"), names);
     }
 
     @Test
