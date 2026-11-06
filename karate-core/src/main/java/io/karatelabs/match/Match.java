@@ -78,8 +78,16 @@ public class Match {
      *               one that sees no variables; null lets every marker run in {@code engine}
      */
     public static Result execute(Engine engine, MarkerPolicy policy, Type matchType, Object actual, Object expected, boolean matchEachEmptyAllowed) {
+        return execute(engine, policy, "$", matchType, actual, expected, matchEachEmptyAllowed);
+    }
+
+    /**
+     * @param rootPath how failure paths name the actual value, e.g. {@code $.monthlyPremium} for
+     *                 {@code match response.monthlyPremium == 125}; {@code $} when it has no simpler name
+     */
+    public static Result execute(Engine engine, MarkerPolicy policy, String rootPath, Type matchType, Object actual, Object expected, boolean matchEachEmptyAllowed) {
         try (Value actualValue = new Value(actual); Value expectedValue = new Value(expected)) {
-            Operation op = new Operation(engine, policy, matchType, actualValue, expectedValue, matchEachEmptyAllowed);
+            Operation op = new Operation(engine, policy, rootPath, matchType, actualValue, expectedValue, matchEachEmptyAllowed);
             op.execute();
             return op.getResult();
         }

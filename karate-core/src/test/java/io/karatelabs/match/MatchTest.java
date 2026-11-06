@@ -68,8 +68,8 @@ class MatchTest {
         message("""
                 match failed: EQUALS
                   $ | data types don't match (STRING:NULL)
-                  ''
-                  null
+                  actual: ''
+                  expected: null
                 """);
         match("", NOT_EQUALS, null);
         match(null, NOT_EQUALS, null, FAILS);
@@ -236,31 +236,31 @@ class MatchTest {
         message("""
                 match failed: %s
                   $ | actual does not contain expected | actual array does not contain expected item - baz (LIST:STRING)
-                  ["foo","bar"]
-                  'baz'
+                  actual: ["foo","bar"]
+                  expected: 'baz'
                 
                     $[1] | not equal (STRING:STRING)
-                    'bar'
-                    'baz'
+                    actual: 'bar'
+                    expected: 'baz'
                 
                     $[0] | not equal (STRING:STRING)
-                    'foo'
-                    'baz'
+                    actual: 'foo'
+                    expected: 'baz'
                 """.formatted(containsType));
         match("['foo', 'bar']", containsType, "['baz']", FAILS);
         message("""
                 match failed: %s
                   $ | actual does not contain expected | actual array does not contain expected item - baz (LIST:LIST)
-                  ["foo","bar"]
-                  ["baz"]
+                  actual: ["foo","bar"]
+                  expected: ["baz"]
                 
                     $[1] | not equal (STRING:STRING)
-                    'bar'
-                    'baz'
+                    actual: 'bar'
+                    expected: 'baz'
                 
                     $[0] | not equal (STRING:STRING)
-                    'foo'
-                    'baz'
+                    actual: 'foo'
+                    expected: 'baz'
                 """.formatted(containsType));
     }
 
@@ -282,16 +282,16 @@ class MatchTest {
         message("""
                 match failed: CONTAINS
                   $ | actual does not contain expected | actual array does not contain expected item - #regex .{4} (LIST:STRING)
-                  ["foo","bar"]
-                  '#regex .{4}'
+                  actual: ["foo","bar"]
+                  expected: '#regex .{4}'
                 
                     $[1] | regex match failed (STRING:STRING)
-                    'bar'
-                    '#regex .{4}'
+                    actual: 'bar'
+                    expected: '#regex .{4}'
                 
                     $[0] | regex match failed (STRING:STRING)
-                    'foo'
-                    '#regex .{4}'
+                    actual: 'foo'
+                    expected: '#regex .{4}'
                 """);
 
     }
@@ -303,8 +303,8 @@ class MatchTest {
         message("""
                 match failed: NOT_CONTAINS
                   $ | actual contains expected (LIST:STRING)
-                  ["foo","bar"]
-                  'bar'
+                  actual: ["foo","bar"]
+                  expected: 'bar'
                 """);
         match(
                 "[{ foo: 1 }, { foo: 2 }, { foo: 3 }]",
@@ -314,32 +314,32 @@ class MatchTest {
         message("""
                 match failed: CONTAINS
                   $ | actual does not contain expected | actual array does not contain expected item - {"foo":0} (LIST:LIST)
-                  [{"foo":1},{"foo":2},{"foo":3}]
-                  [{"foo":0},{"foo":2},{"foo":3}]
+                  actual: [{"foo":1},{"foo":2},{"foo":3}]
+                  expected: [{"foo":0},{"foo":2},{"foo":3}]
 
                     $[2] | not equal | match failed for name: 'foo' (MAP:MAP)
-                    {"foo":3}
-                    {"foo":0}
+                    actual: {"foo":3}
+                    expected: {"foo":0}
 
                       $[2].foo | not equal (NUMBER:NUMBER)
-                      3
-                      0
+                      actual: 3
+                      expected: 0
 
                     $[1] | not equal | match failed for name: 'foo' (MAP:MAP)
-                    {"foo":2}
-                    {"foo":0}
+                    actual: {"foo":2}
+                    expected: {"foo":0}
 
                       $[1].foo | not equal (NUMBER:NUMBER)
-                      2
-                      0
+                      actual: 2
+                      expected: 0
 
                     $[0] | not equal | match failed for name: 'foo' (MAP:MAP)
-                    {"foo":1}
-                    {"foo":0}
+                    actual: {"foo":1}
+                    expected: {"foo":0}
 
                       $[0].foo | not equal (NUMBER:NUMBER)
-                      1
-                      0
+                      actual: 1
+                      expected: 0
                 """);
     }
 
@@ -351,28 +351,28 @@ class MatchTest {
         String expected = """
                 match failed: EACH_EQUALS
                   $ | match each failed at indices [1, 2] (LIST:STRING)
-                  [1,2,3]
-                  '#number? _ < 2'
+                  actual: [1,2,3]
+                  expected: '#number? _ < 2'
 
                     $[2] | evaluated to 'false' (NUMBER:STRING)
-                    3
-                    '#number? _ < 2'
+                    actual: 3
+                    expected: '#number? _ < 2'
 
                     $[1] | evaluated to 'false' (NUMBER:STRING)
-                    2
-                    '#number? _ < 2'
+                    actual: 2
+                    expected: '#number? _ < 2'
                 """;
         message(expected);
         match("[1, 'a', 3]", EACH_EQUALS, "#number", FAILS);
         expected = """
                 match failed: EACH_EQUALS
                   $ | match each failed at index 1 (LIST:STRING)
-                  [1,"a",3]
-                  '#number'
+                  actual: [1,"a",3]
+                  expected: '#number'
                 
                     $[1] | not a number (STRING:STRING)
-                    'a'
-                    '#number'
+                    actual: 'a'
+                    expected: '#number'
                 """;
         message(expected);
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, "#object");
@@ -406,8 +406,8 @@ class MatchTest {
         message("""
                 match failed: EACH_EQUALS
                   $ | match each failed, empty array / list (LIST:STRING)
-                  []
-                  '#number'
+                  actual: []
+                  expected: '#number'
                 """);
     }
 
@@ -443,22 +443,22 @@ class MatchTest {
         message("""
                 match failed: CONTAINS
                   $ | actual does not contain expected | actual does not contain keys - [z, x] (MAP:MAP)
-                  {"a":1,"b":2,"c":3}
-                  {"z":9,"x":2}
+                  actual: {"a":1,"b":2,"c":3}
+                  expected: {"z":9,"x":2}
                 """);
         match("{ a: 1, b: 2, c: 3 }", CONTAINS_ANY, "{ z: 9, x: 2 }", FAILS);
         message("""
                 match failed: CONTAINS_ANY
                   $ | actual does not contain expected | no key-values matched (MAP:MAP)
-                  {"a":1,"b":2,"c":3}
-                  {"z":9,"x":2}
+                  actual: {"a":1,"b":2,"c":3}
+                  expected: {"z":9,"x":2}
                 """);
         match("{ a: 1, b: 2, c: 3 }", NOT_CONTAINS, "{ a: 1 }", FAILS);
         message("""
                 match failed: NOT_CONTAINS
                   $ | actual contains expected (MAP:MAP)
-                  {"a":1,"b":2,"c":3}
-                  {"a":1}
+                  actual: {"a":1,"b":2,"c":3}
+                  expected: {"a":1}
                 """);
         match("{ a: 1, b: 2, c: 3 }", NOT_CONTAINS, "{}");
 
@@ -471,16 +471,16 @@ class MatchTest {
         String expected = """
                 match failed: EQUALS
                   $ | not equal | array match failed at indices [1, 2] (LIST:LIST)
-                  [1,2,3]
-                  [1,9,9]
+                  actual: [1,2,3]
+                  expected: [1,9,9]
 
                     $[2] | not equal (NUMBER:NUMBER)
-                    3
-                    9
+                    actual: 3
+                    expected: 9
 
                     $[1] | not equal (NUMBER:NUMBER)
-                    2
-                    9
+                    actual: 2
+                    expected: 9
                 """;
         message(expected);
     }
@@ -505,12 +505,12 @@ class MatchTest {
         String expected = """
                 match failed: EQUALS
                   $ | not equal | match failed for name: 'b' (MAP:MAP)
-                  {"a":1,"b":2,"c":3}
-                  {"a":1,"b":9,"c":3}
+                  actual: {"a":1,"b":2,"c":3}
+                  expected: {"a":1,"b":9,"c":3}
                 
                     $.b | not equal (NUMBER:NUMBER)
-                    2
-                    9
+                    actual: 2
+                    expected: 9
                 """;
         message(expected);
         // Multiple value mismatches in map
@@ -518,36 +518,36 @@ class MatchTest {
         expected = """
                 match failed: EQUALS
                   $ | not equal | match failed for names: [a, b] (MAP:MAP)
-                  {"a":1,"b":2,"c":3}
-                  {"a":9,"b":9,"c":3}
+                  actual: {"a":1,"b":2,"c":3}
+                  expected: {"a":9,"b":9,"c":3}
 
                     $.b | not equal (NUMBER:NUMBER)
-                    2
-                    9
+                    actual: 2
+                    expected: 9
 
                     $.a | not equal (NUMBER:NUMBER)
-                    1
-                    9
+                    actual: 1
+                    expected: 9
                 """;
         message(expected);
         match("{ a: { b: { c: 1 } } }", EQUALS, "{ a: { b: { c: 2 } } }", FAILS);
         expected = """
                 match failed: EQUALS
                   $ | not equal | match failed for name: 'a' (MAP:MAP)
-                  {"a":{"b":{"c":1}}}
-                  {"a":{"b":{"c":2}}}
+                  actual: {"a":{"b":{"c":1}}}
+                  expected: {"a":{"b":{"c":2}}}
                 
                     $.a | not equal | match failed for name: 'b' (MAP:MAP)
-                    {"b":{"c":1}}
-                    {"b":{"c":2}}
+                    actual: {"b":{"c":1}}
+                    expected: {"b":{"c":2}}
                 
                       $.a.b | not equal | match failed for name: 'c' (MAP:MAP)
-                      {"c":1}
-                      {"c":2}
+                      actual: {"c":1}
+                      expected: {"c":2}
                 
                         $.a.b.c | not equal (NUMBER:NUMBER)
-                        1
-                        2
+                        actual: 1
+                        expected: 2
                 """;
         message(expected);
     }
@@ -558,32 +558,32 @@ class MatchTest {
         String expected = """
                 match failed: EQUALS
                   / | not equal | match failed for name: 'a' (XML:XML)
-                  <a><b><c>1</c></b></a>
-                  <a><b><c>2</c></b></a>
+                  actual: <a><b><c>1</c></b></a>
+                  expected: <a><b><c>2</c></b></a>
                 
                     /a | not equal | match failed for name: 'b' (MAP:MAP)
-                    <b><c>1</c></b>
-                    <b><c>2</c></b>
+                    actual: <b><c>1</c></b>
+                    expected: <b><c>2</c></b>
                 
                       /a/b | not equal | match failed for name: 'c' (MAP:MAP)
-                      <c>1</c>
-                      <c>2</c>
+                      actual: <c>1</c>
+                      expected: <c>2</c>
                 
                         /a/b/c | not equal (STRING:STRING)
-                        1
-                        2
+                        actual: 1
+                        expected: 2
                 """;
         message(expected);
         match("<hello foo=\"bar\">world</hello>", EQUALS, "<hello foo=\"baz\">world</hello>", FAILS);
         expected = """
                 match failed: EQUALS
                   / | not equal | match failed for name: 'hello' (XML:XML)
-                  <hello foo="bar">world</hello>
-                  <hello foo="baz">world</hello>
+                  actual: <hello foo="bar">world</hello>
+                  expected: <hello foo="baz">world</hello>
                 
                     /hello/@foo | not equal (STRING:STRING)
-                    bar
-                    baz
+                    actual: bar
+                    expected: baz
                 """;
         message(expected);
     }
@@ -607,36 +607,36 @@ class MatchTest {
         String expected = """
                 match failed: EQUALS
                   $ | not equal | match failed for name: 'c' (MAP:MAP)
-                  {"a":1,"b":2,"c":3}
-                  {"a":1,"b":2,"c":"#null"}
+                  actual: {"a":1,"b":2,"c":3}
+                  expected: {"a":1,"b":2,"c":"#null"}
                 
                     $.c | not null (NUMBER:STRING)
-                    3
-                    '#null'
+                    actual: 3
+                    expected: '#null'
                 """;
         message(expected);
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ b: 2, c: '#string', a: 1 }", FAILS);
         expected = """
                 match failed: EQUALS
                   $ | not equal | match failed for name: 'c' (MAP:MAP)
-                  {"a":1,"b":2,"c":3}
-                  {"a":1,"b":2,"c":"#string"}
+                  actual: {"a":1,"b":2,"c":3}
+                  expected: {"a":1,"b":2,"c":"#string"}
                 
                     $.c | not a string (NUMBER:STRING)
-                    3
-                    '#string'
+                    actual: 3
+                    expected: '#string'
                 """;
         message(expected);
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ b: 2, c: '#notpresent', a: 1 }", FAILS);
         expected = """
                 match failed: EQUALS
                   $ | not equal | match failed for name: 'c' (MAP:MAP)
-                  {"a":1,"b":2,"c":3}
-                  {"a":1,"b":2,"c":"#notpresent"}
+                  actual: {"a":1,"b":2,"c":3}
+                  expected: {"a":1,"b":2,"c":"#notpresent"}
                 
                     $.c | present (NUMBER:STRING)
-                    3
-                    '#notpresent'
+                    actual: 3
+                    expected: '#notpresent'
                 """;
         message(expected);
         match("{ a: 1, b: 'foo', c: 2 }", EQUALS, "{ b: '#regex foo', c: 2, a: 1 }");
@@ -646,12 +646,12 @@ class MatchTest {
         expected = """
                 match failed: EQUALS
                   $ | not equal | match failed for name: 'b' (MAP:MAP)
-                  {"a":1,"b":"foo","c":2}
-                  {"a":1,"b":"#regex .{2}","c":2}
+                  actual: {"a":1,"b":"foo","c":2}
+                  expected: {"a":1,"b":"#regex .{2}","c":2}
                 
                     $.b | regex match failed (STRING:STRING)
-                    'foo'
-                    '#regex .{2}'
+                    actual: 'foo'
+                    expected: '#regex .{2}'
                 """;
         message(expected);
     }
@@ -662,15 +662,15 @@ class MatchTest {
         message("""
                 match failed: EQUALS
                   $ | actual path does not exist (STRING:NUMBER)
-                  '#notpresent'
-                  2
+                  actual: '#notpresent'
+                  expected: 2
                 """);
         match("#notpresent", EQUALS, "foo", FAILS);
         message("""
                 match failed: EQUALS
                   $ | actual path does not exist (STRING:STRING)
-                  '#notpresent'
-                  'foo'
+                  actual: '#notpresent'
+                  expected: 'foo'
                 """);
     }
 
@@ -680,15 +680,15 @@ class MatchTest {
         message("""
                 match failed: EQUALS
                   $ | actual path does not exist (STRING:STRING)
-                  '#notpresent'
-                  '#string'
+                  actual: '#notpresent'
+                  expected: '#string'
                 """);
         match("foo", EQUALS, "#foo", FAILS);
         message("""
                 match failed: EQUALS
                   $ | not equal (STRING:STRING)
-                  'foo'
-                  '#foo'
+                  actual: 'foo'
+                  expected: '#foo'
                 """);
     }
 
@@ -782,8 +782,8 @@ class MatchTest {
         message("""
                 match failed: WITHIN
                   $ | actual is not within expected (STRING:STRING)
-                  'baz'
-                  'foobar'
+                  actual: 'baz'
+                  expected: 'foobar'
                 """);
 
         // List: all items in actual exist in expected
@@ -794,8 +794,8 @@ class MatchTest {
         message("""
                 match failed: WITHIN
                   $ | actual is not within expected | expected does not contain actual item - d (LIST:LIST)
-                  ["a","d"]
-                  ["a","b","c"]
+                  actual: ["a","d"]
+                  expected: ["a","b","c"]
                 """);
 
         // List: actual longer than expected
@@ -803,8 +803,8 @@ class MatchTest {
         message("""
                 match failed: WITHIN
                   $ | actual is not within expected | actual array length is greater than expected - 4:3 (LIST:LIST)
-                  ["a","b","c","d"]
-                  ["a","b","c"]
+                  actual: ["a","b","c","d"]
+                  expected: ["a","b","c"]
                 """);
 
         // Map: all keys in actual exist in expected
@@ -815,8 +815,8 @@ class MatchTest {
         message("""
                 match failed: WITHIN
                   $ | actual is not within expected | expected does not contain key - 'z' (MAP:MAP)
-                  {"a":1,"z":9}
-                  {"a":1,"b":2,"c":3}
+                  actual: {"a":1,"z":9}
+                  expected: {"a":1,"b":2,"c":3}
                 """);
 
         // Map: value mismatch
@@ -824,12 +824,12 @@ class MatchTest {
         message("""
                 match failed: WITHIN
                   $ | actual is not within expected | match failed for name: 'a' (MAP:MAP)
-                  {"a":2}
-                  {"a":1,"b":2,"c":3}
+                  actual: {"a":2}
+                  expected: {"a":1,"b":2,"c":3}
 
                     $.a | not equal (NUMBER:NUMBER)
-                    2
-                    1
+                    actual: 2
+                    expected: 1
                 """);
 
         // Primitive on LHS with array on RHS (auto-wrapped)
@@ -839,8 +839,8 @@ class MatchTest {
         message("""
                 match failed: WITHIN
                   $ | actual is not within expected | expected does not contain actual item - d (STRING:LIST)
-                  'd'
-                  ["a","b","c"]
+                  actual: 'd'
+                  expected: ["a","b","c"]
                 """);
 
         // NOT_WITHIN: actual is not subset of expected
@@ -849,8 +849,8 @@ class MatchTest {
         message("""
                 match failed: NOT_WITHIN
                   $ | actual is within expected (LIST:LIST)
-                  ["a"]
-                  ["a","b","c"]
+                  actual: ["a"]
+                  expected: ["a","b","c"]
                 """);
 
         match("{ z: 9 }", NOT_WITHIN, "{ a: 1, b: 2, c: 3 }");
@@ -858,8 +858,8 @@ class MatchTest {
         message("""
                 match failed: NOT_WITHIN
                   $ | actual is within expected (MAP:MAP)
-                  {"a":1}
-                  {"a":1,"b":2,"c":3}
+                  actual: {"a":1}
+                  expected: {"a":1,"b":2,"c":3}
                 """);
     }
 

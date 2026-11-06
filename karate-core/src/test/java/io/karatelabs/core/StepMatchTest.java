@@ -26,6 +26,7 @@ package io.karatelabs.core;
 import org.junit.jupiter.api.Test;
 
 import static io.karatelabs.core.TestUtils.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Tests for match keyword.
@@ -594,6 +595,31 @@ class StepMatchTest {
         assertFailed(sr);
         // Should contain the match error but not any label prefix
         assertFailedWith(sr, "not equal");
+    }
+
+    @Test
+    void testMatchFailureNamesThePathAndLabelsTheValues() {
+        ScenarioRuntime sr = run("""
+            * def response = { monthlyPremium: 100, owner: { age: 30 } }
+            * match response.monthlyPremium == 125
+            """);
+        assertEquals("match failed: EQUALS\n"
+                + "  $.monthlyPremium | not equal (NUMBER:NUMBER)\n"
+                + "  actual: 100\n"
+                + "  expected: 125\n", sr.getResult().getFailureMessage());
+
+        sr = run("""
+            * def response = { owner: { age: 30 } }
+            * match $.owner == { age: 31 }
+            """);
+        assertEquals("match failed: EQUALS\n"
+                + "  $.owner | not equal | match failed for name: 'age' (MAP:MAP)\n"
+                + "  actual: {\"age\":30}\n"
+                + "  expected: {\"age\":31}\n"
+                + "\n"
+                + "    $.owner.age | not equal (NUMBER:NUMBER)\n"
+                + "    actual: 30\n"
+                + "    expected: 31\n", sr.getResult().getFailureMessage());
     }
 
     // ========== Non-JSON field access ==========

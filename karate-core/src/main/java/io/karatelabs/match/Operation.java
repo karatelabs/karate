@@ -52,22 +52,27 @@ public class Operation {
     private Engine sandbox; // root only: where the policy sends markers it does not trust
 
     Operation(Match.Type type, Value actual, Value expected) {
-        this(new Engine(), null, null, type, actual, expected, false);
+        this(new Engine(), null, "$", type, actual, expected, false);
     }
 
     Operation(Engine engine, Match.Type type, Value actual, Value expected) {
-        this(engine, null, null, type, actual, expected, false);
+        this(engine, null, "$", type, actual, expected, false);
     }
 
     Operation(Engine engine, MarkerPolicy policy, Match.Type type, Value actual, Value expected, boolean matchEachEmptyAllowed) {
-        this(engine, policy, null, type, actual, expected, matchEachEmptyAllowed);
+        this(engine, policy, "$", type, actual, expected, matchEachEmptyAllowed);
+    }
+
+    /** {@code rootPath} names the actual value in failure paths, e.g. {@code $.monthlyPremium}; XML roots stay {@code /}. */
+    Operation(Engine engine, MarkerPolicy policy, String rootPath, Match.Type type, Value actual, Value expected, boolean matchEachEmptyAllowed) {
+        this(engine, policy, null, rootPath, type, actual, expected, matchEachEmptyAllowed);
     }
 
     Operation(MatchContext context, Match.Type type, Value actual, Value expected, boolean matchEachEmptyAllowed) {
-        this(null, null, context, type, actual, expected, matchEachEmptyAllowed);
+        this(null, null, context, null, type, actual, expected, matchEachEmptyAllowed);
     }
 
-    private Operation(Engine engine, MarkerPolicy policy, MatchContext context, Match.Type type, Value actual, Value expected, boolean matchEachEmptyAllowed) {
+    private Operation(Engine engine, MarkerPolicy policy, MatchContext context, String rootPath, Match.Type type, Value actual, Value expected, boolean matchEachEmptyAllowed) {
         this.type = type;
         this.actual = actual;
         this.expected = expected;
@@ -80,7 +85,7 @@ public class Operation {
             if (actual.isXml()) {
                 this.context = new MatchContext(engine, policy, this, true, 0, "/", "", -1);
             } else {
-                this.context = new MatchContext(engine, policy, this, false, 0, "$", "", -1);
+                this.context = new MatchContext(engine, policy, this, false, 0, rootPath, "", -1);
             }
         } else {
             this.context = context;
@@ -912,12 +917,12 @@ public class Operation {
             sb.append(" (").append(mo.actual.type).append(':').append(mo.expected.type).append(")");
             sb.append('\n');
             if (mo.context.xml) {
-                sb.append(prefix).append(mo.actual.getAsXmlString()).append('\n');
-                sb.append(prefix).append(mo.expected.getAsXmlString()).append('\n');
+                sb.append(prefix).append("actual: ").append(mo.actual.getAsXmlString()).append('\n');
+                sb.append(prefix).append("expected: ").append(mo.expected.getAsXmlString()).append('\n');
             } else {
                 Value expected = mo.expected.getSortedLike(mo.actual);
-                sb.append(prefix).append(mo.actual.getWithinSingleQuotesIfString()).append('\n');
-                sb.append(prefix).append(expected.getWithinSingleQuotesIfString()).append('\n');
+                sb.append(prefix).append("actual: ").append(mo.actual.getWithinSingleQuotesIfString()).append('\n');
+                sb.append(prefix).append("expected: ").append(expected.getWithinSingleQuotesIfString()).append('\n');
             }
             if (iterator.hasNext()) {
                 sb.append('\n');

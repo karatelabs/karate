@@ -70,6 +70,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class StepExecutor {
 
@@ -1368,12 +1370,29 @@ public class StepExecutor {
         }
         Match.Type matchType = Match.Type.valueOf(expr.getMatchTypeName());
         boolean matchEachEmptyAllowed = runtime.getConfig().isMatchEachEmptyAllowed();
-        Result result = Match.execute(runtime.getEngine(), runtime.markerPolicy(), matchType, actual, expected, matchEachEmptyAllowed);
+        Result result = Match.execute(runtime.getEngine(), runtime.markerPolicy(), matchRootPath(expr.getActualExpr()),
+                matchType, actual, expected, matchEachEmptyAllowed);
         String expectedExpr = docString != null && (expr.getExpectedExpr() == null || expr.getExpectedExpr().isEmpty())
                 ? docString : expr.getExpectedExpr();
         // fired before the caller throws, so a failed match still carries its evidence
         fireMatchEvent(matchType, expr.getActualExpr(), expectedExpr, actual, expected, result);
         return result;
+    }
+
+    private static final Pattern MATCH_ROOT_PATH = Pattern.compile(
+            "\\$?[A-Za-z_][\\w$]*((?:\\.[A-Za-z_$][\\w$]*|\\[\\d+]|\\['[^']*'])*)|\\$((?:\\.[A-Za-z_$][\\w$]*|\\[\\d+]|\\['[^']*'])+)");
+
+    /**
+     * The failure-path root for a match's actual side: {@code response.monthlyPremium},
+     * {@code $.monthlyPremium} and {@code $response.monthlyPremium} all read {@code $.monthlyPremium}.
+     * Anything but a plain property path (a call, a wildcard, an operator) stays {@code $}.
+     */
+    static String matchRootPath(String actualExpr) {
+        Matcher m = actualExpr == null ? null : MATCH_ROOT_PATH.matcher(actualExpr.trim());
+        if (m == null || !m.matches()) {
+            return "$";
+        }
+        return "$" + (m.group(1) != null ? m.group(1) : m.group(2));
     }
 
     /** Best-effort — {@link Suite#fireEvent} does not shield the caller from a listener, and an
