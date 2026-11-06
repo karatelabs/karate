@@ -72,14 +72,17 @@ class CallResultReleaseTest {
     }
 
     private SuiteResult run(Path caller, boolean retain) {
+        return builder(caller, retain).parallel(1);
+    }
+
+    private Runner.Builder builder(Path caller, boolean retain) {
         return Runner.builder()
                 .path(caller.toString())
                 .workingDir(tempDir)
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
                 .backupOutputDir(false)
-                .retainCallResults(retain)
-                .parallel(1);
+                .retainCallResults(retain);
     }
 
     private static long countAttachedCallResults(SuiteResult result) {
@@ -130,6 +133,23 @@ class CallResultReleaseTest {
                     "step " + i + " changed status");
         }
         assertNull(releasedSteps.get(0).getCallResults());
+    }
+
+    /** The JSONL stream serializes each FEATURE_EXIT with its nesting, whatever other reports are on. */
+    @Test
+    void testJsonlStreamCarriesCallResultsWithoutTheHtmlReport() throws IOException {
+        Path outputDir = tempDir.resolve("out");
+        SuiteResult result = builder(writeCallerAndCallee(), false)
+                .outputDir(outputDir.toString())
+                .outputJsonLines(true)
+                .parallel(1);
+        assertTrue(result.isPassed());
+        String jsonl = Files.readString(outputDir.resolve(Suite.KARATE_JSON_SUBFOLDER)
+                .resolve(JsonLinesEventWriter.DEFAULT_FILENAME));
+        String featureExit = jsonl.lines().filter(l -> l.contains("\"FEATURE_EXIT\"") && !l.contains("parentExecutionIndex"))
+                .findFirst().orElseThrow();
+        assertTrue(featureExit.contains("\"callResults\""),
+                "FEATURE_EXIT should carry the steps' nested call results");
     }
 
 }

@@ -1566,13 +1566,19 @@ public class Suite {
      *
      * <p>Only safe when nothing will want the detail later. The report writers build their
      * output per <em>feature</em>, so they need every scenario's nesting still attached when
-     * the feature completes; a suite with any result listener therefore holds on until then.
-     * With no listeners — load runs, karate-gatling, reporting explicitly disabled — nothing
-     * ever reads it and it can go immediately. Custom listeners count as consumers, since
-     * there is no way to know what a caller's listener reads.
+     * the feature completes; so does every run listener that sees FEATURE_EXIT (the JSONL
+     * writer, a booted ext, a custom listener). A suite with any listener therefore holds on
+     * until then. With none — load runs, karate-gatling, reporting explicitly disabled —
+     * nothing ever reads it and it can go immediately. Custom listeners count as consumers,
+     * since there is no way to know what a caller's listener reads.
      */
     public boolean canReleaseCallResultsAtScenarioEnd() {
-        return !retainCallResults && resultListeners.isEmpty();
+        if (retainCallResults || !resultListeners.isEmpty() || !listeners.isEmpty() || !listenerFactories.isEmpty()) {
+            return false;
+        }
+        synchronized (mutableListeners) {
+            return mutableListeners.isEmpty();
+        }
     }
 
     public List<ResultListener> getResultListeners() {
