@@ -174,7 +174,7 @@ public class CdpLauncher {
         return null;
     }
 
-    private static List<String> buildArgs(String executable, int port, CdpDriverOptions options) {
+    static List<String> buildArgs(String executable, int port, CdpDriverOptions options) {
         List<String> args = new ArrayList<>();
         args.add(executable);
         args.add("--remote-debugging-port=" + port);
@@ -198,7 +198,10 @@ public class CdpLauncher {
         if (options.getAddOptions() != null) {
             args.addAll(options.getAddOptions());
         }
-
+        // chrome-headless-shell opens no page without a URL, and the launch waits for a page target
+        if (args.stream().skip(1).allMatch(a -> a.startsWith("-"))) {
+            args.add("about:blank");
+        }
         return args;
     }
 

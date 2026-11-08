@@ -25,6 +25,8 @@ package io.karatelabs.driver.cdp;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class CdpLauncherTest {
@@ -47,6 +49,15 @@ class CdpLauncherTest {
     void testDefaultPathsLinux() {
         assertEquals("/usr/bin/google-chrome",
                 CdpLauncher.DEFAULT_PATH_LINUX);
+    }
+
+    @Test
+    void theLaunchOpensAPageSoAHeadlessShellHasATarget() {
+        // chrome-headless-shell opens no tab without a URL argument, so the launch would wait for a target forever
+        List<String> args = CdpLauncher.buildArgs("chrome", 9222, CdpDriverOptions.builder().headless(true).build());
+        assertEquals("about:blank", args.get(args.size() - 1));
+        List<String> own = CdpLauncher.buildArgs("chrome", 9222, CdpDriverOptions.builder().addOptions(List.of("https://example.com")).build());
+        assertEquals(List.of("https://example.com"), own.stream().filter(a -> !a.startsWith("-")).skip(1).toList());
     }
 
 }
