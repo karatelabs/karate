@@ -69,4 +69,14 @@ class NestedFrameE2eTest extends DriverTestBase {
         assertEquals("Inner", driver.text("#inner-btn"));
     }
 
+    @Test
+    void theFrameEnteredIsTheOneTheLocatorSelectsNotASiblingWithTheSameSrc() {
+        driver.setUrl(testUrl("/nested-frames"));
+        driver.waitUntil("document.getElementById('same').contentWindow.outerValue == 'outer'");
+        driver.script("document.getElementById('same').contentWindow.mark = 'same'");
+
+        driver.switchChildFrame("#same");
+        assertEquals("same", driver.script("window.mark"));
+    }
+
 }

@@ -2498,17 +2498,13 @@ public class CdpDriver implements Driver {
     }
 
     /**
-     * Switch into an iframe of the current frame, so nested frames are entered one level at a time; from the main frame
-     * this is {@link #switchFrame(String)}. The child is matched by its owner element, so it may run in this frame's
-     * process or out of it (an OOPIF, entered through its own session).
+     * Switch into an iframe of the current frame, so nested frames are entered one level at a time. The child is the
+     * one the locator's element owns, never another with the same name or URL, so it may run in this frame's process or
+     * out of it (an OOPIF, entered through its own session).
      *
      * @param locator the locator of the iframe element, within the current frame
      */
     public void switchChildFrame(String locator) {
-        if (currentFrame == null) {
-            switchFrame(locator);
-            return;
-        }
         retryIfNeeded(locator);
         String objectId = objectId(locator);
         if (objectId == null) {
