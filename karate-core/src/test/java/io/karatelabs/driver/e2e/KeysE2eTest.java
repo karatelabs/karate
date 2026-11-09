@@ -345,4 +345,20 @@ class KeysE2eTest extends DriverTestBase {
         assertNotEquals("test", value);
     }
 
+    @Test
+    void aTypedSpaceReachesATerminalThatReadsItFromKeypress() {
+        driver.setUrl(testUrl("/terminal"));
+        driver.focus("#term");
+        driver.keys().type("karate launch a.js");
+        assertEquals("karate launch a.js", driver.text("#screen"));
+        driver.setUrl(testUrl("/input"));
+    }
+
+    @Test
+    void aTypedSpaceStillLandsInAnInput() {
+        driver.focus("#username");
+        driver.keys().type("a b");
+        assertEquals("a b", driver.value("#username"));
+    }
+
 }

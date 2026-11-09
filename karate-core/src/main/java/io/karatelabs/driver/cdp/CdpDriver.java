@@ -46,8 +46,10 @@ import org.slf4j.Logger;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -1031,9 +1033,11 @@ public class CdpDriver implements Driver {
             // cdp.sessionId on switchFrame) makes the session's *default* context the OOPIF
             // main world — no explicit contextId needed. See getFrameContext() /
             // ensureFrameContext() for the OOPIF short-circuit.
+            // A frame nested in an OOPIF has its contexts in the OOPIF's session: kept by frame id, which is unique
+            // across sessions, so switchChildFrame reaches the nested frame's main world.
             String eventSession = event.getSessionId();
             String currentSession = cdp.getSessionId();
-            if (eventSession != null && !eventSession.equals(currentSession)) {
+            if (eventSession != null && !eventSession.equals(currentSession) && !oopifSessions.containsValue(eventSession)) {
                 logger.trace("ignoring executionContextCreated from other session: {}", eventSession);
                 return;
             }
@@ -2491,6 +2495,62 @@ public class CdpDriver implements Driver {
 
         // Ensure we have execution context for this frame
         ensureFrameContext(frameId);
+    }
+
+    /**
+     * Switch into an iframe of the current frame, so nested frames are entered one level at a time; from the main frame
+     * this is {@link #switchFrame(String)}. The child is matched by its owner element, so it may run in this frame's
+     * process or out of it (an OOPIF, entered through its own session).
+     *
+     * @param locator the locator of the iframe element, within the current frame
+     */
+    public void switchChildFrame(String locator) {
+        if (currentFrame == null) {
+            switchFrame(locator);
+            return;
+        }
+        retryIfNeeded(locator);
+        String objectId = objectId(locator);
+        if (objectId == null) {
+            throw new DriverException("frame not found: " + locator);
+        }
+        String frameId = cdp.method("DOM.describeNode").param("objectId", objectId).send().getResultAsString("node.frameId");
+        if (frameId == null) {
+            throw new DriverException("locator is not a frame: " + locator);
+        }
+        // an out-of-process child attaches asynchronously
+        if (!retry("child frame " + locator, () -> oopifSessions.containsKey(frameId) || inFrameTree(frameId))) {
+            throw new DriverException("could not find frame for locator: " + locator);
+        }
+        Map<String, Object> target = oopifTargets.get(frameId);
+        if (target != null) {
+            cdp.setSessionId(oopifSessions.get(frameId));
+        }
+        currentFrame = new Frame(frameId, target == null ? null : (String) target.get("url"), null);
+        logger.debug("switched to child frame {}: {}", locator, currentFrame);
+        ensureFrameContext(frameId);
+    }
+
+    /** Whether the current session's frame tree holds the frame, at any depth. */
+    @SuppressWarnings("unchecked")
+    private boolean inFrameTree(String frameId) {
+        Deque<Map<String, Object>> trees = new ArrayDeque<>();
+        Map<String, Object> root = cdp.method("Page.getFrameTree").send().getResult("frameTree");
+        if (root != null) {
+            trees.add(root);
+        }
+        while (!trees.isEmpty()) {
+            Map<String, Object> tree = trees.poll();
+            Map<String, Object> frame = (Map<String, Object>) tree.get("frame");
+            if (frame != null && frameId.equals(frame.get("id"))) {
+                return true;
+            }
+            List<Map<String, Object>> children = (List<Map<String, Object>>) tree.get("childFrames");
+            if (children != null) {
+                trees.addAll(children);
+            }
+        }
+        return false;
     }
 
     /**

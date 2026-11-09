@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Terminal</title>
+</head>
+<body>
+    <!-- xterm.js's keyboard handling: a printable key from its keydown (key codes 48 and up), anything else from its
+         keypress; inserted text is ignored once a keydown was seen (it would be typed twice) -->
+    <textarea id="term"></textarea>
+    <pre id="screen"></pre>
+    <script>
+        var term = document.getElementById('term');
+        var screen = document.getElementById('screen');
+        var keyDownSeen = false, keyDownHandled = false, keyPressHandled = false;
+        term.addEventListener('keydown', function(e) {
+            keyDownSeen = true;
+            keyDownHandled = false;
+            if (!e.ctrlKey && !e.altKey && !e.metaKey && e.keyCode >= 48 && e.key.length === 1) {
+                screen.textContent += e.key;
+                keyDownHandled = true;
+                e.preventDefault();
+            }
+        });
+        term.addEventListener('keypress', function(e) {
+            keyPressHandled = false;
+            if (keyDownHandled) return;
+            screen.textContent += String.fromCharCode(e.charCode || e.keyCode);
+            keyPressHandled = true;
+            e.preventDefault();
+        });
+        term.addEventListener('input', function(e) {
+            if (e.data && e.inputType === 'insertText' && (!e.composed || !keyDownSeen) && !keyPressHandled) {
+                screen.textContent += e.data;
+            }
+        });
+        term.addEventListener('keyup', function() { keyDownSeen = false; });
+    </script>
+</body>
+</html>

@@ -218,7 +218,11 @@ public class CdpKeys implements Keys {
         // Use Input.insertText for the actual text insertion — bypasses keyboard
         // layout issues (e.g., '!' being misinterpreted without proper Shift+Digit1)
         // while still firing keydown/keyup for framework compatibility
-        if ((modifiers & ~SHIFT_FLAG) == 0) {
+        // A space goes as a keyboard's char event, its keypress before the text: a terminal (xterm.js) takes a key with no
+        // printable key code from its keypress, and ignores inserted text once it has seen the keydown.
+        if ((modifiers & ~SHIFT_FLAG) == 0 && effectiveChar == ' ') {
+            dispatchChar(info);
+        } else if ((modifiers & ~SHIFT_FLAG) == 0) {
             cdp.method("Input.insertText")
                     .param("text", String.valueOf(effectiveChar))
                     .send();

@@ -408,6 +408,7 @@ void dialog(boolean accept, String input)        // With prompt input
 ```java
 void switchFrame(int index)                      // By index
 void switchFrame(String locator)                 // By locator (null = main)
+void switchChildFrame(String locator)            // CdpDriver: a frame inside the current one (nested, OOPIF or not)
 Map<String, Object> getCurrentFrame()            // Get frame info
 ```
 

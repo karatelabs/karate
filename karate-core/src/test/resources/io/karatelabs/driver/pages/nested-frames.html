@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Nested Frames</title>
+    <style>iframe { width: 500px; height: 220px; border: 4px solid #ccc; }</style>
+</head>
+<body>
+    <h1>Nested Frames</h1>
+    <!-- the test points #outer at another site, so it runs out of process, as an Electron webview does -->
+    <iframe id="outer" src="/nested-outer.html"></iframe>
+    <iframe id="same" src="/nested-outer.html"></iframe>
+    <script>window.parentValue = 'parent';</script>
+</body>
+</html>
