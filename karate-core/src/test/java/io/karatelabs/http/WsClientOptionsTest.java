@@ -103,6 +103,12 @@ class WsClientOptionsTest {
     }
 
     @Test
+    void testGenerateOriginHeaderDefaultsOn() {
+        assertTrue(WsClientOptions.builder("ws://localhost:9222").build().isGenerateOriginHeader());
+        assertFalse(WsClientOptions.builder("ws://localhost:9222").generateOriginHeader(false).build().isGenerateOriginHeader());
+    }
+
+    @Test
     void testHeadersImmutable() {
         WsClientOptions options = WsClientOptions.builder("ws://localhost:9222")
                 .header("Key", "Value")

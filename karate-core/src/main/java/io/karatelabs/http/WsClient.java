@@ -177,7 +177,12 @@ public class WsClient implements Stoppable {
                 options.getSubProtocol(),
                 options.isCompression(),
                 headers,
-                options.getMaxPayloadSize()
+                options.getMaxPayloadSize(),
+                true,
+                false,
+                -1,
+                false,
+                options.isGenerateOriginHeader()
         );
 
         WsClientHandler handler = new WsClientHandler(this, handshaker);

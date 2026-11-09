@@ -97,6 +97,7 @@ public class CdpClient {
         WsClientOptions options = WsClientOptions.builder(webSocketUrl)
                 .disablePing() // CDP handles its own keepalive
                 .maxPayloadSize(HttpUtils.MEGABYTE * 16) // Screenshots can be large
+                .generateOriginHeader(false) // Chrome 111+ refuses an Origin --remote-allow-origins does not list
                 .callbackExecutor(frameRouter)
                 .build();
         WsClient ws = WsClient.connect(options);

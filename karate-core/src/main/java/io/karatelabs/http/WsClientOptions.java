@@ -42,6 +42,7 @@ public class WsClientOptions {
     private final Map<String, String> headers;
     private final String subProtocol;
     private final boolean compression;
+    private final boolean generateOriginHeader;
     private final int maxPayloadSize;
     private final Duration connectTimeout;
     private final Duration pingInterval;
@@ -59,6 +60,7 @@ public class WsClientOptions {
                 : Collections.emptyMap();
         this.subProtocol = builder.subProtocol;
         this.compression = builder.compression;
+        this.generateOriginHeader = builder.generateOriginHeader;
         this.maxPayloadSize = builder.maxPayloadSize;
         this.connectTimeout = builder.connectTimeout;
         this.pingInterval = builder.pingInterval;
@@ -113,6 +115,10 @@ public class WsClientOptions {
         return compression;
     }
 
+    public boolean isGenerateOriginHeader() {
+        return generateOriginHeader;
+    }
+
     public int getMaxPayloadSize() {
         return maxPayloadSize;
     }
@@ -155,6 +161,7 @@ public class WsClientOptions {
         private Map<String, String> headers;
         private String subProtocol;
         private boolean compression = false;
+        private boolean generateOriginHeader = true;
         private int maxPayloadSize = HttpUtils.MEGABYTE;
         private Duration connectTimeout = Duration.ofSeconds(30);
         private Duration pingInterval = Duration.ofSeconds(30);
@@ -193,6 +200,12 @@ public class WsClientOptions {
 
         public Builder compression(boolean enabled) {
             this.compression = enabled;
+            return this;
+        }
+
+        /** Whether the handshake derives an Origin header from the URI when none is set in {@link #headers}. */
+        public Builder generateOriginHeader(boolean generate) {
+            this.generateOriginHeader = generate;
             return this;
         }
 
