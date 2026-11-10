@@ -169,6 +169,12 @@ public class CdpKeys implements Keys {
             info.code = "Key" + Character.toUpperCase(c);
         }
 
+        // a character a US keyboard types with Shift goes as Shift and its base key, as a keyboard sends it: xterm.js
+        // takes a key from its keydown only with a key code, and then ignores the inserted text
+        int held = modifiers;
+        if (info.shifted) {
+            modifiers |= SHIFT_FLAG;
+        }
         dispatchRawKeyDown(info);
         // Use Input.insertText for the actual text insertion — bypasses keyboard
         // layout issues (e.g., '!' being misinterpreted without proper Shift+Digit1)
@@ -182,6 +188,15 @@ public class CdpKeys implements Keys {
                     .param("text", String.valueOf(effectiveChar)));
         }
         dispatchKeyUp(info);
+        modifiers = held;
+    }
+
+    /** The key a US keyboard types {@code c} on with Shift; {@code c} itself when it has none. */
+    private static char unshift(char c) {
+        String shifted = "!@#$%^&*()_+{}|:\"<>?~";
+        String base = "1234567890-=[]\\;',./`";
+        int i = shifted.indexOf(c);
+        return i < 0 ? c : base.charAt(i);
     }
 
     /**
@@ -325,7 +340,15 @@ public class CdpKeys implements Keys {
                 case '`' -> { info.code = "Backquote"; info.windowsVirtualKeyCode = 192; }
                 case '-' -> { info.code = "Minus"; info.windowsVirtualKeyCode = 189; }
                 case '=' -> { info.code = "Equal"; info.windowsVirtualKeyCode = 187; }
-                default -> info.windowsVirtualKeyCode = 0; // Let text handle it
+                default -> {
+                    char base = unshift(c);
+                    if (base != c) {
+                        KeyInfo key = getKeyInfoForChar(base);
+                        info.code = key.code;
+                        info.windowsVirtualKeyCode = key.windowsVirtualKeyCode;
+                        info.shifted = true;
+                    }
+                }
             }
         }
 
@@ -459,6 +482,8 @@ public class CdpKeys implements Keys {
         int windowsVirtualKeyCode;
         int nativeVirtualKeyCode;
         int location; // 0=standard, 1=left, 2=right, 3=numpad
+        /** Typed with Shift held on its base key. */
+        boolean shifted;
     }
 
 }

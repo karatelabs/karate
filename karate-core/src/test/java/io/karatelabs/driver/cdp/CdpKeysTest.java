@@ -120,4 +120,25 @@ class CdpKeysTest {
         assertEquals(2, sent.stream().filter(m -> m.getMethod().equals("Input.insertText")).count(), sent.toString());
     }
 
+    @Test
+    void aShiftedCharacterIsShiftAndItsBaseKeyWithItsText() {
+        keys.type("|%{\"$_");
+        List<Map<String, Object>> downs = keyEvents().stream().filter(e -> e.get("type").equals("rawKeyDown")).toList();
+        assertEquals(List.of("|", "%", "{", "\"", "$", "_"), downs.stream().map(e -> e.get("key")).toList());
+        assertEquals(List.of("Backslash", "Digit5", "BracketLeft", "Quote", "Digit4", "Minus"), downs.stream().map(e -> e.get("code")).toList());
+        assertEquals(List.of(220, 53, 219, 222, 52, 189), downs.stream().map(e -> e.get("windowsVirtualKeyCode")).toList());
+        // a terminal takes a key from its keydown only with a key code; the modifiers say Shift, as a keyboard's would
+        assertTrue(keyEvents().stream().allMatch(e -> e.get("modifiers").equals(8)), keyEvents().toString());
+        assertEquals(List.of("|", "%", "{", "\"", "$", "_"), sent.stream().filter(m -> m.getMethod().equals("Input.insertText"))
+                .map(m -> m.getParams().get("text")).toList());
+    }
+
+    @Test
+    void anUnshiftedCharacterHoldsNoModifierAfterAShiftedOne() {
+        keys.type("|a");
+        List<Map<String, Object>> events = keyEvents();
+        assertEquals(List.of(8, 8, 0, 0), events.stream().map(e -> e.get("modifiers")).toList(), events.toString());
+        assertEquals(65, events.get(2).get("windowsVirtualKeyCode"));
+    }
+
 }
