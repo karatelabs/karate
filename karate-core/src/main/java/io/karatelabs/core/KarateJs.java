@@ -980,6 +980,9 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 if (config.containsKey("port")) {
                     builder.port(((Number) config.get("port")).intValue());
                 }
+                if (config.containsKey("host")) {
+                    builder.host((String) config.get("host"));
+                }
                 if (config.containsKey("ssl")) {
                     builder.ssl(Boolean.TRUE.equals(config.get("ssl")));
                 }

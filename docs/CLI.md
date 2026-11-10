@@ -609,6 +609,7 @@ karate mock -m a.feature -m b.feature -p 8443 --ssl --cert cert.pem --key key.pe
 |--------|-------------|
 | `-m, --mock <file>` | Mock feature file (repeatable, required) |
 | `-p, --port <port>` | Port to listen on (default: 0 = dynamic) |
+| `--host <host>` | Interface to bind, e.g. `localhost` for loopback only (default: all interfaces) |
 | `-s, --ssl` | Enable HTTPS |
 | `-c, --cert <file>` | SSL certificate (PEM) |
 | `-k, --key <file>` | SSL private key (PEM) |
@@ -618,7 +619,7 @@ karate mock -m a.feature -m b.feature -p 8443 --ssl --cert cert.pem --key key.pe
 | `--max-header-size <bytes>` | Max total request header size (default: 8192; over it: 431) |
 | `--max-content-length <bytes>` | Max request body size (default: 1048576; over it: 413) |
 
-> **Trusted networks only.** `karate mock` listens on all network interfaces, so other machines that can reach the host can call it. That suits CI and shared dev environments, but never run a mock where untrusted clients can reach it. A mock feature is trusted code. See [MOCKS.md](./MOCKS.md#overview) and [SECURITY.md](../SECURITY.md).
+> **Trusted networks only.** `karate mock` listens on all network interfaces unless given `--host localhost`, so other machines that can reach the host can call it. That suits CI and shared dev environments, but never run a mock where untrusted clients can reach it. A mock feature is trusted code. See [MOCKS.md](./MOCKS.md#overview) and [SECURITY.md](../SECURITY.md).
 
 ---
 

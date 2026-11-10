@@ -35,6 +35,7 @@ import io.netty.handler.ssl.SslContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -113,6 +114,13 @@ public class MockServer implements SimpleObject {
      */
     public boolean isSsl() {
         return httpServer.isSsl();
+    }
+
+    /**
+     * The address the server is bound to: a wildcard when no host was set, else that interface.
+     */
+    public InetSocketAddress getLocalAddress() {
+        return httpServer.getLocalAddress();
     }
 
     /**
@@ -248,6 +256,15 @@ public class MockServer implements SimpleObject {
          */
         public Builder port(int port) {
             this.port = port;
+            return this;
+        }
+
+        /**
+         * Set the interface to bind: "localhost"/"127.0.0.1" for loopback only. Unset, null, blank or
+         * "0.0.0.0" binds every interface (the default).
+         */
+        public Builder host(String host) {
+            serverBuilder.host(host);
             return this;
         }
 

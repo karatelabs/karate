@@ -42,6 +42,9 @@ import java.util.concurrent.Callable;
  * # Start mock server on specific port
  * karate mock -m api.feature -p 8080
  *
+ * # Bind loopback only
+ * karate mock -m api.feature -p 8080 --host localhost
+ *
  * # Multiple mock files
  * karate mock -m users.feature -m orders.feature -p 8080
  *
@@ -71,6 +74,12 @@ public class MockCommand implements Callable<Integer> {
             description = "Port to listen on (default: 0 = dynamic)"
     )
     Integer port = 0;
+
+    @Option(
+            names = {"--host"},
+            description = "Interface to bind, e.g. localhost for loopback only (default: all interfaces)"
+    )
+    String host;
 
     @Option(
             names = {"-s", "--ssl"},
@@ -135,6 +144,9 @@ public class MockCommand implements Callable<Integer> {
 
             // Apply options
             builder.port(port);
+            if (host != null) {
+                builder.host(host);
+            }
 
             if (ssl) {
                 builder.ssl(true);

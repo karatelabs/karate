@@ -440,6 +440,11 @@ MockServer server = MockServer.feature("api.feature")
     .watch(true)
     .start();
 
+// Loopback only (default: all interfaces)
+MockServer server = MockServer.feature("api.feature")
+    .host("localhost")
+    .start();
+
 // Get server info
 int port = server.getPort();
 String url = server.getUrl();  // http://localhost:8080
@@ -454,6 +459,9 @@ server.stopAndWait();   // Blocking
 ```javascript
 // Start mock server from test feature
 var server = karate.start({ mock: 'api.feature', port: 8443, ssl: true });
+
+// Loopback only (default: all interfaces)
+var local = karate.start({ mock: 'api.feature', host: 'localhost' });
 
 // Use the server
 var port = server.port;
@@ -498,6 +506,7 @@ karate mock -m api.feature -p 8080 -W
 CLI options:
 - `-m, --mock <file>` - Mock feature file (repeatable)
 - `-p, --port <port>` - Port to listen on (default: 0 = dynamic)
+- `--host <host>` - Interface to bind, e.g. `localhost` for loopback only (default: all interfaces)
 - `-s, --ssl` - Enable HTTPS
 - `-c, --cert <file>` - SSL certificate (PEM)
 - `-k, --key <file>` - SSL private key (PEM)
