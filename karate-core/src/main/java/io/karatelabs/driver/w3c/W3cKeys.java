@@ -84,26 +84,39 @@ public class W3cKeys implements Keys {
      * Maps "Control" → Keys.CONTROL, "Shift" → Keys.SHIFT, "ArrowLeft" → Keys.LEFT, etc.
      */
     private static String resolveKeyName(String name) {
+        if (name.matches("F([1-9]|1[0-2])")) {
+            return String.valueOf((char) (F1.charAt(0) + Integer.parseInt(name.substring(1)) - 1));
+        }
+        if (name.matches("Numpad[0-9]")) {
+            return String.valueOf((char) (NUMPAD0.charAt(0) + name.charAt(6) - '0'));
+        }
         return switch (name) {
-            case "Control" -> CONTROL;
+            case "Control", "Ctrl" -> CONTROL;
             case "Shift" -> SHIFT;
             case "Alt" -> ALT;
-            case "Meta", "Command" -> META;
-            case "Enter" -> ENTER;
+            case "Meta", "Command", "Cmd" -> META;
+            case "Enter", "Return" -> ENTER;
             case "Tab" -> TAB;
             case "Backspace" -> BACKSPACE;
             case "Delete" -> DELETE;
-            case "Escape" -> ESCAPE;
-            case "ArrowUp" -> UP;
-            case "ArrowDown" -> DOWN;
-            case "ArrowLeft" -> LEFT;
-            case "ArrowRight" -> RIGHT;
+            case "Escape", "Esc" -> ESCAPE;
+            case "ArrowUp", "Up" -> UP;
+            case "ArrowDown", "Down" -> DOWN;
+            case "ArrowLeft", "Left" -> LEFT;
+            case "ArrowRight", "Right" -> RIGHT;
             case "Home" -> HOME;
             case "End" -> END;
             case "PageUp" -> PAGE_UP;
             case "PageDown" -> PAGE_DOWN;
             case "Insert" -> INSERT;
             case "Space" -> SPACE;
+            case "Pause" -> PAUSE;
+            case "NumpadMultiply" -> MULTIPLY;
+            case "NumpadAdd" -> ADD;
+            case "NumpadComma" -> SEPARATOR;
+            case "NumpadSubtract" -> SUBTRACT;
+            case "NumpadDecimal" -> DECIMAL;
+            case "NumpadDivide" -> DIVIDE;
             default -> name; // Single char or already a codepoint
         };
     }

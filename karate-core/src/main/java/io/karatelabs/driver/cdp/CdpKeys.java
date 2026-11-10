@@ -25,6 +25,8 @@ package io.karatelabs.driver.cdp;
 
 import io.karatelabs.driver.Keys;
 
+import java.util.function.Consumer;
+
 /**
  * CDP-based implementation of keyboard actions.
  * Uses CDP Input.dispatchKeyEvent for low-level keyboard control.
@@ -32,6 +34,7 @@ import io.karatelabs.driver.Keys;
 public class CdpKeys implements Keys {
 
     private final CdpClient cdp;
+    private final Consumer<CdpMessage> sender;
     private int modifiers = 0;
 
     // Modifier flags
@@ -41,7 +44,12 @@ public class CdpKeys implements Keys {
     private static final int SHIFT_FLAG = 8;
 
     public CdpKeys(CdpClient cdp) {
+        this(cdp, CdpMessage::send);
+    }
+
+    CdpKeys(CdpClient cdp, Consumer<CdpMessage> sender) {
         this.cdp = cdp;
+        this.sender = sender;
     }
 
     @Override
@@ -49,7 +57,10 @@ public class CdpKeys implements Keys {
         for (char c : text.toCharArray()) {
             String s = String.valueOf(c);
             if (isSpecialKey(s)) {
-                pressSpecialKey(s);
+                KeyInfo info = keyInfo(s);
+                if (info != null) {
+                    pressKeyInfo(info);
+                }
             } else {
                 typeChar(c);
             }
@@ -57,15 +68,20 @@ public class CdpKeys implements Keys {
         return this;
     }
 
+    /**
+     * Press a WebDriver key constant, a key name ("Enter", "F9", "Numpad0", "PrintScreen"), a character,
+     * or a "+" chord like Playwright's ("Control+a", "Shift+F5", "Control+Shift+ArrowLeft"). Text that is
+     * none of these is typed.
+     */
     @Override
     public Keys press(String key) {
-        // Support "+" notation like Playwright: "Control+a", "Shift+ArrowLeft", "Control+Shift+a"
-        if (key.contains("+")) {
+        if (key.length() > 1 && key.contains("+")) {
             return pressPlusNotation(key);
         }
-        if (isSpecialKey(key)) {
-            pressSpecialKey(key);
-        } else {
+        KeyInfo info = keyInfo(key);
+        if (info != null) {
+            pressKeyInfo(info);
+        } else if (!isSpecialKey(key)) {
             for (char c : key.toCharArray()) {
                 typeChar(c);
             }
@@ -74,93 +90,32 @@ public class CdpKeys implements Keys {
     }
 
     /**
-     * Parse and execute "+" notation key combinations.
-     * Examples: "Control+a", "Shift+ArrowLeft", "Control+Shift+ArrowLeft", "Meta+Shift+p"
+     * All parts but the last are held as modifiers while the last is pressed.
      */
     private Keys pressPlusNotation(String combo) {
         String[] parts = combo.split("\\+");
         if (parts.length < 2) {
-            // No actual combo, just press the key
             return press(parts[0]);
         }
-
-        // All parts except the last are modifiers
-        String[] modifiers = new String[parts.length - 1];
-        for (int i = 0; i < parts.length - 1; i++) {
-            modifiers[i] = resolveKeyName(parts[i]);
-        }
-
-        // Last part is the key to press
-        String finalKey = resolveKeyName(parts[parts.length - 1]);
-
-        return combo(modifiers, finalKey);
-    }
-
-    /**
-     * Resolve a key name (e.g., "Control", "Shift", "ArrowLeft", "a") to its constant or character.
-     */
-    private String resolveKeyName(String name) {
-        return switch (name) {
-            // Modifiers
-            case "Control", "Ctrl" -> CONTROL;
-            case "Shift" -> SHIFT;
-            case "Alt" -> ALT;
-            case "Meta", "Command", "Cmd" -> META;
-            // Arrow keys
-            case "ArrowLeft", "Left" -> LEFT;
-            case "ArrowRight", "Right" -> RIGHT;
-            case "ArrowUp", "Up" -> UP;
-            case "ArrowDown", "Down" -> DOWN;
-            // Navigation
-            case "Enter" -> ENTER;
-            case "Tab" -> TAB;
-            case "Backspace" -> BACKSPACE;
-            case "Delete" -> DELETE;
-            case "Escape", "Esc" -> ESCAPE;
-            case "Home" -> HOME;
-            case "End" -> END;
-            case "PageUp" -> PAGE_UP;
-            case "PageDown" -> PAGE_DOWN;
-            case "Insert" -> INSERT;
-            case "Space" -> SPACE;
-            // Function keys
-            case "F1" -> F1;
-            case "F2" -> F2;
-            case "F3" -> F3;
-            case "F4" -> F4;
-            case "F5" -> F5;
-            case "F6" -> F6;
-            case "F7" -> F7;
-            case "F8" -> F8;
-            case "F9" -> F9;
-            case "F10" -> F10;
-            case "F11" -> F11;
-            case "F12" -> F12;
-            // Default: treat as literal character(s)
-            default -> name;
-        };
+        String[] modifierKeys = new String[parts.length - 1];
+        System.arraycopy(parts, 0, modifierKeys, 0, modifierKeys.length);
+        return combo(modifierKeys, parts[parts.length - 1]);
     }
 
     @Override
     public Keys down(String key) {
-        int flag = getModifierFlag(key);
-        if (flag > 0) {
-            modifiers |= flag;
-        }
+        KeyInfo info = keyInfoOrChar(key);
+        modifiers |= modifierFlag(info.key);
         // Send keyDown for any key, not just modifiers (matches Puppeteer)
-        KeyInfo info = isSpecialKey(key) ? getKeyInfo(key) : getKeyInfoForChar(key.charAt(0));
         dispatchRawKeyDown(info);
         return this;
     }
 
     @Override
     public Keys up(String key) {
-        int flag = getModifierFlag(key);
-        if (flag > 0) {
-            modifiers &= ~flag;
-        }
+        KeyInfo info = keyInfoOrChar(key);
+        modifiers &= ~modifierFlag(info.key);
         // Send keyUp for any key, not just modifiers (matches Puppeteer)
-        KeyInfo info = isSpecialKey(key) ? getKeyInfo(key) : getKeyInfoForChar(key.charAt(0));
         dispatchKeyUp(info);
         return this;
     }
@@ -223,9 +178,8 @@ public class CdpKeys implements Keys {
         if ((modifiers & ~SHIFT_FLAG) == 0 && effectiveChar == ' ') {
             dispatchChar(info);
         } else if ((modifiers & ~SHIFT_FLAG) == 0) {
-            cdp.method("Input.insertText")
-                    .param("text", String.valueOf(effectiveChar))
-                    .send();
+            sender.accept(cdp.method("Input.insertText")
+                    .param("text", String.valueOf(effectiveChar)));
         }
         dispatchKeyUp(info);
     }
@@ -265,8 +219,7 @@ public class CdpKeys implements Keys {
         };
     }
 
-    private void pressSpecialKey(String key) {
-        KeyInfo info = getKeyInfo(key);
+    private void pressKeyInfo(KeyInfo info) {
         // Special keys need rawKeyDown + char (with proper text) + keyUp
         dispatchRawKeyDown(info);
         // Enter key needs char event with \r to trigger form submit
@@ -288,7 +241,7 @@ public class CdpKeys implements Keys {
         if (info.nativeVirtualKeyCode > 0) message.param("nativeVirtualKeyCode", info.nativeVirtualKeyCode);
         if (info.location > 0) message.param("location", info.location);
 
-        message.send();
+        sender.accept(message);
     }
 
     private void dispatchKeyUp(KeyInfo info) {
@@ -302,7 +255,7 @@ public class CdpKeys implements Keys {
         if (info.nativeVirtualKeyCode > 0) message.param("nativeVirtualKeyCode", info.nativeVirtualKeyCode);
         if (info.location > 0) message.param("location", info.location);
 
-        message.send();
+        sender.accept(message);
     }
 
     private void dispatchChar(KeyInfo info) {
@@ -314,7 +267,7 @@ public class CdpKeys implements Keys {
                 .param("modifiers", modifiers)
                 .param("text", info.text);
         if (info.windowsVirtualKeyCode > 0) message.param("windowsVirtualKeyCode", info.windowsVirtualKeyCode);
-        message.send();
+        sender.accept(message);
     }
 
     private boolean isSpecialKey(String key) {
@@ -323,15 +276,20 @@ public class CdpKeys implements Keys {
         return c >= '\uE000' && c <= '\uE03D';
     }
 
-    private int getModifierFlag(String key) {
-        if (key == null || key.isEmpty()) return 0;
+    private static int modifierFlag(String key) {
+        if (key == null) return 0;
         return switch (key) {
-            case SHIFT -> SHIFT_FLAG;
-            case CONTROL -> CTRL_FLAG;
-            case ALT -> ALT_FLAG;
-            case META -> META_FLAG;  // COMMAND is alias for META
+            case "Shift" -> SHIFT_FLAG;
+            case "Control" -> CTRL_FLAG;
+            case "Alt" -> ALT_FLAG;
+            case "Meta" -> META_FLAG;
             default -> 0;
         };
+    }
+
+    private KeyInfo keyInfoOrChar(String key) {
+        KeyInfo info = keyInfo(key);
+        return info != null ? info : getKeyInfoForChar(key.charAt(0));
     }
 
     private KeyInfo getKeyInfoForChar(char c) {
@@ -374,68 +332,123 @@ public class CdpKeys implements Keys {
         return info;
     }
 
-    private KeyInfo getKeyInfo(String specialKey) {
+    /**
+     * The key a WebDriver constant or a key name stands for, or null when it is neither.
+     */
+    private static KeyInfo keyInfo(String key) {
+        if (key == null || key.isEmpty()) {
+            return null;
+        }
+        return named(key.length() == 1 ? constantName(key.charAt(0)) : key);
+    }
+
+    private static String constantName(char c) {
+        if (c >= '\uE01A' && c <= '\uE023') return "Numpad" + (c - '\uE01A');
+        if (c >= '\uE031' && c <= '\uE03C') return "F" + (c - '\uE030');
+        return switch (c) {
+            case '\uE003' -> "Backspace";
+            case '\uE004' -> "Tab";
+            case '\uE006', '\uE007' -> "Enter";
+            case '\uE008' -> "Shift";
+            case '\uE009' -> "Control";
+            case '\uE00A' -> "Alt";
+            case '\uE00B' -> "Pause";
+            case '\uE00C' -> "Escape";
+            case '\uE00D' -> "Space";
+            case '\uE00E' -> "PageUp";
+            case '\uE00F' -> "PageDown";
+            case '\uE010' -> "End";
+            case '\uE011' -> "Home";
+            case '\uE012' -> "ArrowLeft";
+            case '\uE013' -> "ArrowUp";
+            case '\uE014' -> "ArrowRight";
+            case '\uE015' -> "ArrowDown";
+            case '\uE016' -> "Insert";
+            case '\uE017' -> "Delete";
+            case '\uE024' -> "NumpadMultiply";
+            case '\uE025' -> "NumpadAdd";
+            case '\uE026' -> "NumpadComma";
+            case '\uE027' -> "NumpadSubtract";
+            case '\uE028' -> "NumpadDecimal";
+            case '\uE029' -> "NumpadDivide";
+            case '\uE03D' -> "Meta";
+            default -> null;
+        };
+    }
+
+    /**
+     * DOM key names (with Playwright's aliases), their codes and Windows virtual key codes.
+     */
+    private static KeyInfo named(String name) {
+        if (name == null) {
+            return null;
+        }
+        if (name.matches("F([1-9]|1[0-9]|2[0-4])")) {
+            return key(name, name, 111 + Integer.parseInt(name.substring(1)));
+        }
+        if (name.matches("Numpad[0-9]")) {
+            String digit = name.substring(6);
+            return numpad(digit, name, 96 + Integer.parseInt(digit));
+        }
+        return switch (name) {
+            case "Backspace" -> key("Backspace", "Backspace", 8);
+            case "Tab" -> key("Tab", "Tab", 9);
+            case "Enter", "Return" -> withText(key("Enter", "Enter", 13), "\r");
+            case "Shift" -> left(key("Shift", "ShiftLeft", 16));
+            case "Control", "Ctrl" -> left(key("Control", "ControlLeft", 17));
+            case "Alt" -> left(key("Alt", "AltLeft", 18));
+            case "Meta", "Command", "Cmd" -> left(key("Meta", "MetaLeft", 91));
+            case "Pause" -> key("Pause", "Pause", 19);
+            case "CapsLock" -> key("CapsLock", "CapsLock", 20);
+            case "Escape", "Esc" -> key("Escape", "Escape", 27);
+            case "Space" -> withText(key(" ", "Space", 32), " ");
+            case "PageUp" -> key("PageUp", "PageUp", 33);
+            case "PageDown" -> key("PageDown", "PageDown", 34);
+            case "End" -> key("End", "End", 35);
+            case "Home" -> key("Home", "Home", 36);
+            case "ArrowLeft", "Left" -> key("ArrowLeft", "ArrowLeft", 37);
+            case "ArrowUp", "Up" -> key("ArrowUp", "ArrowUp", 38);
+            case "ArrowRight", "Right" -> key("ArrowRight", "ArrowRight", 39);
+            case "ArrowDown", "Down" -> key("ArrowDown", "ArrowDown", 40);
+            case "PrintScreen" -> key("PrintScreen", "PrintScreen", 44);
+            case "Insert" -> key("Insert", "Insert", 45);
+            case "Delete" -> key("Delete", "Delete", 46);
+            case "ContextMenu" -> key("ContextMenu", "ContextMenu", 93);
+            case "NumpadMultiply" -> numpad("*", name, 106);
+            case "NumpadAdd" -> numpad("+", name, 107);
+            case "NumpadComma" -> numpad(",", name, 108);
+            case "NumpadSubtract" -> numpad("-", name, 109);
+            case "NumpadDecimal" -> numpad(".", name, 110);
+            case "NumpadDivide" -> numpad("/", name, 111);
+            case "NumpadEnter" -> withText(numpad("Enter", name, 13), "\r");
+            case "NumLock" -> key("NumLock", "NumLock", 144);
+            case "ScrollLock" -> key("ScrollLock", "ScrollLock", 145);
+            default -> null;
+        };
+    }
+
+    private static KeyInfo key(String key, String code, int windowsVirtualKeyCode) {
         KeyInfo info = new KeyInfo();
+        info.key = key;
+        info.code = code;
         info.text = "";
+        info.windowsVirtualKeyCode = windowsVirtualKeyCode;
+        return info;
+    }
 
-        if (specialKey == null || specialKey.isEmpty()) {
-            return info;
-        }
+    private static KeyInfo numpad(String key, String code, int windowsVirtualKeyCode) {
+        KeyInfo info = withText(key(key, code, windowsVirtualKeyCode), key.length() == 1 ? key : "");
+        info.location = 3;
+        return info;
+    }
 
-        char c = specialKey.charAt(0);
-        switch (c) {
-            case '\uE003' -> { info.key = "Backspace"; info.code = "Backspace"; info.windowsVirtualKeyCode = 8; }
-            case '\uE004' -> { info.key = "Tab"; info.code = "Tab"; info.windowsVirtualKeyCode = 9; }
-            case '\uE006', '\uE007' -> { info.key = "Enter"; info.code = "Enter"; info.windowsVirtualKeyCode = 13; info.text = "\r"; }
-            case '\uE008' -> { info.key = "Shift"; info.code = "ShiftLeft"; info.windowsVirtualKeyCode = 16; info.location = 1; }
-            case '\uE009' -> { info.key = "Control"; info.code = "ControlLeft"; info.windowsVirtualKeyCode = 17; info.location = 1; }
-            case '\uE00A' -> { info.key = "Alt"; info.code = "AltLeft"; info.windowsVirtualKeyCode = 18; info.location = 1; }
-            case '\uE00C' -> { info.key = "Escape"; info.code = "Escape"; info.windowsVirtualKeyCode = 27; }
-            case '\uE00D' -> { info.key = " "; info.code = "Space"; info.windowsVirtualKeyCode = 32; info.text = " "; }
-            case '\uE00E' -> { info.key = "PageUp"; info.code = "PageUp"; info.windowsVirtualKeyCode = 33; }
-            case '\uE00F' -> { info.key = "PageDown"; info.code = "PageDown"; info.windowsVirtualKeyCode = 34; }
-            case '\uE010' -> { info.key = "End"; info.code = "End"; info.windowsVirtualKeyCode = 35; }
-            case '\uE011' -> { info.key = "Home"; info.code = "Home"; info.windowsVirtualKeyCode = 36; }
-            case '\uE012' -> { info.key = "ArrowLeft"; info.code = "ArrowLeft"; info.windowsVirtualKeyCode = 37; }
-            case '\uE013' -> { info.key = "ArrowUp"; info.code = "ArrowUp"; info.windowsVirtualKeyCode = 38; }
-            case '\uE014' -> { info.key = "ArrowRight"; info.code = "ArrowRight"; info.windowsVirtualKeyCode = 39; }
-            case '\uE015' -> { info.key = "ArrowDown"; info.code = "ArrowDown"; info.windowsVirtualKeyCode = 40; }
-            case '\uE016' -> { info.key = "Insert"; info.code = "Insert"; info.windowsVirtualKeyCode = 45; }
-            case '\uE017' -> { info.key = "Delete"; info.code = "Delete"; info.windowsVirtualKeyCode = 46; }
-            // Numpad keys
-            case '\uE01A' -> { info.key = "0"; info.code = "Numpad0"; info.windowsVirtualKeyCode = 96; info.text = "0"; info.location = 3; }
-            case '\uE01B' -> { info.key = "1"; info.code = "Numpad1"; info.windowsVirtualKeyCode = 97; info.text = "1"; info.location = 3; }
-            case '\uE01C' -> { info.key = "2"; info.code = "Numpad2"; info.windowsVirtualKeyCode = 98; info.text = "2"; info.location = 3; }
-            case '\uE01D' -> { info.key = "3"; info.code = "Numpad3"; info.windowsVirtualKeyCode = 99; info.text = "3"; info.location = 3; }
-            case '\uE01E' -> { info.key = "4"; info.code = "Numpad4"; info.windowsVirtualKeyCode = 100; info.text = "4"; info.location = 3; }
-            case '\uE01F' -> { info.key = "5"; info.code = "Numpad5"; info.windowsVirtualKeyCode = 101; info.text = "5"; info.location = 3; }
-            case '\uE020' -> { info.key = "6"; info.code = "Numpad6"; info.windowsVirtualKeyCode = 102; info.text = "6"; info.location = 3; }
-            case '\uE021' -> { info.key = "7"; info.code = "Numpad7"; info.windowsVirtualKeyCode = 103; info.text = "7"; info.location = 3; }
-            case '\uE022' -> { info.key = "8"; info.code = "Numpad8"; info.windowsVirtualKeyCode = 104; info.text = "8"; info.location = 3; }
-            case '\uE023' -> { info.key = "9"; info.code = "Numpad9"; info.windowsVirtualKeyCode = 105; info.text = "9"; info.location = 3; }
-            case '\uE024' -> { info.key = "*"; info.code = "NumpadMultiply"; info.windowsVirtualKeyCode = 106; info.text = "*"; info.location = 3; }
-            case '\uE025' -> { info.key = "+"; info.code = "NumpadAdd"; info.windowsVirtualKeyCode = 107; info.text = "+"; info.location = 3; }
-            case '\uE026' -> { info.key = ","; info.code = "NumpadComma"; info.windowsVirtualKeyCode = 108; info.text = ","; info.location = 3; }
-            case '\uE027' -> { info.key = "-"; info.code = "NumpadSubtract"; info.windowsVirtualKeyCode = 109; info.text = "-"; info.location = 3; }
-            case '\uE028' -> { info.key = "."; info.code = "NumpadDecimal"; info.windowsVirtualKeyCode = 110; info.text = "."; info.location = 3; }
-            case '\uE029' -> { info.key = "/"; info.code = "NumpadDivide"; info.windowsVirtualKeyCode = 111; info.text = "/"; info.location = 3; }
-            // Function keys
-            case '\uE031' -> { info.key = "F1"; info.code = "F1"; info.windowsVirtualKeyCode = 112; }
-            case '\uE032' -> { info.key = "F2"; info.code = "F2"; info.windowsVirtualKeyCode = 113; }
-            case '\uE033' -> { info.key = "F3"; info.code = "F3"; info.windowsVirtualKeyCode = 114; }
-            case '\uE034' -> { info.key = "F4"; info.code = "F4"; info.windowsVirtualKeyCode = 115; }
-            case '\uE035' -> { info.key = "F5"; info.code = "F5"; info.windowsVirtualKeyCode = 116; }
-            case '\uE036' -> { info.key = "F6"; info.code = "F6"; info.windowsVirtualKeyCode = 117; }
-            case '\uE037' -> { info.key = "F7"; info.code = "F7"; info.windowsVirtualKeyCode = 118; }
-            case '\uE038' -> { info.key = "F8"; info.code = "F8"; info.windowsVirtualKeyCode = 119; }
-            case '\uE039' -> { info.key = "F9"; info.code = "F9"; info.windowsVirtualKeyCode = 120; }
-            case '\uE03A' -> { info.key = "F10"; info.code = "F10"; info.windowsVirtualKeyCode = 121; }
-            case '\uE03B' -> { info.key = "F11"; info.code = "F11"; info.windowsVirtualKeyCode = 122; }
-            case '\uE03C' -> { info.key = "F12"; info.code = "F12"; info.windowsVirtualKeyCode = 123; }
-            case '\uE03D' -> { info.key = "Meta"; info.code = "MetaLeft"; info.windowsVirtualKeyCode = 91; info.location = 1; }
-            default -> { info.key = ""; info.code = ""; }
-        }
+    private static KeyInfo withText(KeyInfo info, String text) {
+        info.text = text;
+        return info;
+    }
 
+    private static KeyInfo left(KeyInfo info) {
+        info.location = 1;
         return info;
     }
 

@@ -30,6 +30,8 @@ import io.karatelabs.driver.e2e.support.DriverTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -343,6 +345,16 @@ class KeysE2eTest extends DriverTestBase {
         String value = driver.value("#username");
         // Should have selected and replaced
         assertNotEquals("test", value);
+    }
+
+    @Test
+    void aBareFunctionKeyNameIsPressedNotTyped() {
+        driver.focus("#username");
+        driver.script("window.__keys = []; document.addEventListener('keydown', function(e) {"
+                + " window.__keys.push(e.key + '/' + e.code + '/' + e.keyCode) })");
+        driver.keys().press("F9");
+        assertEquals("", driver.value("#username"));
+        assertEquals(List.of("F9/F9/120"), driver.script("window.__keys"));
     }
 
     @Test
