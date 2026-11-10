@@ -253,6 +253,16 @@ public class WsClient implements Stoppable {
         return open && channel != null && channel.isActive();
     }
 
+    /** The peer's socket address as connected (a name can resolve to several families), null before connect. */
+    public java.net.SocketAddress getRemoteAddress() {
+        return channel == null ? null : channel.remoteAddress();
+    }
+
+    /** This end's socket address, null before connect. */
+    public java.net.SocketAddress getLocalAddress() {
+        return channel == null ? null : channel.localAddress();
+    }
+
     public URI getUri() {
         return options.getUri();
     }

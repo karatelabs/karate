@@ -63,6 +63,20 @@ class WsServerClientIntegrationTest {
     }
 
     @Test
+    void connectedClientReportsBothSocketAddresses() {
+        WsClient client = WsClient.connect("ws://localhost:" + server.getPort() + "/tunnel");
+        try {
+            java.net.InetSocketAddress remote = (java.net.InetSocketAddress) client.getRemoteAddress();
+            java.net.InetSocketAddress local = (java.net.InetSocketAddress) client.getLocalAddress();
+            assertEquals(server.getPort(), remote.getPort());
+            assertTrue(remote.getAddress().isLoopbackAddress());
+            assertTrue(local.getPort() > 0);
+        } finally {
+            client.close();
+        }
+    }
+
+    @Test
     void serverGreetingAndLargeBinaryEchoRoundTrip() throws Exception {
         byte[] big = new byte[200 * 1024]; // > the 64k Netty default the handshaker overrides
         for (int i = 0; i < big.length; i++) {

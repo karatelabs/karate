@@ -489,6 +489,16 @@ public class CdpClient {
         return ws != null && ws.isOpen();
     }
 
+    /** The browser endpoint's socket address as connected, null when closed before connect. */
+    public java.net.SocketAddress getRemoteAddress() {
+        return ws == null ? null : ws.getRemoteAddress();
+    }
+
+    /** This end's socket address on the CDP connection. */
+    public java.net.SocketAddress getLocalAddress() {
+        return ws == null ? null : ws.getLocalAddress();
+    }
+
     public Duration getDefaultTimeout() {
         return defaultTimeout;
     }
