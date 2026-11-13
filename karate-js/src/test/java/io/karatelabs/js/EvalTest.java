@@ -16,6 +16,18 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testElseIfChainFailureNamesItsOwnLine() {
+        // an else-if chain is walked in a loop, but a failure still points at the link it came from
+        EngineException e = assertThrows(EngineException.class, () -> eval(
+                "var x = 1;\nif (x == 0) {}\nelse if (x == 2) {}\nelse if (y.z) {}\nelse {}"));
+        assertTrue(e.getMessage().contains("Line: 4,"), e.getMessage());
+        assertTrue(e.getMessage().contains("Code: else if (y.z) {}"), e.getMessage());
+        assertEquals("ReferenceError", eval("try { if (false) {} else if (false) {} else if (y.z) {} } catch (e) { e.name }"));
+        assertEquals(3, eval("var x = 3; var r = 0; if (x == 1) { r = 1 } else if (x == 2) { r = 2 } else if (x == 3) { r = 3 } else { r = 4 } r"));
+        assertEquals(4, eval("var x = 9; var r = 0; if (x == 1) { r = 1 } else if (x == 2) { r = 2 } else r = 4; r"));
+    }
+
+    @Test
     void testNestingPastTheStackIsARangeError() {
         String nested = "(".repeat(100_000) + "1" + ")".repeat(100_000);
         EngineException e = assertThrows(EngineException.class, () -> eval(nested));

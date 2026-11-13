@@ -1362,6 +1362,15 @@ cut below the converting frame grows with it, and so does the interpreted
 probe the first overflow in a fresh JVM pays (≈ 250 KB, a quarter of a 1 MB
 stack, once); 500 → 650 levels cost the 200-depth sweep test 4.5 → 5.9 s.
 
+**An `else if` chain is not nesting.** It parses as nested `IF_STMT`s, but
+`Interpreter.evalIfStmt` walks the chain in a loop rather than recursing, four
+Java frames a link, whose compiled sizes made a 1000-link chain (generated code
+has them) overflow a 1 MB stack depending on JIT timing. The loop runs only
+while nothing observes the link's own statement — no `ContextListener`, no
+`RunInterceptor`, no trace logging — so the one thing `evalStatement` would add
+is how a failure is wrapped, and the loop wraps it (`statementFailure`) and
+converts a `StackOverflowError` at the same link that seam would have.
+
 **What is guaranteed, and where.** At a JS seam the conversion follows a
 probe that fit, so the handler that sees the RangeError there — the JS
 `catch`, `ContextListener.onError`, `RunInterceptor.afterExecute` — starts

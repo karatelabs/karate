@@ -2062,20 +2062,67 @@ class Interpreter {
         // {@code propertyHelper.verifyProperty} flow exposed this:
         // {@code isWritable}'s spec-required RangeError gets eaten and the
         // failure is reported as "should be writable" instead).
-        Object condition = eval(node.get(2), context);
-        if (context.isStopped()) {
-            return null;
-        }
-        boolean taken = Terms.isTruthy(condition);
-        context.event(EventType.BRANCH, node, taken);
-        if (taken) {
-            return eval(node.get(4), context);
-        } else {
-            if (node.size() > 5) {
-                return eval(node.get(6), context);
+        //
+        // An `else if` chain is walked in this loop rather than by recursion: each
+        // link would otherwise cost four Java frames, and a chain of a thousand (as
+        // generated code has) comes within reach of a 1 MB thread stack.
+        boolean link = false; // node is an `else if`, not the statement's own `if`
+        while (true) {
+            Node next;
+            try {
+                Object condition = eval(node.get(2), context);
+                if (context.isStopped()) {
+                    return null;
+                }
+                boolean taken = Terms.isTruthy(condition);
+                context.event(EventType.BRANCH, node, taken);
+                if (taken) {
+                    return eval(node.get(4), context);
+                }
+                if (node.size() <= 5) {
+                    return null;
+                }
+                Node elseStmt = node.get(6);
+                next = elseIfLink(elseStmt, context);
+                if (next == null) {
+                    return eval(elseStmt, context);
+                }
+            } catch (StackOverflowError e) {
+                if (!link) {
+                    throw e;
+                }
+                throw statementFailure(JsErrorException.stackExceeded(e), node);
+            } catch (Exception e) {
+                if (!link) {
+                    throw e;
+                }
+                // what the link's own statement would have made of it
+                throw statementFailure(e, node);
             }
+            node = next;
+            link = true;
+        }
+    }
+
+    /**
+     * The `if` of an `else if`, when the else statement is one and evaluating it in
+     * place is the same as going through {@link #evalStatement}: nothing observes the
+     * statement (no listener, no debug interceptor, no trace logging), so all that
+     * statement would add is how a failure is wrapped, which the caller reproduces.
+     */
+    private static Node elseIfLink(Node elseStmt, CoreContext context) {
+        if (elseStmt.type != NodeType.STATEMENT) {
             return null;
         }
+        Node inner = elseStmt.getFirst();
+        if (inner.type != NodeType.IF_STMT) {
+            return null;
+        }
+        if (context.root.listener != null || context.root.interceptor != null
+                || logger.isTraceEnabled() || Engine.DEBUG) {
+            return null;
+        }
+        return inner;
     }
 
     private static Object evalInstanceOfExpr(Node node, CoreContext context) {
@@ -2818,58 +2865,67 @@ class Interpreter {
                     return exitResult.returnValue;
                 }
             }
-            // Avoid wrapping already-wrapped JS errors (prevents duplicate error messages)
-            if (e instanceof EngineException) {
-                throw e;
-            }
-            // Flow-control signals from host functions are intentional — never wrap as errors
-            if (e instanceof FlowControlSignal) {
-                throw (RuntimeException) e;
-            }
-            Token first = node.getFirstToken();
-            // Carry engine-origin JS error identity across the host boundary
-            // so EngineException.getJsErrorName() works without re-parsing the
-            // message. Non-JsErrorException Java throwables intentionally
-            // surface as-is (jsErrorName=null) — leaked Java exceptions are
-            // engine bugs, not JS errors, and the unwrapped message + Java
-            // cause chain preserves the IDE-hyperlinkable stack trace.
-            String jsErrorName = null;
-            String jsMessage = null;
-            JsErrorException jex = findJsErrorException(e);
-            if (jex != null) {
-                Object nameVal = jex.payload.getMember("name");
-                Object msgVal = jex.payload.getMember("message");
-                jsErrorName = nameVal == null ? null : nameVal.toString();
-                jsMessage = (msgVal == null || msgVal == Terms.UNDEFINED) ? null : msgVal.toString();
-            }
-            String body = e.getMessage();
-            if (body == null || body.isEmpty()) {
-                // A leaked Java throwable with no message (e.g. UnsupportedOperationException from
-                // mutating an immutable collection, or a bare NPE) would render as "Error: null" — name
-                // the exception type so the failure is self-describing instead of a dead end.
-                body = e.getClass().getSimpleName();
-            }
-            StringBuilder sb = new StringBuilder();
-            sb.append("js failed:\n");
-            sb.append("==========\n");
-            if (first.getResource().isFile()) {
-                sb.append("  File: ").append(first.getResource()).append("\n");
-            }
-            if (first.line != 0) {
-                sb.append("  Line: ").append(first.line + 1).append(", Col: ").append(first.col).append("\n");
-            }
-            sb.append("  Code: ").append(first.getLineText().trim()).append("\n");
-            sb.append("  Error: ").append(body).append("\n");
-            sb.append("==========");
-            if (first.getResource().isFile()) {
-                // StringBuilder, not +: this can be the first run, on an almost exhausted stack
-                // (runaway recursion), and a concat call site whose first link overflows is broken
-                // for the life of the JVM
-                System.err.println(new StringBuilder("file://").append(first.getResource().getUri().getPath())
-                        .append(':').append(first.line + 1).append(':').append(first.col + 1).append(' ').append(e));
-            }
-            throw new EngineException(sb.toString(), e, jsErrorName, jsMessage);
+            throw statementFailure(e, node);
         }
+    }
+
+    /**
+     * What a statement's failure surfaces as: an {@link EngineException} naming the
+     * statement's source position, or the exception itself when it is already one or
+     * is a host's flow-control signal.
+     */
+    private static RuntimeException statementFailure(Exception e, Node node) {
+        // Avoid wrapping already-wrapped JS errors (prevents duplicate error messages)
+        if (e instanceof EngineException ee) {
+            return ee;
+        }
+        // Flow-control signals from host functions are intentional — never wrap as errors
+        if (e instanceof FlowControlSignal) {
+            return (RuntimeException) e;
+        }
+        Token first = node.getFirstToken();
+        // Carry engine-origin JS error identity across the host boundary
+        // so EngineException.getJsErrorName() works without re-parsing the
+        // message. Non-JsErrorException Java throwables intentionally
+        // surface as-is (jsErrorName=null) — leaked Java exceptions are
+        // engine bugs, not JS errors, and the unwrapped message + Java
+        // cause chain preserves the IDE-hyperlinkable stack trace.
+        String jsErrorName = null;
+        String jsMessage = null;
+        JsErrorException jex = findJsErrorException(e);
+        if (jex != null) {
+            Object nameVal = jex.payload.getMember("name");
+            Object msgVal = jex.payload.getMember("message");
+            jsErrorName = nameVal == null ? null : nameVal.toString();
+            jsMessage = (msgVal == null || msgVal == Terms.UNDEFINED) ? null : msgVal.toString();
+        }
+        String body = e.getMessage();
+        if (body == null || body.isEmpty()) {
+            // A leaked Java throwable with no message (e.g. UnsupportedOperationException from
+            // mutating an immutable collection, or a bare NPE) would render as "Error: null" — name
+            // the exception type so the failure is self-describing instead of a dead end.
+            body = e.getClass().getSimpleName();
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("js failed:\n");
+        sb.append("==========\n");
+        if (first.getResource().isFile()) {
+            sb.append("  File: ").append(first.getResource()).append("\n");
+        }
+        if (first.line != 0) {
+            sb.append("  Line: ").append(first.line + 1).append(", Col: ").append(first.col).append("\n");
+        }
+        sb.append("  Code: ").append(first.getLineText().trim()).append("\n");
+        sb.append("  Error: ").append(body).append("\n");
+        sb.append("==========");
+        if (first.getResource().isFile()) {
+            // StringBuilder, not +: this can be the first run, on an almost exhausted stack
+            // (runaway recursion), and a concat call site whose first link overflows is broken
+            // for the life of the JVM
+            System.err.println(new StringBuilder("file://").append(first.getResource().getUri().getPath())
+                    .append(':').append(first.line + 1).append(':').append(first.col + 1).append(' ').append(e));
+        }
+        return new EngineException(sb.toString(), e, jsErrorName, jsMessage);
     }
 
     private static Object evalSwitchStmt(Node node, CoreContext context) {
