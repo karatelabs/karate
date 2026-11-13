@@ -1191,6 +1191,18 @@ run, so it takes the same turn. A promise from an earlier eval belongs to a
 closed scope that queues no reactions; `await` follows it through the current
 scope the way it follows a Java future (`AsyncSupport.subscribe`).
 
+*Cost, for future reference.* Every `await` is now a job plus two thread
+handoffs (pump → activation → pump). On the M1 Pro reference machine an
+`await` of an already-settled value went from ~0.4 µs (the old fast path,
+which skipped the queue and was the ordering bug) to ~5.7 µs; an `await` that
+actually waits is unchanged at ~9 µs. Accepted for now. If tight loops of
+settled awaits ever matter, the candidate optimization is **pump-owner
+migration**: let the awaiting activation thread drain the queue itself until
+its own reaction comes up, instead of parking and handing back to the pump —
+no thread switch per await, but every job would then run on whichever thread
+owns the pump, so thread-identity assumptions (`Engine.enter`,
+`onEngineThread`, nested resumption handoffs) would need auditing first.
+
 ### Accepted deviations
 
 1. `Engine.eval` blocks to quiescence by design; a far-future timer blocks it
