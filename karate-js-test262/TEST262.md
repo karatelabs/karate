@@ -371,10 +371,9 @@ microtask checkpoint, since the pump takes one job at a time. Pinned by
 `testEachTimerIsFollowedByAFullMicrotaskDrain` /
 `testPromiseResolvedInsideATimerReactsBeforeTheNextTimer` /
 `testTimersOrderByDelayThenRegistration` /
-`testAwaitContinuationsInterleaveWithTimers`. Residual: a **suspended
-activation's resumption is an unpark, not a queued job**, so it still
-loses to an already-pending timer — see
-[JS_ENGINE.md § Accepted deviations](../docs/JS_ENGINE.md#accepted-deviations) 2.)*
+`testAwaitContinuationsInterleaveWithTimers`. The await continuation itself
+became a queued microtask on 2026-11-13 — see
+[JS_ENGINE.md § Job ordering](../docs/JS_ENGINE.md#job-ordering--the-microtask-checkpoint).)*
 *(P0.5 shipped 2026-08-16: super references now carry the method's `this` as
 receiver end to end — `AccessSite.receiver` + the receiver-aware
 `PropertyAccess.getByName`/`setByName` overloads are the §13.3.7.3 /
@@ -492,11 +491,13 @@ gated on the length-clamp marker so ordinary receivers pay no extra
 observable length read. The `length-near-integer-limit` timeout rows
 (genuine 4-billion-step walks) stay accepted until the sparse-storage
 rework. Pinned by 11 `JsArrayTest` hardening tests.)*
-Known-flaky under an accepted deviation (surfaced by the async-flag
-unskip, timing-dependent PASS/FAIL): `await-non-promise-thenable.js` —
-the settled-await fast path skips a microtask tick, so its interleaving
-race with a thenable job is nondeterministic. See
-[JS_ENGINE.md § Accepted deviations](../docs/JS_ENGINE.md#accepted-deviations).
+*(Await ordering shipped 2026-11-13: an `await` continuation is a reaction
+job that hands `jsLock` to the activation and waits for it to suspend again,
+settled promise or not, so `await-non-promise-thenable.js` — flaky while the
+resumption was a bare unpark racing the pump for the lock — passes every run.
+Pinned by `JsPromiseTest.testAwaitContinuationIsAMicrotaskInOrder` /
+`testResumedAwaitRunsBeforeAnAlreadyPendingTimer` /
+`testTopLevelAwaitTakesItsTurnInTheJobOrder`.)*
 
 Added 2026-08-16:
 

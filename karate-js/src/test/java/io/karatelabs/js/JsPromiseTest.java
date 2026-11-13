@@ -635,6 +635,71 @@ class JsPromiseTest extends EvalBase {
                 Promise.resolve().then(function () { order.push('micro') })"""));
     }
 
+    @Test
+    void testAwaitContinuationIsAMicrotaskInOrder() {
+        // an await's continuation is a reaction on the awaited promise: it takes
+        // its turn among the queued jobs, already settled or not, so the
+        // interleaving with a promise chain is fixed, never a race
+        assertEquals(List.of("P1", "P2", "A1", "P3", "P4", "A2"), evalOrdering("""
+                var order = []
+                var thenable = { then: function (f) { f(1) } }
+                async function f() {
+                    await thenable; order.push('A1')
+                    await thenable; order.push('A2')
+                }
+                f()
+                new Promise(function (r) { order.push('P1'); r() })
+                    .then(function () { order.push('P2') })
+                    .then(function () { order.push('P3') })
+                    .then(function () { order.push('P4') })"""));
+        // f's settled await queues A1 before P1 is queued; each step queues the next
+        assertEquals(List.of("sync", "A1", "P1", "A2", "P2"), evalOrdering("""
+                var order = []
+                async function f() {
+                    await Promise.resolve(); order.push('A1')
+                    await 42; order.push('A2')
+                }
+                f()
+                order.push('sync')
+                Promise.resolve()
+                    .then(function () { order.push('P1') })
+                    .then(function () { order.push('P2') })"""));
+    }
+
+    @Test
+    void testResumedAwaitRunsBeforeAnAlreadyPendingTimer() {
+        // the resumption is a microtask of the timer callback that settled it,
+        // so it runs in that callback's checkpoint, ahead of the next timer
+        assertEquals(List.of("t1", "resumed", "t2"), evalOrdering("""
+                var order = []
+                var go
+                async function f() {
+                    await new Promise(function (r) { go = r })
+                    order.push('resumed')
+                }
+                f()
+                setTimeout(function () { order.push('t1'); go() }, 0)
+                setTimeout(function () { order.push('t2') }, 0)"""));
+    }
+
+    @Test
+    void testTopLevelAwaitTakesItsTurnInTheJobOrder() {
+        assertEquals(List.of("P1", "after-await"), evalOrdering("""
+                var order = []
+                Promise.resolve().then(function () { order.push('P1') })
+                await Promise.resolve()
+                order.push('after-await')"""));
+    }
+
+    @Test
+    void testAwaitOnAPromiseFromAnEarlierEval() {
+        engine = new Engine();
+        engine.eval("var done = Promise.resolve(7); var failed = Promise.reject(new Error('x')); failed.catch(function () {})");
+        assertEquals(7, engine.eval("await done"));
+        assertEquals("x", engine.eval("try { await failed } catch (e) { e.message }"));
+        assertEquals(8, engine.eval("async function g() { return (await done) + 1 }; await g()"));
+    }
+
     // ===== Java interop =====
 
     @Test

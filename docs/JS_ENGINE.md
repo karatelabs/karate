@@ -1157,7 +1157,7 @@ no delay. `setInterval` (at least 1 ms) re-arms a fresh record under the same id
 after each callback that did not throw, due one period after the last due time
 so the period does not drift, until `clearInterval`; one id space serves every
 `clear*`, as in Node. An uncleared interval keeps the eval from quiescing, as a
-far-future timer does (deviation 3).
+far-future timer does (deviation 1).
 `queueMicrotask` queues its callback as a microtask, in order with promise
 reactions; a throw is reported as a timer callback's is.
 
@@ -1177,23 +1177,30 @@ Quiescence is unaffected: both queues are counted, every queued job still holds
 its own token, and a microtask loop that never ends starves timers exactly as a
 browser would.
 
+**An `await` continuation is a microtask, like any reaction.** `awaitOn`
+attaches a reaction to the awaited promise (the spec's PerformPromiseThen) —
+already settled or not, and `await 1` wraps the value in a fulfilled promise
+first (PromiseResolve) — then suspends. The reaction job, run by the pump, hands
+`jsLock` to the activation's thread and parks until that resumed segment ends at
+the next `await` or the body's end; only then does the pump take its next job.
+So an activation never contends with the pump for the lock: it runs at startup
+inside its caller's handshake and afterwards only inside its own resumption
+job, and the interleaving with promise chains and timers is the spec's, not a
+scheduler race. A top-level `await` pumps until the promise's own reaction has
+run, so it takes the same turn. A promise from an earlier eval belongs to a
+closed scope that queues no reactions; `await` follows it through the current
+scope the way it follows a Java future (`AsyncSupport.subscribe`).
+
 ### Accepted deviations
 
-1. The **settled-`await` fast path does not yield** to the microtask queue.
-2. **A suspended activation's resumption is not a queued job.** Its ordering
-   against an already-pending timer is decided by the fair lock, not by the job
-   queues (deviation 3), so `setTimeout(() => resolve(), 0)` with a second timer
-   already pending runs that second timer before the resumed `await` body —
-   HTML would run the continuation first. Ordering *through* a promise reaction
-   (`.then`, an async function's own result promise being consumed) is exact.
-3. `Engine.eval` blocks to quiescence by design; a far-future timer blocks it
-   (interrupt and the drain cap are the escape hatches), and fair-lock order
-   among runnable activations is approximate, not the spec's job ordering.
-4. No async iterators — `for await` is rejected at parse time.
+1. `Engine.eval` blocks to quiescence by design; a far-future timer blocks it
+   (interrupt and the drain cap are the escape hatches).
+2. No async iterators — `for await` is rejected at parse time.
 
 > **Spec invariant.** Pinned by `JsAsyncAwaitTest` (19 cases — parse and call
-> shape, contextual-keyword back-compat), `JsPromiseTest` (60 — promise surface,
-> adoption, job ordering, unhandled-rejection policy, the Java bridge) and
+> shape, contextual-keyword back-compat), `JsPromiseTest` (65 — promise surface,
+> adoption, job ordering including await continuations, unhandled-rejection
+> policy, the Java bridge) and
 > `JsAsyncConcurrencyTest` (18 barrier cases — token idempotence,
 > close-vs-publish races, unpark-before-park, interrupt-before-start, stale
 > reacquisition, nested eval, cross-thread eval serialization, stage-cache

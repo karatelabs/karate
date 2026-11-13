@@ -23,7 +23,6 @@
  */
 package io.karatelabs.js;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -78,6 +77,13 @@ final class AsyncActivation implements Runnable {
     private final CountDownLatch finished = new CountDownLatch(1);
     private volatile Thread caller;
     private volatile Thread thread;
+
+    /** The pump thread running this activation's resumption job, parked until
+     *  the resumed segment ends (the next await, or the body's end). */
+    private volatile Thread driver;
+    private volatile boolean segmentDone;
+    /** Set by the resumption job; the parked await reads it. */
+    private volatile boolean resumed;
 
     AsyncActivation(Engine engine, AsyncScope scope, AsyncToken token, JsFunctionNode function,
                     CoreContext functionContext, Object[] args, JsPromise result) {
@@ -172,6 +178,7 @@ final class AsyncActivation implements Runnable {
             token.release();
             scope.removeActivation(this);
             finished.countDown();
+            endSegment();
         }
     }
 
@@ -249,39 +256,71 @@ final class AsyncActivation implements Runnable {
     }
 
     /**
-     * Suspend at an unresolved await. Arm the resumption first (an unpark permit
-     * survives an unpark-before-park race; a condition flag would not), publish
-     * SUSPENDED so the caller can proceed, then release {@code jsLock} in a
-     * {@code finally} — an exception between arming and unlocking must not
-     * strand the engine.
+     * Suspend at an await, as the spec's Await does: the continuation is a
+     * reaction on the promise, so it runs as a microtask in order with every
+     * other job — even when the promise is already settled. Arm the reaction
+     * first, publish SUSPENDED so a starting caller can proceed, then release
+     * {@code jsLock} and end the segment in a {@code finally} — an exception
+     * between arming and unlocking must not strand the engine or its driver.
      */
     Object awaitOn(JsPromise promise) {
-        CompletableFuture<Object> cf = promise.future();
-        if (cf.isDone()) {
-            // settled-await fast path: no microtask yield (accepted deviation)
-            return AsyncSupport.settledResult(promise);
-        }
-        Thread self = Thread.currentThread();
+        resumed = false;
+        promise.addReaction((rejected, value) -> resume());
         int holds;
-        cf.whenComplete((value, error) -> LockSupport.unpark(self));
         publish(Outcome.SUSPENDED);
         try {
             AsyncSupport.checkStale(scope);
         } finally {
             holds = engine.releaseJsLock();
+            endSegment();
         }
-        while (!cf.isDone()) {
+        while (!resumed) {
             if (Thread.interrupted() || !scope.isOpen()) {
                 Thread.currentThread().interrupt();
                 throw new EngineInterruptedException();
             }
-            LockSupport.park();
+            LockSupport.park(this);
         }
         // gate check before AND after reacquiring jsLock
         AsyncSupport.checkStale(scope);
         engine.reacquireJsLock(holds);
         AsyncSupport.checkStale(scope);
         return AsyncSupport.settledResult(promise);
+    }
+
+    /**
+     * The await's reaction: a microtask on the pump thread, holding
+     * {@code jsLock}. It hands the lock to the activation and waits for the
+     * resumed segment to end, so the continuation runs exactly here in the job
+     * order, never racing the pump for the lock.
+     */
+    private void resume() {
+        segmentDone = false;
+        driver = Thread.currentThread();
+        int holds = engine.releaseJsLock();
+        resumed = true;
+        LockSupport.unpark(thread);
+        while (!segmentDone) {
+            if (Thread.interrupted()) {
+                // as spawn does: leave the lock to the activation, teardown joins it
+                Thread.currentThread().interrupt();
+                scope.requestCancel("pump interrupted while resuming " + function.name);
+                throw new EngineInterruptedException();
+            }
+            LockSupport.park(this);
+        }
+        engine.reacquireJsLock(holds);
+    }
+
+    /** Wake the resumption job waiting on the segment that just ended, if any;
+     *  called with {@code jsLock} already released. */
+    private void endSegment() {
+        Thread d = driver;
+        if (d != null) {
+            driver = null;
+            segmentDone = true;
+            LockSupport.unpark(d);
+        }
     }
 
     /** Shut the reacquisition gate for this activation: it exits at its next

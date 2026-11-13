@@ -242,14 +242,18 @@ final class AsyncSupport {
         }
         JsPromise promise = toPromise(engine, scope, value);
         if (promise == null) {
-            return value;
+            // PromiseResolve: a plain value is awaited as a fulfilled promise, so
+            // `await 1` still yields to the jobs already queued
+            promise = new JsPromise(engine, scope);
+            promise.settle(false, value, null);
+        } else if (promise.scope != scope) {
+            // a promise from an earlier eval: its scope is closed and queues no
+            // reactions, so it is followed the way a Java future is
+            promise = subscribe(engine, scope, promise.future());
         }
         AsyncActivation activation = AsyncActivation.current();
         if (activation != null && activation.engine == engine) {
             return activation.awaitOn(promise);
-        }
-        if (promise.isSettled()) {
-            return settledResult(promise);
         }
         // top level: the eval thread becomes the pump, which is what lets
         // activations and callbacks interleave with top-level code
@@ -288,7 +292,11 @@ final class AsyncSupport {
             job.run(engine);
         } finally {
             Engine.exit(previous);
-            engine.jsLock.unlock();
+            // a job that hands off to an activation and is interrupted leaves
+            // without the lock (teardown joins the activation that has it)
+            if (engine.jsLock.isHeldByCurrentThread()) {
+                engine.jsLock.unlock();
+            }
             if (job.token != null) {
                 job.token.release();
             }
@@ -352,14 +360,18 @@ final class AsyncSupport {
         return cap == null ? 0 : System.nanoTime() + cap.toNanos();
     }
 
-    /** Top-level await: release jsLock, pump, and re-check the target. */
+    /** Top-level await: release jsLock and pump until the promise's own reaction
+     *  has run — the continuation takes its turn in the job order, as an
+     *  activation's does, rather than jumping the queue the moment it settles. */
     static Object pumpUntilSettled(Engine engine, AsyncScope scope, JsPromise promise) {
         long deadlineNanos = drainDeadline(engine);
+        AtomicBoolean reacted = new AtomicBoolean();
+        promise.addReaction((rejected, value) -> reacted.set(true));
         int holds = engine.releaseJsLock();
         // On an abrupt exit the lock is deliberately NOT reacquired: a running
         // activation may hold it, and this thread is on its way to tearing the
         // scope down. Every enclosing frame unlocks conditionally for that reason.
-        while (!promise.isSettled()) {
+        while (!reacted.get()) {
             if (Thread.currentThread().isInterrupted() || scope.isCancelRequested()) {
                 throw new EngineInterruptedException();
             }
@@ -373,7 +385,7 @@ final class AsyncSupport {
             }
             if (job != null) {
                 runJob(engine, job);
-            } else if (scope.isQuiescent() && !promise.isSettled()) {
+            } else if (scope.isQuiescent() && !reacted.get()) {
                 throw new EngineException("await on a promise that can never settle", null);
             }
         }
@@ -531,6 +543,12 @@ final class AsyncSupport {
         if (stage instanceof JsPromise.PromiseView view) {
             return view.owner;
         }
+        return subscribe(engine, scope, stage);
+    }
+
+    /** A promise of this scope that follows {@code stage}, whatever thread or
+     *  scope settles it. */
+    static JsPromise subscribe(Engine engine, AsyncScope scope, CompletionStage<?> stage) {
         JsPromise cached = scope.cachedStage(stage);
         if (cached != null) {
             return cached;
