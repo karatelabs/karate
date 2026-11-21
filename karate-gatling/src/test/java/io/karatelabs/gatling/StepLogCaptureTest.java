@@ -35,6 +35,7 @@ import io.karatelabs.core.ScenarioResult;
 import io.karatelabs.core.ScenarioRuntime;
 import io.karatelabs.core.StepResult;
 import io.karatelabs.http.HttpRequest;
+import io.karatelabs.output.Console;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -113,7 +114,8 @@ class StepLogCaptureTest {
                 }
             }
         }
-        return sb.toString();
+        // the raw log is colored (the request line's method is wrapped in ANSI codes); read it as text
+        return Console.stripAnsi(sb.toString());
     }
 
     private List<String> printed() {
