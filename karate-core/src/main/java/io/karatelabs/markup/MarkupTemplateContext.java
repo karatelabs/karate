@@ -41,6 +41,7 @@ public class MarkupTemplateContext implements IEngineContext, MarkupScope {
 
     final IEngineContext wrapped;
     private final Engine engine;
+    private final boolean alpineCsp;
     private final Map<String, Object> vars = new HashMap<>();
 
     // `_` is exposed as a dual-lookup ObjectLike: writes go to `vars`
@@ -96,6 +97,7 @@ public class MarkupTemplateContext implements IEngineContext, MarkupScope {
 
     MarkupTemplateContext(IEngineContext wrapped, MarkupConfig config) {
         this.wrapped = wrapped;
+        this.alpineCsp = config.isAlpineCsp();
         this.engine = config.getEngineSupplier().get();
         this.engine.put("_", underscoreView);
         // Use existing MarkupContext from template variables if present (e.g., ServerMarkupContext in server mode)
@@ -281,6 +283,11 @@ public class MarkupTemplateContext implements IEngineContext, MarkupScope {
             }
             throw new MarkupHintException(buildMissingNameHint(missing, e), e);
         }
+    }
+
+    /** The page runs the CSP build of Alpine ({@link MarkupConfig#isAlpineCsp()}): ka:data emits only what it evaluates. */
+    boolean isAlpineCsp() {
+        return alpineCsp;
     }
 
     private String buildMissingNameHint(String missing, Throwable cause) {

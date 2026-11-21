@@ -40,6 +40,7 @@ public class ServerConfig {
     private String resourceRoot;
     private String contextPath = "";
     private boolean devMode = false;
+    private boolean alpineCsp;
     // KARATE_DEV_TRACE=true env var pre-sets this; programmatic .devTrace(...) overrides.
     private boolean devTrace = "true".equalsIgnoreCase(System.getenv("KARATE_DEV_TRACE"));
     private int sessionExpirySeconds = 600;
@@ -236,6 +237,21 @@ public class ServerConfig {
 
     public ServerConfig contextPath(String contextPath) {
         this.contextPath = contextPath != null ? contextPath : "";
+        return this;
+    }
+
+    public boolean isAlpineCsp() {
+        return alpineCsp;
+    }
+
+    /**
+     * The app's pages run the CSP build of Alpine (@alpinejs/csp), for a Content-Security-Policy
+     * without 'unsafe-eval' (see {@link #contentSecurityPolicy(String)}). ka:data and
+     * ka:data-mirror then emit only expressions that build evaluates; the page registers the
+     * {@code $json} magic they bind. See TEMPLATING.md "Strict CSP".
+     */
+    public ServerConfig alpineCsp(boolean alpineCsp) {
+        this.alpineCsp = alpineCsp;
         return this;
     }
 
@@ -590,6 +606,7 @@ public class ServerConfig {
         return "ServerConfig{" +
                 "resourceRoot='" + resourceRoot + '\'' +
                 ", contextPath='" + contextPath + '\'' +
+                ", alpineCsp=" + alpineCsp +
                 ", devMode=" + devMode +
                 ", apiPrefix='" + apiPrefix + '\'' +
                 ", staticPrefix='" + staticPrefix + '\'' +

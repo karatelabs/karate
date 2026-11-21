@@ -35,6 +35,7 @@ public class MarkupConfig {
     private boolean devMode;
     private boolean devTrace;
     private boolean serverMode = true; // default to server mode for backward compatibility
+    private boolean alpineCsp;
 
     public void setResolver(ResourceResolver resolver) {
         this.resolver = resolver;
@@ -66,6 +67,21 @@ public class MarkupConfig {
 
     public void setDevTrace(boolean devTrace) {
         this.devTrace = devTrace;
+    }
+
+    /**
+     * The page runs the CSP build of Alpine (@alpinejs/csp), for a Content-Security-Policy
+     * without 'unsafe-eval'. ka:data then emits only what that build evaluates: the form mirror
+     * binds {@code $json(form)} instead of {@code JSON.stringify(form)} (the page registers the
+     * magic: {@code Alpine.magic('json', () => v => JSON.stringify(v))}), and numbers and
+     * escapes its JSON tokenizer reads wrong are rewritten. See TEMPLATING.md "Strict CSP".
+     */
+    public boolean isAlpineCsp() {
+        return alpineCsp;
+    }
+
+    public void setAlpineCsp(boolean alpineCsp) {
+        this.alpineCsp = alpineCsp;
     }
 
     public boolean isServerMode() {

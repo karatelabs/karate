@@ -335,6 +335,50 @@ class HtmlReportWriterTest {
         return engine;
     }
 
+    /**
+     * One theme rule for core and ext pages: the stored choice, else the OS preference. Loading a
+     * page never stores a theme (it used to store 'light', pinning every page and the console),
+     * and a page without storage still loads.
+     */
+    @Test
+    void testThemeRule() throws Exception {
+        String js;
+        try (var in = HtmlReportWriterTest.class.getResourceAsStream("/io/karatelabs/output/res/karate-report.js")) {
+            js = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+        java.util.function.Function<String, Engine> page = setup -> {
+            Engine engine = new Engine();
+            engine.eval("""
+                    var attrs = {};
+                    var document = { documentElement: { setAttribute: (k, v) => { attrs[k] = v }, getAttribute: k => attrs[k] || null } };
+                    var store = {};
+                    var localStorage = { getItem: k => store[k] || null, setItem: (k, v) => { store[k] = v } };
+                    var osDark = false;
+                    var window = { matchMedia: q => ({ matches: osDark }) };
+                    """);
+            engine.eval(setup);
+            engine.eval(js);
+            return engine;
+        };
+        // nothing stored: follows the OS, and stores nothing
+        Engine light = page.apply("");
+        assertEquals("light", light.eval("attrs['data-theme']"));
+        assertEquals("true", light.eval("String(store['karate-theme'] === undefined)"));
+        Engine dark = page.apply("osDark = true");
+        assertEquals("dark", dark.eval("attrs['data-theme']"));
+        assertEquals("true", dark.eval("String(store['karate-theme'] === undefined)"));
+        // a stored choice wins over the OS
+        assertEquals("light", page.apply("osDark = true; store['karate-theme'] = 'light'").eval("attrs['data-theme']"));
+        // the toggle stores the reader's choice
+        assertEquals("light", dark.eval("KarateReport.toggleTheme()"));
+        assertEquals("light", dark.eval("store['karate-theme']"));
+        assertEquals("light", dark.eval("attrs['data-theme']"));
+        // no storage (a sandboxed artifact): the page still loads and toggles, unremembered
+        Engine sandboxed = page.apply("localStorage = { getItem: k => { throw new Error('SecurityError') }, setItem: (k, v) => { throw new Error('SecurityError') } }");
+        assertEquals("light", sandboxed.eval("attrs['data-theme']"));
+        assertEquals("dark", sandboxed.eval("KarateReport.toggleTheme()"));
+    }
+
     @Test
     void testSummaryPagePassPercentAndFailArc() throws Exception {
         Engine engine = summaryPageEngine("""
@@ -752,9 +796,13 @@ class HtmlReportWriterTest {
         Pattern inlineAttr = Pattern.compile("(?i)\\s(on[a-z]+|style)\\s*=");
         // a smoke check, not a parser: syntax the CSP build rejects, and globals, which it
         // can't see (identifiers resolve from the component only)
-        Pattern unsupported = Pattern.compile("\\?\\.|=>|`|(?<![\\w$.])(Math|JSON|window|document|console|Object|Array"
-                + "|String|Number|Boolean|Date|parseInt|parseFloat|localStorage|location|KarateReport"
-                + "|typeof|instanceof|new|function)(?![\\w$])");
+        Pattern unsupported = Pattern.compile("\\?\\.|\\?\\?|=>|`|;|[-+*/%]=|(?<![\\w$.])(Math|JSON|window|document|console|Object|Array"
+                + "|String|Number|Boolean|Date|parseInt|parseFloat|isNaN|Intl|navigator|encodeURIComponent|localStorage|location"
+                + "|KarateReport|typeof|instanceof|new|function|void|delete)(?![\\w$])");
+        // `in` is x-for's own syntax; anywhere else it is an operator the CSP build rejects
+        Pattern inOperator = Pattern.compile("(?<![\\w$.])in(?![\\w$])");
+        // every script and stylesheet same-origin: the timeline's vis-timeline from unpkg is the one exception
+        Pattern externalRef = Pattern.compile("(?i)<(?:script|link)\\b[^>]*\\b(?:src|href)\\s*=\\s*[\"']?(https?:)?//([^/\"']+)");
         Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
         List<Path> pages = new ArrayList<>(List.of(reportDir.resolve("karate-summary.html"), reportDir.resolve("karate-timeline.html")));
         try (var list = Files.list(featuresDir)) {
@@ -786,17 +834,32 @@ class HtmlReportWriterTest {
                 String expr = attrs.group(2) != null ? attrs.group(2) : attrs.group(3);
                 assertNotEquals("x-html", attr, name + ": the CSP build refuses x-html");
                 // string literals are text, not code: 'Show new results' isn't a `new`
-                var bad = unsupported.matcher(expr.replaceAll("'(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\"", "''"));
+                String code = expr.replaceAll("'(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\"", "''");
+                if (!attr.equals("x-for")) {
+                    assertFalse(inOperator.matcher(code).find(), name + ": " + attr + "=\"" + expr + "\" uses the in operator");
+                }
+                var bad = unsupported.matcher(code);
                 assertFalse(bad.find(), name + ": " + attr + "=\"" + expr + "\" uses " + (bad.hitEnd() ? "" : bad.group())
                         + ", which the CSP build can't evaluate");
             }
             assertTrue(count > 10, name + " should carry Alpine bindings: " + count);
+            var ext = externalRef.matcher(shell);
+            while (ext.find()) {
+                assertTrue(name.equals("karate-timeline.html") && ext.group(2).equals("unpkg.com"), name + " loads off-origin: " + ext.group());
+            }
         }
         // the checks above must actually bite
         assertTrue(inlineAttr.matcher("<a onClick = 'x()'>").find());
         assertTrue(inlineAttr.matcher("<div style='a:b'>").find());
         assertTrue(unsupported.matcher("Math.round(1)").find());
         assertTrue(unsupported.matcher("a?.b").find());
+        for (String bad : List.of("a ?? 0", "a = 1; b = 2", "n += 1", "void 0", "isNaN(x)")) {
+            assertTrue(unsupported.matcher(bad).find(), bad);
+        }
+        assertTrue(inOperator.matcher("'k' in obj").find());
+        assertFalse(inOperator.matcher("item.index + f.inProgress").find());
+        assertTrue(externalRef.matcher("<script src=\"https://cdn.example.com/x.js\">").find());
+        assertFalse(externalRef.matcher("<script src=\"res/x.js\">").find());
         assertFalse(unsupported.matcher("data.summary.newCount + f.typeofThing").find());
 
         // markup built client-side as HTML strings: delegated actions, no inline handlers or styles

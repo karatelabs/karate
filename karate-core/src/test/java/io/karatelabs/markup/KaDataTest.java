@@ -52,6 +52,93 @@ class KaDataTest {
         assertTrue(result.contains("x-bind:value=\"JSON.stringify(form)\""));
     }
 
+    // =============================================================================
+    // Strict CSP: the page runs the CSP build of Alpine (MarkupConfig.alpineCsp)
+    // =============================================================================
+
+    private Markup cspMarkup() {
+        Engine engine = new Engine();
+        MarkupConfig config = new MarkupConfig();
+        config.setResolver(new RootResourceResolver("classpath:templates"));
+        config.setEngineSupplier(() -> engine);
+        config.setAlpineCsp(true);
+        return Markup.init(config, new HxDialect(config));
+    }
+
+    @Test
+    void testCspModeMirrorsThroughJsonMagic() {
+        // JSON is a global, out of the CSP build's scope: the mirror binds the $json magic
+        Markup csp = cspMarkup();
+        String form = csp.processString("<form ka:data=\"form:data\"><input x-model=\"form.name\"/></form>",
+                Map.of("data", Map.of("name", "John")));
+        assertTrue(form.contains("x-bind:value=\"$json(form)\""), form);
+        assertFalse(form.contains("JSON.stringify"), form);
+        String mirror = csp.processString("<input ka:data-mirror=\"form.contact\"/>", Map.of());
+        assertTrue(mirror.contains(":value=\"$json(form.contact)\""), mirror);
+        // the default (standard build) is unchanged
+        assertTrue(markup.processString("<input ka:data-mirror=\"form\"/>", Map.of()).contains(":value=\"JSON.stringify(form)\""));
+    }
+
+    @Test
+    void testCspModeWritesNumbersAndEscapesItsTokenizerReads() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("big", 1.0E7);
+        data.put("small", 1.5E-5);
+        data.put("plain", 42.5);
+        data.put("text", "a\bb\fc 1.0E7");
+        String json = Json.stringifyStrict(data);
+        assertTrue(json.contains("1.0E7"), json);   // what json-smart writes, which the CSP tokenizer can't read
+        String safe = KaDataProcessor.cspSafeJson(json);
+        assertTrue(safe.contains("\"big\":10000000"), safe);
+        assertTrue(safe.contains("\"small\":0.000015"), safe);
+        assertTrue(safe.contains("\"plain\":42.5"), safe);
+        // inside a string: only the \b / \f escapes change, the text stays text
+        assertTrue(safe.contains("\"a\\u0008b\\u000cc 1.0E7\""), safe);
+        // the same values (a Java parse types 10000000 as an int, 1.0E7 as a double; one number in JS)
+        Map<String, Object> before = Json.of(json).value();
+        Map<String, Object> after = Json.of(safe).value();
+        for (String k : List.of("big", "small", "plain")) {
+            assertEquals(((Number) before.get(k)).doubleValue(), ((Number) after.get(k)).doubleValue(), k);
+        }
+        assertEquals(before.get("text"), after.get("text"));
+        // nothing to rewrite: the same string back, no copy
+        String clean = "{\"a\":[1,-2.5,\"x\\\"E9\"]}";
+        assertSame(clean, KaDataProcessor.cspSafeJson(clean));
+        String rendered = cspMarkup().processString("<div ka:data=\"v:data\"></div>", Map.of("data", Map.of("n", 2.0E9)));
+        assertTrue(rendered.contains("\"n\":2000000000"), rendered);
+    }
+
+    @Test
+    void testCspModeBoundsNumbersAndDropsNonFinite() {
+        // non-finite values json-smart writes bare: null, as JSON.stringify writes them
+        assertEquals("{\"a\":null,\"b\":[null,null,1]}", KaDataProcessor.cspSafeJson("{\"a\":NaN,\"b\":[Infinity,-Infinity,1]}"));
+        // outside the double range: what JS makes of it, never a huge expansion or an exception
+        assertEquals("[0,null,null,0]", KaDataProcessor.cspSafeJson("[1E-1000000000,1E400,-1E400,1.5E-330]"));
+        assertEquals("[-0.00012,120000]", KaDataProcessor.cspSafeJson("[-1.2E-4,1.2E+5]"));
+        // the same text inside a string is left alone
+        assertEquals("{\"NaN\":\"Infinity 1E400\"}", KaDataProcessor.cspSafeJson("{\"NaN\":\"Infinity 1E400\"}"));
+        Map<String, Object> data = new HashMap<>();
+        data.put("nan", Double.NaN);
+        String rendered = cspMarkup().processString("<div ka:data=\"v:data\"></div>", Map.of("data", data));
+        assertTrue(rendered.contains("\"nan\":null"), rendered);
+    }
+
+    @Test
+    void testCspModeIsOneSettingForEveryProcessor() {
+        // a static Markup with an HxDialect built from a context path still reads the config's mode
+        Engine engine = new Engine();
+        MarkupConfig config = new MarkupConfig();
+        config.setResolver(new RootResourceResolver("classpath:templates"));
+        config.setEngineSupplier(() -> engine);
+        config.setAlpineCsp(true);
+        Markup m = Markup.init(config, new HxDialect("/app"));
+        String html = m.processString("<form ka:data=\"form:data\"><input ka:data-mirror=\"form.x\"/></form>",
+                Map.of("data", Map.of("x", 1.0E7)));
+        assertTrue(html.contains("x-bind:value=\"$json(form)\""), html);
+        assertTrue(html.contains(":value=\"$json(form.x)\""), html);
+        assertTrue(html.contains("\"x\":10000000"), html);
+    }
+
     @Test
     void testFormWithEmptyObject() {
         String html = "<form ka:data=\"form:empty\"><input x-model=\"form.name\"/></form>";

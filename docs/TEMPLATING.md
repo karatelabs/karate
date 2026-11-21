@@ -132,6 +132,31 @@ All other HTMX attributes (`hx-target`, `hx-swap`, `hx-trigger`, `hx-confirm`, `
 On any element: adds `x-data='{ form: {...} }'` (single-quoted for safe JSON). A `'`, `&` or `<` in a value is entity-escaped (`O'Brien` → `O&#39;Brien`) and the browser decodes it back — pass raw data, never pre-escape. The same holds for `ka:vals` and `ka:dispatch`.
 On `<form>`: also adds `<input type="hidden" name="form" x-bind:value="JSON.stringify(form)"/>`. Server reads with `request.paramJson('form')`.
 
+### Strict CSP
+
+The standard Alpine build evaluates expressions through the `Function` constructor, so it needs `script-src 'unsafe-eval'`. For a `contentSecurityPolicy(...)` without it, load the CSP build ([`@alpinejs/csp`](https://alpinejs.dev/advanced/csp)) and set `alpineCsp(true)`:
+
+```java
+ServerConfig config = new ServerConfig()
+    .contentSecurityPolicy("default-src 'self'; script-src 'self'")
+    .alpineCsp(true);
+```
+
+```js
+// pub/app.js, loaded with <script src> BEFORE the deferred Alpine script
+document.addEventListener('alpine:init', () => {
+  Alpine.magic('json', () => v => JSON.stringify(v));   // the ka:data form mirror binds $json(form)
+  Alpine.data('todoList', () => ({ items: [], add() { /* ... */ } }));
+});
+```
+
+With `alpineCsp(true)`, `ka:data` and `ka:data-mirror` bind `$json(form)` (`JSON` is a global, out of the CSP build's scope), and `ka:data` writes numbers and string escapes that build's tokenizer misreads (`1.0E7`, `\b`, `\f`) in a form it reads. Your own markup follows the CSP build's rules:
+
+- Name a component registered with `Alpine.data(...)` in `x-data`; keep logic in its methods, not in attributes.
+- Expressions take property access, calls, `!` `&&` `||` `?:`, comparisons, arithmetic and `=`. There is no `?.`, arrow function, template or regex literal, `typeof`/`new`, multi-statement handler (`a; b`), or global (`window`, `JSON`, `Math`, `console`). A property read on `null`/`undefined` throws, so guard with `a && a.b`.
+- No `x-html` (refused). Render markup in a method that builds DOM, or in a directive.
+- No inline `<script>` or `on*="..."` handler (they need `'unsafe-inline'`). `ka:dispatch` generates one (an `onclick`, or `hx-on:*`), so it does not work there: dispatch from a component method with `$dispatch(...)`. For htmx, set `htmx.config.allowEval = false` and avoid `hx-on:*` and `[...]` trigger filters, which evaluate strings.
+
 ---
 
 ## Server-Sent Events
@@ -206,6 +231,7 @@ HttpServer.start(8080, new RequestHandler(config, resolver));
 | `allowedOrigins(...)` | — | CORS origins |
 | `securityHeadersEnabled(bool)` | `true` | X-Frame-Options, X-Content-Type-Options, etc. |
 | `contentSecurityPolicy(csp)` | `null` | Custom CSP header |
+| `alpineCsp(bool)` | `false` | Pages run Alpine's CSP build: `ka:data` emits only what it evaluates (see [Strict CSP](#strict-csp)) |
 | `hstsEnabled(bool)` | `false` | HSTS header |
 | `errorTemplate404(path)` | — | Custom 404 template |
 | `errorTemplate500(path)` | — | Custom 500 template |

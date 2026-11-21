@@ -71,7 +71,7 @@ class KaDataMirrorProcessor extends AbstractAttributeTagProcessor {
         String expr = attributeValue;
         structureHandler.setAttribute("type", "hidden", AttributeValueQuotes.DOUBLE);
         structureHandler.setAttribute("name", expr, AttributeValueQuotes.DOUBLE);
-        structureHandler.setAttribute(":value", "JSON.stringify(" + expr + ")", AttributeValueQuotes.DOUBLE);
+        structureHandler.setAttribute(":value", KaDataProcessor.mirrorBinding(expr, KaDataProcessor.alpineCsp(ctx)), AttributeValueQuotes.DOUBLE);
     }
 
 }

@@ -70,6 +70,94 @@ class KaDataProcessor extends AbstractElementModelProcessor {
         super(TemplateMode.HTML, dialectPrefix, null, false, DATA, true, 900);
     }
 
+    /** The page runs the CSP build of Alpine: read off the render's own {@link MarkupConfig}. */
+    static boolean alpineCsp(ITemplateContext ctx) {
+        return ctx instanceof MarkupTemplateContext mtc && mtc.isAlpineCsp();
+    }
+
+    /** The form mirror's binding: JSON is a global, out of the CSP build's scope, so it uses the $json magic. */
+    static String mirrorBinding(String expr, boolean alpineCsp) {
+        return (alpineCsp ? "$json(" : "JSON.stringify(") + expr + ")";
+    }
+
+    /**
+     * Rewrites JSON so the CSP build's tokenizer reads it as the standard build reads it as a JS
+     * object literal: a number with an exponent (json-smart writes 1e7 as {@code 1.0E7}) becomes
+     * plain digits, a bare {@code NaN} / {@code Infinity} (json-smart writes those too) becomes
+     * {@code null} as {@code JSON.stringify} would, and the {@code \b} / {@code \f} escapes, which
+     * it decodes as the letters, become {@code \}{@code u} escapes. String contents are otherwise
+     * left alone.
+     */
+    static String cspSafeJson(String json) {
+        StringBuilder sb = null;
+        int n = json.length();
+        int copied = 0;
+        boolean inString = false;
+        for (int i = 0; i < n; i++) {
+            char c = json.charAt(i);
+            String replacement = null;
+            int end = i + 1;
+            if (inString) {
+                if (c == '\\' && i + 1 < n) {
+                    char e = json.charAt(i + 1);
+                    if (e == 'b' || e == 'f') {
+                        replacement = e == 'b' ? "\\u0008" : "\\u000c";
+                    }
+                    end = i + 2;
+                } else if (c == '"') {
+                    inString = false;
+                }
+            } else if (c == '"') {
+                inString = true;
+            } else if (json.startsWith("NaN", i)) {
+                replacement = "null";
+                end = i + 3;
+            } else if (json.startsWith("Infinity", i) || json.startsWith("-Infinity", i)) {
+                replacement = "null";
+                end = i + (c == '-' ? 9 : 8);
+            } else if (c == '-' || (c >= '0' && c <= '9')) {
+                boolean exponent = false;
+                while (end < n) {
+                    char d = json.charAt(end);
+                    if (d == 'e' || d == 'E') {
+                        exponent = true;
+                    } else if (!((d >= '0' && d <= '9') || d == '.' || d == '+' || d == '-')) {
+                        break;
+                    }
+                    end++;
+                }
+                if (exponent) {
+                    replacement = plainNumber(json.substring(i, end));
+                }
+            }
+            if (replacement != null) {
+                if (sb == null) sb = new StringBuilder(n + 16);
+                sb.append(json, copied, i).append(replacement);
+                copied = end;
+            }
+            i = end - 1;
+        }
+        if (sb == null) return json;
+        return sb.append(json, copied, n).toString();
+    }
+
+    /**
+     * An exponent number as the plain digits JS reads the same: out of the double range it is
+     * what JS makes of it ({@code null} for an overflow, as JSON.stringify writes Infinity; 0 for
+     * an underflow), and within it the digits are bounded (a double's exponent is at most 324).
+     */
+    private static String plainNumber(String token) {
+        double d;
+        try {
+            d = Double.parseDouble(token);
+        } catch (NumberFormatException e) {
+            return token;
+        }
+        if (Double.isInfinite(d) || Double.isNaN(d)) return "null";
+        if (d == 0) return "0";
+        return new java.math.BigDecimal(token).toPlainString();
+    }
+
     @Override
     protected void doProcess(ITemplateContext ctx, IModel model, IElementModelStructureHandler sh) {
         if (model.size() == 0) {
@@ -99,6 +187,10 @@ class KaDataProcessor extends AbstractElementModelProcessor {
         MarkupTemplateContext kec = (MarkupTemplateContext) ctx;
         Object initialData = kec.evalLocal(expression);
         String jsonData = initialData != null ? Json.stringifyStrict(initialData) : "{}";
+        boolean alpineCsp = alpineCsp(ctx);
+        if (alpineCsp) {
+            jsonData = cspSafeJson(jsonData);
+        }
 
         IModelFactory modelFactory = ctx.getModelFactory();
 
@@ -128,7 +220,7 @@ class KaDataProcessor extends AbstractElementModelProcessor {
             Map<String, String> hiddenAttrs = new HashMap<>();
             hiddenAttrs.put("type", "hidden");
             hiddenAttrs.put("name", varName);
-            hiddenAttrs.put("x-bind:value", "JSON.stringify(" + varName + ")");
+            hiddenAttrs.put("x-bind:value", mirrorBinding(varName, alpineCsp));
             IStandaloneElementTag hiddenInput = modelFactory.createStandaloneElementTag(
                     "input", hiddenAttrs, null, false, true);
             model.insert(1, hiddenInput);

@@ -76,6 +76,7 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
         markupConfig.setResolver(resolver);
         markupConfig.setDevMode(config.isDevMode());
         markupConfig.setDevTrace(config.isDevTrace());
+        markupConfig.setAlpineCsp(config.isAlpineCsp());
         markupConfig.setEngineSupplier(config.getEngineSupplier());
         this.markup = Markup.init(markupConfig, new HxDialect(markupConfig));
         if (config.isDevMode()) {

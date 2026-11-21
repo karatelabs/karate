@@ -3,9 +3,10 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <link rel="stylesheet" href="res/karate-report.css"/>
     <link rel="icon" href="res/favicon.ico"/>
     <link rel="stylesheet" href="https://unpkg.com/vis-timeline@7/styles/vis-timeline-graph2d.min.css"/>
+    <!-- after vis's stylesheet: the vis overrides in karate-report.css win at equal specificity -->
+    <link rel="stylesheet" href="res/karate-report.css"/>
     <script src="https://unpkg.com/vis-timeline@7/standalone/umd/vis-timeline-graph2d.min.js"></script>
     <!-- See karate-summary.html: theme before paint, components registered on alpine:init,
          CSP build of Alpine. The vis-timeline overrides live in karate-report.css

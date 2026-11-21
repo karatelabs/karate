@@ -37,40 +37,78 @@ const KarateReport = {
 
     // ========== Theme Management ==========
 
+    // The ONE theme rule for every report page, core and ext, and the served console, which
+    // writes the same key: the reader's stored choice, else the OS preference. Applying a theme
+    // never stores it; only a toggle does, so opening a page can't pin the choice for the rest.
     THEME_KEY: 'karate-theme',
 
-    /**
-     * Get current theme from localStorage (default: 'light')
-     */
-    getTheme() {
-        return localStorage.getItem(this.THEME_KEY) || 'light';
+    // localStorage throws where the page has no storage (an artifact served under a CSP
+    // `sandbox`, some file:// setups): the theme then just isn't remembered.
+    _storedTheme() {
+        try { return localStorage.getItem(this.THEME_KEY); } catch (e) { return null; }
     },
 
     /**
-     * Apply theme to document and save to localStorage. Uses data-theme
-     * attribute (matched by Tailwind's darkMode: ['selector', '[data-theme="dark"]']
-     * config; was data-bs-theme in the Bootstrap era).
+     * The theme to show: the stored choice, else the OS preference, else 'light'.
+     */
+    getTheme() {
+        const stored = this._storedTheme();
+        if (stored === 'light' || stored === 'dark') return stored;
+        const mm = typeof window !== 'undefined' && window.matchMedia;
+        return mm && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    },
+
+    /**
+     * Show a theme without storing it. Uses the data-theme attribute (matched by Tailwind's
+     * darkMode: ['selector', '[data-theme="dark"]'] config).
+     */
+    applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+    },
+
+    /**
+     * Show and store a theme: the reader chose it.
      */
     setTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem(this.THEME_KEY, theme);
+        this.applyTheme(theme);
+        try { localStorage.setItem(this.THEME_KEY, theme); } catch (e) { /* not remembered */ }
     },
 
     /**
      * Toggle between light and dark theme
      */
     toggleTheme() {
-        const current = this.getTheme();
-        const next = current === 'light' ? 'dark' : 'light';
+        const current = document.documentElement.getAttribute('data-theme') || this.getTheme();
+        const next = current === 'dark' ? 'light' : 'dark';
         this.setTheme(next);
         return next;
     },
 
     /**
-     * Initialize theme on page load (call early, before content renders)
+     * Apply the theme on load, before paint, and follow a toggle made in another tab (a
+     * report page usually opens beside the console or another report page).
      */
     initTheme() {
-        this.setTheme(this.getTheme());
+        this.applyTheme(this.getTheme());
+        if (this._themeSync || typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+        this._themeSync = true;
+        window.addEventListener('storage', e => {
+            if (e.key === this.THEME_KEY && (e.newValue === 'light' || e.newValue === 'dark')) {
+                this.applyTheme(e.newValue);
+                document.dispatchEvent(new CustomEvent('karate-theme', { detail: e.newValue }));
+            }
+        });
+    },
+
+    /**
+     * Keep an Alpine component's `theme` (the toggle icon) in step with initTheme's sync.
+     * Returns the unsubscribe the component's destroy() calls.
+     */
+    _followTheme(component) {
+        if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return () => {};
+        const listener = e => { component.theme = e.detail; };
+        document.addEventListener('karate-theme', listener);
+        return () => document.removeEventListener('karate-theme', listener);
     },
 
     // ========== State Initialization ==========
@@ -769,6 +807,9 @@ const KarateReport = {
         return {
             data,
             theme: self.getTheme(),
+            // the toggle icon follows a theme change made in another tab (initTheme)
+            init() { this._unfollowTheme = self._followTheme(this); },
+            destroy() { if (this._unfollowTheme) this._unfollowTheme(); },
             // Sidebar filter: 'all' shows every scenario, 'failed' restricts to
             // failures. Skipped count as non-failed (they're not actionable from
             // a sidebar nav perspective).
@@ -846,6 +887,9 @@ const KarateReport = {
             sortField: 'name',
             sortDir: 'asc',
             theme: self.getTheme(),
+            // the toggle icon follows a theme change made in another tab (initTheme)
+            init() { this._unfollowTheme = self._followTheme(this); },
+            destroy() { if (this._unfollowTheme) this._unfollowTheme(); },
 
             toggleTheme()        { this.theme = self.toggleTheme(); },
             statusOf(item)       { return self.statusOf(item); },
@@ -1036,6 +1080,9 @@ const KarateReport = {
         return {
             data,
             theme: self.getTheme(),
+            // the toggle icon follows a theme change made in another tab (initTheme)
+            init() { this._unfollowTheme = self._followTheme(this); },
+            destroy() { if (this._unfollowTheme) this._unfollowTheme(); },
             toggleTheme()  { this.theme = self.toggleTheme(); },
 
             // data.summary, never null: the CSP build's parser has no `?.`.

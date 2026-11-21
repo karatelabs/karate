@@ -428,9 +428,11 @@ window.KarateReport.registerEmbed('image-comparison', (embed, api) => {
     `<script defer>` runs **after** Alpine has started on a core page, so an `alpine:init`
     listener there never fires. Call `Alpine.data(...)` directly, then insert the markup
     carrying the `x-data`; Alpine initializes markup added to the page.
-  - An ext's own page can load either `res/alpine-csp.min.js` (strict-CSP-safe) or
+  - An ext's own page can load either `res/alpine-csp.min.js` (needs no `'unsafe-eval'`) or
     `res/alpine.min.js` (the standard build, which needs `'unsafe-eval'`). Both are written
     into `res/`.
+  - `KarateReport.renderTopNav` injects its stylesheet as a `<style>` element, so a page that
+    calls it needs `style-src 'unsafe-inline'`. Core pages don't call it.
 
 **Source:** `StepResult.java` (`Embed` / `Part` / `toMap`), `res/karate-report.js`
 (`registerEmbed` / `_renderEmbed` / `_embedPartSrc`), `LogContext.embed`.
