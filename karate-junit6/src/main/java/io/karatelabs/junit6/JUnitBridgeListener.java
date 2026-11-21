@@ -89,10 +89,21 @@ public class JUnitBridgeListener implements ResultListener {
      * only once {@code Runner.Builder.parallel(...)} has fully returned — guarantees that
      * when the JUnit {@code @TestFactory} stream completes, all report files are on disk.
      *
-     * @param result the suite result (may be null if execution failed before completing)
+     * @param result the suite result
      */
     public void complete(SuiteResult result) {
         putEvent(new TestEvent.SuiteEnd(result));
+    }
+
+    /**
+     * Signals that the suite threw instead of completing, terminating the stream with a
+     * failure. Without this a run that failed during setup is indistinguishable from one
+     * that found no features: the {@code @TestFactory} would pass with zero tests.
+     *
+     * @param error what {@code Runner.Builder.parallel(...)} threw
+     */
+    public void fail(Throwable error) {
+        putEvent(new TestEvent.SuiteEnd(null, error));
     }
 
     private void putEvent(TestEvent event) {

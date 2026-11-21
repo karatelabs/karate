@@ -97,11 +97,12 @@ public class StreamingTestIterator implements Iterator<DynamicNode> {
 
     @Override
     public boolean hasNext() {
-        if (finished) {
-            return false;
-        }
+        // buffered first: the terminal SuiteEnd can itself yield a node (a suite failure)
         if (bufferedNode != null) {
             return true;
+        }
+        if (finished) {
+            return false;
         }
         try {
             bufferedNode = pollForNextNode();
@@ -176,11 +177,23 @@ public class StreamingTestIterator implements Iterator<DynamicNode> {
                 yield container;
             }
 
-            case TestEvent.SuiteEnd ignored -> {
+            case TestEvent.SuiteEnd(var ignored, Throwable error) -> {
                 finished = true;
-                yield null;
+                yield error == null ? null : createSuiteFailureTest(error);
             }
         };
+    }
+
+    /**
+     * A failing test standing in for a suite that threw instead of completing. Emitted as a
+     * test rather than thrown from the iterator so it counts as an error in every runner's
+     * tally (surefire, gradle, IDEs) with the original stack trace attached.
+     */
+    private DynamicTest createSuiteFailureTest(Throwable error) {
+        String displayName = "Karate suite failed: " + error;
+        return DynamicTest.dynamicTest(displayName, () -> {
+            throw error;
+        });
     }
 
     private DynamicTest createDynamicTest(ScenarioResult result) {

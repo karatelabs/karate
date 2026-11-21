@@ -65,8 +65,15 @@ public sealed interface TestEvent permits
     /**
      * Fired when the suite completes execution.
      * Signals the end of the event stream (poison pill pattern).
+     * {@code error} is non-null when execution threw instead of returning a result —
+     * the stream must then report a failure rather than end as an empty run.
      */
-    record SuiteEnd(SuiteResult result) implements TestEvent {
+    record SuiteEnd(SuiteResult result, Throwable error) implements TestEvent {
+
+        public SuiteEnd(SuiteResult result) {
+            this(result, null);
+        }
+
     }
 
 }

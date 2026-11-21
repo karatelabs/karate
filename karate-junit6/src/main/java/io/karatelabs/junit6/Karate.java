@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Stream;
 
@@ -311,10 +312,18 @@ public class Karate implements Iterable<DynamicNode> {
         // parallel(...) has fully returned — by then every result listener's onSuiteEnd has
         // run, including the report writers that flush their async per-feature writes there.
         // whenComplete fires on both normal and exceptional completion so the consumer is
-        // never left blocking on the queue if execution fails.
+        // never left blocking on the queue if execution fails — and a failure is handed on
+        // as one, so it fails the @TestFactory instead of looking like an empty suite.
         CompletableFuture
                 .supplyAsync(() -> delegate.parallel(threads))
-                .whenComplete((result, error) -> bridge.complete(result));
+                .whenComplete((result, error) -> {
+                    if (error == null) {
+                        bridge.complete(result);
+                    } else {
+                        bridge.fail(error instanceof CompletionException && error.getCause() != null
+                                ? error.getCause() : error);
+                    }
+                });
 
         // Return streaming iterator
         return new StreamingTestIterator(queue, hierarchical, timeoutMinutes).stream();
