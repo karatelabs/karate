@@ -264,6 +264,39 @@ const KarateReport = {
     },
 
     /**
+     * Copy the text of the log block a copy button sits in. The Clipboard API needs a
+     * secure context, which a report opened over plain http is not; there the text is
+     * selected and copied with execCommand instead (and left selected, so a refused copy
+     * is still one Ctrl/Cmd+C away).
+     */
+    copyLog(btn) {
+        const pre = btn.parentElement && btn.parentElement.querySelector('pre');
+        if (!pre) return;
+        const text = pre.textContent;
+        const done = ok => {
+            btn.textContent = ok ? 'copied' : 'select + copy';
+            clearTimeout(btn._kTimer);
+            btn._kTimer = setTimeout(() => { btn.textContent = 'copy'; }, 1500);
+        };
+        const fallback = () => {
+            const sel = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(pre);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            let ok = false;
+            try { ok = document.execCommand('copy'); } catch (e) { /* refused */ }
+            if (ok) sel.removeAllRanges();
+            done(ok);
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => done(true), fallback);
+        } else {
+            fallback();
+        }
+    },
+
+    /**
      * Toggle expand/collapse for a step's detail section. Marker classes
      * (.k-step, .k-step-detail, .k-badge-collapsed, .step-row) are kept
      * as DOM hooks for these queries — they carry no styling.
@@ -501,7 +534,12 @@ const KarateReport = {
                         inner += this._esc(seg.text);
                     }
                 });
-                html += `<div class="mx-3 my-1 p-2 rounded bg-slate-100 dark:bg-slate-800 text-xs"><pre class="m-0 whitespace-pre-wrap">${inner}</pre></div>`;
+                // The copy button takes the text exactly as shown — masked headers stay masked —
+                // so a request / response can be pasted into a ticket as-is.
+                html += `<div class="relative mx-3 my-1 p-2 pr-14 rounded bg-slate-100 dark:bg-slate-800 text-xs">`
+                    + `<button type="button" class="absolute top-1 right-1 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-sans text-xs print:hidden"`
+                    + ` data-k-action="copy-log" title="Copy this log to the clipboard">copy</button>`
+                    + `<pre class="m-0 whitespace-pre-wrap">${inner}</pre></div>`;
             }
 
             if (step.embeds && step.embeds.length) {
@@ -1244,6 +1282,7 @@ KarateReport._onAction = function (e) {
         case 'toggle-step':      this.toggleStep(el); break;
         case 'embed-kind':       this.toggleEmbedKind(el, el.getAttribute('data-embed-kind')); break;
         case 'lightbox':         this.openLightbox(el.src, el.alt); break;
+        case 'copy-log':         this.copyLog(el); break;
         case 'lightbox-close':   el.closest('dialog').close(); break;
         // a click on the backdrop lands on the <dialog> itself; one inside its content doesn't
         case 'lightbox-backdrop': if (e.target === el) el.close(); break;

@@ -30,6 +30,9 @@ import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpResponse;
 import org.slf4j.Logger;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -127,6 +130,12 @@ public class HttpLogger {
                 + ", response: \n" + rawResponse;
     }
 
+    // When the request was sent, in UTC: the same instant wherever the run or the reader is, and
+    // the form server logs use, so a pasted exchange lines up with the backend's trace. Fixed
+    // millis (ISO_INSTANT drops ".000").
+    private static final DateTimeFormatter SENT_AT =
+            DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSX").withZone(ZoneOffset.UTC);
+
     public void logRequest(HttpRequest request) {
         requestCount++;
         // Ask what is actually wanted BEFORE building anything. The report buffer normally
@@ -141,7 +150,8 @@ public class HttpLogger {
         if (capture || trace || debug) {
             LogMask m = activeMask(request.getUrlAndPath());
             StringBuilder full = new StringBuilder();
-            full.append(Console.BOLD).append("request:").append(Console.RESET).append('\n');
+            full.append(Console.BOLD).append("request:").append(Console.RESET).append(' ')
+                    .append(Console.DIM).append(SENT_AT.format(Instant.now())).append(Console.RESET).append('\n');
             full.append(Console.DIM).append(requestCount).append(" > ").append(Console.RESET);
             full.append(Console.CYAN).append(Console.BOLD).append(request.getMethod()).append(Console.RESET);
             full.append(' ').append(request.getUrlAndPath()).append('\n');
@@ -184,8 +194,8 @@ public class HttpLogger {
         if (capture || trace || debug) {
             LogMask m = activeMask(request.getUrlAndPath());
             StringBuilder full = new StringBuilder();
-            full.append(Console.DIM).append("response time in milliseconds: ")
-                    .append(response.getResponseTime()).append(Console.RESET).append('\n');
+            full.append(Console.BOLD).append("response:").append(Console.RESET).append(' ')
+                    .append(Console.DIM).append(response.getResponseTime()).append("ms").append(Console.RESET).append('\n');
             full.append(Console.DIM).append(requestCount).append(" < ").append(Console.RESET);
             full.append(colorStatus(response.getStatus())).append(' ');
             full.append(Console.CYAN).append(request.getMethod()).append(Console.RESET);

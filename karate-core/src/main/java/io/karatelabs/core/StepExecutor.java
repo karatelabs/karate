@@ -2422,12 +2422,11 @@ public class StepExecutor {
             runtime.capturePerfEvent(perfEvent);
         }
 
-        // Log HTTP request/response to context
-        LogContext ctx = LogContext.get();
-        if (response.getRequest() != null) {
-            ctx.log("{} {}", method, response.getRequest().getUrlAndPath());
+        // The client's HttpLogger already wrote the full request/response to the step log; a
+        // request a listener skipped never reached the client, so it is noted here instead
+        if (response.isSkipped() && response.getRequest() != null) {
+            LogContext.get().log("{} {} (skipped by listener)", method, response.getRequest().getUrlAndPath());
         }
-        ctx.log("{} ({} ms)", response.getStatus(), response.getResponseTime());
     }
 
     private void setResponseVariables(HttpResponse response) {
