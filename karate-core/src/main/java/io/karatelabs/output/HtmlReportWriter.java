@@ -75,8 +75,9 @@ import java.util.function.UnaryOperator;
  * │   └── {feature.path}.html   (per-feature reports, dot-based naming)
  * ├── karate-json/karate-events.jsonl  (streamed during execution, opt-in)
  * └── res/
- *     ├── bootstrap.min.css
- *     ├── alpine.min.js
+ *     ├── alpine-csp.min.js       (Alpine CSP build: the core pages run under a strict CSP)
+ *     ├── alpine.min.js           (standard Alpine build, for ext pages that load it)
+ *     ├── karate-report.js
  *     └── karate-report.css
  * </pre>
  */
@@ -90,6 +91,12 @@ public final class HtmlReportWriter {
     private static final String RESOURCE_ROOT = "io/karatelabs/output/";
 
     private static final String[] STATIC_RESOURCES = {
+            // @alpinejs/csp, which evaluates expressions without eval / Function, so the core
+            // pages work where a Content-Security-Policy omits 'unsafe-eval' (e.g. Jenkins
+            // artifact browsing). See the STRICT CSP note in karate-report.js.
+            "alpine-csp.min.js",
+            // The standard build stays for ext pages that load res/alpine.min.js themselves
+            // and use inline expressions the CSP build can't parse.
             "alpine.min.js",
             "prism.min.js",
             "prism-karate.css",

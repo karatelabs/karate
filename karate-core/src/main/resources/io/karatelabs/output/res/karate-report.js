@@ -12,6 +12,16 @@
  *   const cls = passed ? 'bg-green-600' : 'bg-red-600';
  * not:
  *   const cls = `bg-${passed ? 'green' : 'red'}-600`;).
+ *
+ * STRICT CSP: the core pages must keep working under a Content-Security-Policy with
+ * no 'unsafe-eval' and no 'unsafe-inline' (e.g. Jenkins serving archived artifacts), so:
+ * - they run the CSP build of Alpine (res/alpine-csp.min.js). Its expression parser takes
+ *   no `?.`, no arrow functions and no globals, member access on null throws, and x-html
+ *   is refused, so templates name only what the component object provides (see the
+ *   summary/showScenarioError helpers) and steps render through the x-k-steps directive;
+ * - components are registered by name (x-data="karateSummary", see registerAlpine);
+ * - markup built here carries no inline on* handlers (see the data-k-action delegation
+ *   in _onAction) and no style="" attributes (hidden / classes instead).
  */
 
 const KarateReport = {
@@ -201,9 +211,9 @@ const KarateReport = {
 
     /**
      * Open the shared screenshot lightbox <dialog> on the page. The element is
-     * expected to be present in the feature template; embeds render onclick="..."
-     * inside HTML strings (Alpine doesn't process @click inside x-html output),
-     * so we go directly through the DOM here.
+     * expected to be present in the feature template; an image in step HTML opens it
+     * by carrying data-k-action="lightbox" (see _onAction), so we go directly through
+     * the DOM here.
      */
     openLightbox(src, name) {
         const dialog = document.getElementById('img-lightbox');
@@ -225,8 +235,10 @@ const KarateReport = {
         if (!container) return;
         const detail = container.querySelector(':scope > .k-step-detail');
         if (!detail) return;
-        const expanded = detail.style.display !== 'none';
-        detail.style.display = expanded ? 'none' : 'block';
+        // Collapsed is the `hidden` attribute, not an inline style: a style="" attribute in
+        // markup is refused by a strict style-src, which would show every detail expanded.
+        const expanded = !detail.hidden;
+        detail.hidden = expanded;
         // A row click shows EVERYTHING — clear any per-kind filter a badge set, so all embeds show.
         detail.querySelectorAll('.k-embed').forEach(el => { el.style.display = ''; });
         delete detail.dataset.kindFilter;
@@ -245,7 +257,8 @@ const KarateReport = {
      * Expand ONLY the embeds of one kind (the row's kind badge was clicked). Opens the step
      * detail, shows just that kind's embeds (hiding sibling embeds — a row click clears the
      * filter), and outlines the active badge. Clicking the same kind badge again collapses.
-     * `event.stopPropagation()` on the badge keeps this from also firing the row's toggleStep.
+     * The badge click never also fires the row's toggleStep: _onAction acts on the innermost
+     * data-k-action element only.
      */
     toggleEmbedKind(badge, kind) {
         const container = badge.closest('.k-step');
@@ -253,14 +266,14 @@ const KarateReport = {
         const detail = container.querySelector(':scope > .k-step-detail');
         if (!detail) return;
         const rowBadges = container.querySelectorAll(':scope > .step-row .k-embed-badge');
-        const alreadyThisKind = detail.style.display !== 'none' && detail.dataset.kindFilter === kind;
+        const alreadyThisKind = !detail.hidden && detail.dataset.kindFilter === kind;
         if (alreadyThisKind) {
-            detail.style.display = 'none';
+            detail.hidden = true;
             delete detail.dataset.kindFilter;
             rowBadges.forEach(b => { b.style.outline = ''; });
             return;
         }
-        detail.style.display = 'block';
+        detail.hidden = false;
         detail.dataset.kindFilter = kind;
         detail.querySelectorAll('.k-embed').forEach(el => {
             el.style.display = (el.dataset.embedKind === kind) ? '' : 'none';
@@ -333,7 +346,7 @@ const KarateReport = {
         const id = 'ks-' + (this._stepId++);
         const hasDetail = step.hasLogs || step.hasEmbeds || step.hasCallResults;
         const clickable = hasDetail ? 'cursor-pointer' : '';
-        const onclick = hasDetail ? `onclick="KarateReport.toggleStep(this)"` : '';
+        const onclick = hasDetail ? `data-k-action="toggle-step"` : '';
         // Hook steps (before/after) are infrastructure, not user-authored test logic —
         // mute them so the eye skims past to the real steps.
         const statusClass = step.hook
@@ -384,8 +397,7 @@ const KarateReport = {
             this._embedKinds(step.embeds || []).forEach(({ kind, count }) => {
                 const label = count > 1 ? `${this._esc(kind)} ${count}` : this._esc(kind);
                 html += ` <span class="${badgeBase} bg-accent ml-1 k-badge-collapsed k-embed-badge cursor-pointer"`
-                    + ` data-embed-kind="${this._esc(kind)}"`
-                    + ` onclick="event.stopPropagation(); KarateReport.toggleEmbedKind(this, '${this._esc(kind)}')"`
+                    + ` data-embed-kind="${this._esc(kind)}" data-k-action="embed-kind"`
                     + ` title="${count} ${this._esc(kind)} embed${count > 1 ? 's' : ''} — click to expand just these">${label}</span>`;
             });
         }
@@ -402,7 +414,7 @@ const KarateReport = {
         // lives under the scenario that ran it, so the row links there, without expanding this step.
         if (step.cachedFailureOrigin) {
             html += ` <a class="${badgeBase} bg-red-600 ml-1 hover:underline" href="${this._originHref(step.cachedFailureOrigin)}"`
-                + ` onclick="event.stopPropagation()"`
+                + ` data-k-action="follow"`
                 + ` title="cached failure - open the scenario that ran it: ${this._esc(step.cachedFailureOrigin.label)}">trace ${this._esc(step.cachedFailureOrigin.featureFileName + step.cachedFailureOrigin.refId)}</a>`;
         }
 
@@ -436,7 +448,7 @@ const KarateReport = {
 
         // Detail section (hidden by default)
         if (hasDetail) {
-            html += `<div class="k-step-detail" style="display: none;">`;
+            html += `<div class="k-step-detail" hidden>`;
 
             if (step.logSegments && step.logSegments.length) {
                 // One contiguous <pre> so whitespace stays exactly as logged; code
@@ -550,7 +562,7 @@ const KarateReport = {
         const id = ++this._embedSeq;
         this._embeds.push({ id, embed });
         const kind = this._embedKind(embed);
-        return `<div class="k-embed" data-embed-id="${id}" data-embed-kind="${this._esc(kind)}" data-defer style="min-height:2rem"></div>`;
+        return `<div class="k-embed min-h-8" data-embed-id="${id}" data-embed-kind="${this._esc(kind)}" data-defer></div>`;
     },
 
     /**
@@ -596,7 +608,7 @@ const KarateReport = {
         host.innerHTML = renderer ? renderer(rec.embed, this) : this._renderEmbedGeneric(rec.embed);
         host.dataset.rendered = '1';
         host.removeAttribute('data-defer');
-        host.style.minHeight = '';
+        host.classList.remove('min-h-8');
         if (this._deferIO) this._deferIO.unobserve(host);
     },
 
@@ -710,7 +722,7 @@ const KarateReport = {
         if (mime.startsWith('image/')) {
             if (src) {
                 const alt = this._esc(embedName || part.role || 'embedded image');
-                html += `<img src="${src}" alt="${alt}" class="max-w-full h-auto max-h-96 cursor-zoom-in rounded transition-opacity hover:opacity-90" onclick="KarateReport.openLightbox(this.src, this.alt)">`;
+                html += `<img src="${src}" alt="${alt}" class="max-w-full h-auto max-h-96 cursor-zoom-in rounded transition-opacity hover:opacity-90" data-k-action="lightbox">`;
             }
         } else if (mime === 'text/html') {
             if (src) html += `<iframe src="${src}" class="w-full border-0 h-72"></iframe>`;
@@ -793,6 +805,11 @@ const KarateReport = {
             truncate(str, len)         { return self.truncate(str, len); },
             renderSteps(steps)         { return self.renderSteps(steps); },
             statusOf(item)             { return self.statusOf(item); },
+
+            // The scenario's own error block, shown only when no step already shows it.
+            showScenarioError(scenario) {
+                return !!scenario.error && !(scenario.steps || []).some(s => s.error);
+            },
         };
     },
 
@@ -833,6 +850,9 @@ const KarateReport = {
             toggleTheme()        { this.theme = self.toggleTheme(); },
             statusOf(item)       { return self.statusOf(item); },
             statusOfFeature(f)   { return self.statusOfFeature(f); },
+
+            // data.summary, never null: the CSP build's parser has no `?.`.
+            get summary()        { return data.summary || {}; },
 
             // accent colour for an ext KPI tile's value, from its optional `status` field
             summaryCardColor(status) {
@@ -1018,6 +1038,9 @@ const KarateReport = {
             theme: self.getTheme(),
             toggleTheme()  { this.theme = self.toggleTheme(); },
 
+            // data.summary, never null: the CSP build's parser has no `?.`.
+            get summary()  { return data.summary || {}; },
+
             get heroStatus() {
                 const s = data.summary || {};
                 return self.heroStatus({
@@ -1138,6 +1161,54 @@ const KarateReport = {
         document.head.appendChild(style);
     }
 };
+
+/**
+ * Register the page components and the x-k-steps directive with Alpine. The CSP build
+ * resolves x-data only against registered names (x-data="karateSummary"), so this runs
+ * on alpine:init: karate-report.js loads in <head>, ahead of the deferred Alpine.
+ *
+ * x-k-steps="scenario.steps" stands in for x-html="renderSteps(...)", which the CSP build
+ * refuses. Steps are static once loaded, so it renders once from the raw (unproxied)
+ * array: walking a large step tree through the reactive proxy only paid for tracking
+ * that nothing ever triggered.
+ */
+KarateReport.registerAlpine = function (Alpine) {
+    const self = this;
+    Alpine.data('karateSummary', () => self.summaryData());
+    Alpine.data('karateFeature', () => self.featureData());
+    Alpine.data('karateTimeline', () => self.timelineData());
+    Alpine.directive('k-steps', (el, { expression }, { evaluate }) => {
+        el.innerHTML = self.renderSteps(Alpine.raw(evaluate(expression)));
+    });
+};
+
+/**
+ * One delegated click handler for the markup built as HTML strings (step rows, embed
+ * badges, images) and the lightbox, in place of inline onclick="..." attributes, which a
+ * CSP without 'unsafe-inline' refuses. Only the innermost data-k-action element acts, as
+ * the old handlers' stopPropagation() did: a badge or link inside a step row doesn't
+ * also toggle the row. An ext's embed markup can use the same actions
+ * (data-k-action="lightbox" on an <img>).
+ */
+KarateReport._onAction = function (e) {
+    const el = e.target && e.target.closest ? e.target.closest('[data-k-action]') : null;
+    if (!el) return;
+    switch (el.getAttribute('data-k-action')) {
+        case 'toggle-step':      this.toggleStep(el); break;
+        case 'embed-kind':       this.toggleEmbedKind(el, el.getAttribute('data-embed-kind')); break;
+        case 'lightbox':         this.openLightbox(el.src, el.alt); break;
+        case 'lightbox-close':   el.closest('dialog').close(); break;
+        // a click on the backdrop lands on the <dialog> itself; one inside its content doesn't
+        case 'lightbox-backdrop': if (e.target === el) el.close(); break;
+        // 'follow': a link inside a step row; the browser follows it and the row stays put
+    }
+};
+
+// Wired only in a browser: the report tests evaluate this file with stub globals.
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('alpine:init', () => KarateReport.registerAlpine(window.Alpine));
+    document.addEventListener('click', e => KarateReport._onAction(e));
+}
 
 // Initialize theme immediately (before Alpine loads)
 // Expose on window so ext scripts can register embed renderers via

@@ -1,5 +1,5 @@
 <!-- Karate report inline SVG sprite (Heroicons v2, MIT). Spliced into the KARATE_ICONS placeholder by HtmlReportWriter. -->
-<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+<svg xmlns="http://www.w3.org/2000/svg" class="hidden" width="0" height="0" aria-hidden="true">
 
     <!-- Status: passed -->
     <symbol id="icon-check-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">

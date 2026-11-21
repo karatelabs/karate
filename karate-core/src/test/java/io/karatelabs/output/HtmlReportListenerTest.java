@@ -163,7 +163,7 @@ class HtmlReportListenerTest {
 
         // Verify the HTML contains inlined JSON data
         assertTrue(summaryHtml.contains("<script id=\"karate-data\" type=\"application/json\">"));
-        assertTrue(summaryHtml.contains("x-data=\"KarateReport.summaryData()\""));
+        assertTrue(summaryHtml.contains("x-data=\"karateSummary\""));
 
         // Verify summary contains feature info
         assertTrue(summaryHtml.contains("Summary Content Test"));
@@ -198,7 +198,7 @@ class HtmlReportListenerTest {
 
         // Verify the HTML contains inlined JSON with step data
         assertTrue(featureHtml.contains("<script id=\"karate-data\" type=\"application/json\">"));
-        assertTrue(featureHtml.contains("x-data=\"KarateReport.featureData()\""));
+        assertTrue(featureHtml.contains("x-data=\"karateFeature\""));
         assertTrue(featureHtml.contains("steps"));
     }
 

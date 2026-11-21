@@ -10,12 +10,14 @@
          blocks lazily on-view (KarateReport._observeCode) rather than Prism's auto-run,
          so collapsed/off-screen HTTP bodies aren't tokenized until actually shown. -->
     <script src="../res/prism.min.js" data-manual></script>
-    <script src="../res/alpine.min.js" defer></script>
-    <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('karate-theme') || 'light');</script>
+    <!-- See karate-summary.html: theme before paint, components registered on alpine:init,
+         CSP build of Alpine. -->
+    <script src="../res/karate-report.js"></script>
+    <script src="../res/alpine-csp.min.js" defer></script>
     <!-- KARATE_EXTS -->
     <title>Karate Feature</title>
 </head>
-<body class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans antialiased" x-data="KarateReport.featureData()">
+<body class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans antialiased" x-data="karateFeature">
     <!-- KARATE_ICONS -->
     <nav class="fixed top-0 inset-x-0 z-30 flex items-center justify-between px-4 py-2 bg-slate-100 dark:bg-brand-navbar text-slate-900 dark:text-white border-b border-slate-200 dark:border-transparent h-14">
         <a class="flex items-center gap-2 font-medium min-w-0" href="../karate-summary.html">
@@ -125,8 +127,8 @@
                               x-text="statusOf(scenario).label"></span>
                     </span>
                 </div>
-                <div x-html="renderSteps(scenario.steps)"></div>
-                <template x-if="scenario.error && !scenario.steps?.some(s => s.error)">
+                <div x-k-steps="scenario.steps"></div>
+                <template x-if="showScenarioError(scenario)">
                     <div class="bg-red-50 dark:bg-red-950/40 border-t border-red-200 dark:border-red-900 px-3 py-2">
                         <pre class="m-0 text-xs text-red-700 dark:text-red-300 whitespace-pre-wrap" x-text="scenario.error"></pre>
                     </div>
@@ -136,15 +138,15 @@
     </main>
 
     <!-- Shared screenshot lightbox. Click any image embed to open. Backdrop click
-         closes (the onclick guard checks event.target === dialog so clicks inside
-         the dialog content don't dismiss). KarateReport.openLightbox(src, name)
-         populates and shows it. -->
+         closes (only a click landing on the <dialog> itself, so clicks inside the
+         dialog content don't dismiss); handled by KarateReport._onAction, not inline
+         handlers. KarateReport.openLightbox(src, name) populates and shows it. -->
     <dialog id="img-lightbox"
             class="rounded-lg p-0 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 backdrop:bg-black/70 max-w-[90vw] max-h-[90vh]"
-            onclick="if(event.target===this) this.close()">
+            data-k-action="lightbox-backdrop">
         <div class="relative">
             <button class="absolute top-2 right-2 inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow"
-                    onclick="this.closest('dialog').close()"
+                    data-k-action="lightbox-close"
                     aria-label="Close">
                 <span class="text-lg leading-none">&times;</span>
             </button>
@@ -161,7 +163,6 @@
         <a href="https://docs.karatelabs.io/" target="_blank" rel="noopener" class="hover:text-accent">Documentation</a>
     </footer>
 
-    <script src="../res/karate-report.js"></script>
     <script id="karate-data" type="application/json">/* KARATE_DATA */</script>
 </body>
 </html>

@@ -14,3 +14,34 @@
 
 /* Alpine.js: hide [x-cloak] elements until Alpine initialises. */
 [x-cloak] { display: none !important; }
+
+/* Timeline page: vis-timeline overrides. Kept here, not in an inline <style> on the
+   page, so the report runs under a CSP without style-src 'unsafe-inline'. */
+#timeline {
+    width: 100%;
+    /* Cap so the Slowest scenarios panel below stays visible without
+       scrolling past a full-viewport gantt. vis-timeline auto-scrolls
+       internally when content exceeds the height. */
+    max-height: 60vh;
+    min-height: 320px;
+}
+.vis-item.failed { background-color: #dc2626 !important; border-color: #b91c1c !important; color: white !important; }
+.vis-item.passed { background-color: #16a34a !important; border-color: #15803d !important; color: white !important; }
+.vis-label { font-size: 0.9rem; }
+.vis-item-content { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Light mode — soften vis-timeline's default greys to match the D20 surface palette. */
+.vis-timeline { border-color: #e2e8f0; }
+.vis-labelset .vis-label { background-color: #f8fafc; color: #0f172a; border-color: #e2e8f0; }
+.vis-time-axis .vis-text { color: #475569; }
+.vis-time-axis .vis-grid.vis-minor { border-color: #e2e8f0; }
+.vis-time-axis .vis-grid.vis-major { border-color: #cbd5e1; }
+/* Dark mode for vis-timeline (we set data-theme on <html>) */
+[data-theme="dark"] .vis-timeline { border-color: #475569; }
+[data-theme="dark"] .vis-panel.vis-background,
+[data-theme="dark"] .vis-panel.vis-center { background-color: #1e293b; }
+[data-theme="dark"] .vis-labelset .vis-label {
+    background-color: #334155; color: #f1f5f9; border-color: #475569;
+}
+[data-theme="dark"] .vis-time-axis .vis-text { color: #cbd5e1; }
+[data-theme="dark"] .vis-time-axis .vis-grid.vis-minor { border-color: #475569; }
+[data-theme="dark"] .vis-time-axis .vis-grid.vis-major { border-color: #64748b; }

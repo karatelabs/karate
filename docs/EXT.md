@@ -414,6 +414,23 @@ window.KarateReport.registerEmbed('image-comparison', (embed, api) => {
   sub-content further (e.g. build a `<dialog>`’s full-res images only on open).
 - `KarateReport` is exposed on `window` precisely so a separate ext script can reach it (a
   top-level `const` is a global lexical binding, not a `window` property).
+- **Strict CSP.** The core pages run under a Content-Security-Policy without
+  `'unsafe-eval'` or `'unsafe-inline'` (see DESIGN.md § Reports). For an ext's markup and
+  scripts on those pages to keep that working:
+  - Renderer markup uses no inline `on*="…"` handler and no `style="…"` attribute (set
+    styles from JS through `el.style`, or use classes). A click goes through core's delegated
+    listener. `data-k-action="lightbox"` on an `<img>` opens the shared lightbox, which is
+    what the generic image render does. For anything else, bind listeners from the ext's own
+    script.
+  - The core pages run the Alpine **CSP build**. Its expressions must parse with that build.
+    That means no `?.`, arrow functions, template or regex literals, globals (`window`,
+    `JSON`, `Math`, …) or multi-statement handlers, and no `x-html`. An ext's
+    `<script defer>` runs **after** Alpine has started on a core page, so an `alpine:init`
+    listener there never fires. Call `Alpine.data(...)` directly, then insert the markup
+    carrying the `x-data`; Alpine initializes markup added to the page.
+  - An ext's own page can load either `res/alpine-csp.min.js` (strict-CSP-safe) or
+    `res/alpine.min.js` (the standard build, which needs `'unsafe-eval'`). Both are written
+    into `res/`.
 
 **Source:** `StepResult.java` (`Embed` / `Part` / `toMap`), `res/karate-report.js`
 (`registerEmbed` / `_renderEmbed` / `_embedPartSrc`), `LogContext.embed`.

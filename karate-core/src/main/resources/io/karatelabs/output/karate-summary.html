@@ -5,13 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <link rel="stylesheet" href="res/karate-report.css"/>
     <link rel="icon" href="res/favicon.ico"/>
-    <script src="res/alpine.min.js" defer></script>
-    <!-- FOUC fix: set theme before paint, ahead of Alpine + karate-report.js. -->
-    <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('karate-theme') || 'light');</script>
+    <!-- Loaded in <head>, not deferred: it sets the theme before paint (FOUC fix) and
+         registers the Alpine components on alpine:init. No inline script and the CSP
+         build of Alpine, so the page runs under a strict CSP (see karate-report.js). -->
+    <script src="res/karate-report.js"></script>
+    <script src="res/alpine-csp.min.js" defer></script>
     <!-- KARATE_EXTS -->
     <title>Karate Summary</title>
 </head>
-<body class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans antialiased" x-data="KarateReport.summaryData()">
+<body class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans antialiased" x-data="karateSummary">
     <!-- KARATE_ICONS -->
     <nav class="flex items-center justify-between px-4 py-2 bg-slate-100 dark:bg-brand-navbar text-slate-900 dark:text-white border-b border-slate-200 dark:border-transparent">
         <a class="flex items-center gap-2 font-medium" href="karate-summary.html">
@@ -54,13 +56,13 @@
                     <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="14" class="text-slate-200 dark:text-slate-700"/>
                     <circle x-show="donutPass" cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="14"
                             pathLength="100" stroke-linecap="butt" class="text-green-600"
-                            :stroke-dasharray="donutPass?.dash" :stroke-dashoffset="donutPass?.offset"/>
+                            :stroke-dasharray="donutPass ? donutPass.dash : null" :stroke-dashoffset="donutPass ? donutPass.offset : null"/>
                     <circle x-show="donutSkip" cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="14"
                             pathLength="100" stroke-linecap="butt" class="text-amber-500"
-                            :stroke-dasharray="donutSkip?.dash" :stroke-dashoffset="donutSkip?.offset"/>
+                            :stroke-dasharray="donutSkip ? donutSkip.dash : null" :stroke-dashoffset="donutSkip ? donutSkip.offset : null"/>
                     <circle x-show="donutFail" cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="14"
                             pathLength="100" stroke-linecap="butt" class="text-red-600"
-                            :stroke-dasharray="donutFail?.dash" :stroke-dashoffset="donutFail?.offset"/>
+                            :stroke-dasharray="donutFail ? donutFail.dash : null" :stroke-dashoffset="donutFail ? donutFail.offset : null"/>
                 </svg>
                 <div class="absolute inset-0 flex flex-col items-center justify-center">
                     <div class="text-2xl font-bold tabular-nums"><span x-text="donutPct"></span><span class="text-sm font-medium opacity-60">%</span></div>
@@ -73,25 +75,25 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
             <div class="rounded-lg p-4 bg-accent text-white">
                 <div class="text-sm opacity-90">Features</div>
-                <div class="text-3xl font-bold mt-1" x-text="data.summary?.feature_count || 0">0</div>
+                <div class="text-3xl font-bold mt-1" x-text="summary.feature_count || 0">0</div>
             </div>
             <div class="rounded-lg p-4 bg-green-600 text-white">
                 <div class="text-sm opacity-90">Scenarios Passed</div>
-                <div class="text-3xl font-bold mt-1" x-text="data.summary?.scenario_passed || 0">0</div>
+                <div class="text-3xl font-bold mt-1" x-text="summary.scenario_passed || 0">0</div>
             </div>
             <div class="rounded-lg p-4 bg-red-600 text-white">
                 <div class="text-sm opacity-90">Scenarios Failed</div>
-                <div class="text-3xl font-bold mt-1" x-text="data.summary?.scenario_failed || 0">0</div>
+                <div class="text-3xl font-bold mt-1" x-text="summary.scenario_failed || 0">0</div>
             </div>
             <!-- Always shown so the 5-col KPI grid never leaves a trailing gap; greyed out when there
                  are no skipped scenarios (0), amber when some were skipped. -->
-            <div class="rounded-lg p-4 text-white" :class="(data.summary?.scenario_skipped > 0) ? 'bg-amber-500' : 'bg-slate-500 dark:bg-slate-700 opacity-60'">
+            <div class="rounded-lg p-4 text-white" :class="summary.scenario_skipped > 0 ? 'bg-amber-500' : 'bg-slate-500 dark:bg-slate-700 opacity-60'">
                 <div class="text-sm opacity-90">Scenarios Skipped</div>
-                <div class="text-3xl font-bold mt-1" x-text="data.summary?.scenario_skipped || 0">0</div>
+                <div class="text-3xl font-bold mt-1" x-text="summary.scenario_skipped || 0">0</div>
             </div>
             <div class="rounded-lg p-4 bg-brand-700 text-white">
                 <div class="text-sm opacity-90">Duration</div>
-                <div class="text-3xl font-bold mt-1"><span x-text="data.summary?.duration_millis || 0">0</span><span class="text-base font-medium ml-1">ms</span></div>
+                <div class="text-3xl font-bold mt-1"><span x-text="summary.duration_millis || 0">0</span><span class="text-base font-medium ml-1">ms</span></div>
             </div>
         </div>
 
@@ -199,9 +201,9 @@
                             :class="{ 'bg-amber-100 dark:bg-amber-900/40': selectedTags.length > 0 && highlightMode && featureMatchesTags(f) }">
                             <td class="px-3 py-2">
                                 <div class="flex items-start gap-1.5">
-                                    <button x-show="f.scenarios?.length > 0"
+                                    <button x-show="f.scenarios && f.scenarios.length > 0"
                                             class="inline-flex items-center justify-center w-5 h-5 mt-0.5 rounded text-slate-400 hover:text-accent hover:bg-slate-100 dark:hover:bg-slate-700 shrink-0"
-                                            :title="f.expanded ? 'Collapse scenarios' : 'Expand to see ' + (f.scenarios?.length || 0) + ' scenarios'"
+                                            :title="f.expanded ? 'Collapse scenarios' : 'Expand to see ' + (f.scenarios ? f.scenarios.length : 0) + ' scenarios'"
                                             @click="f.expanded = !f.expanded">
                                         <svg class="w-4 h-4"><use :href="f.expanded ? '#icon-chevron-down' : '#icon-chevron-right'"/></svg>
                                     </button>
@@ -285,7 +287,6 @@
         <a href="https://docs.karatelabs.io/" target="_blank" rel="noopener" class="hover:text-accent">Documentation</a>
     </footer>
 
-    <script src="res/karate-report.js"></script>
     <script id="karate-data" type="application/json">/* KARATE_DATA */</script>
 </body>
 </html>

@@ -41,8 +41,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -707,7 +709,7 @@ class HtmlReportWriterTest {
         String summaryHtml = Files.readString(reportDir.resolve("karate-summary.html"));
         assertTrue(summaryHtml.contains("<script id=\"karate-data\" type=\"application/json\">"));
         assertTrue(summaryHtml.contains("\"feature_count\""));
-        assertTrue(summaryHtml.contains("x-data=\"KarateReport.summaryData()\""));
+        assertTrue(summaryHtml.contains("x-data=\"karateSummary\""));
 
         // Verify feature page also has inlined JSON
         Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
@@ -718,7 +720,101 @@ class HtmlReportWriterTest {
 
         String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
         assertTrue(featureHtml.contains("<script id=\"karate-data\" type=\"application/json\">"));
-        assertTrue(featureHtml.contains("x-data=\"KarateReport.featureData()\""));
+        assertTrue(featureHtml.contains("x-data=\"karateFeature\""));
+    }
+
+    /**
+     * The core pages must run under a Content-Security-Policy without 'unsafe-eval' or
+     * 'unsafe-inline' (Jenkins serves archived artifacts under one). So: no inline script,
+     * handler or style, the CSP build of Alpine, and only expressions its parser accepts.
+     */
+    @Test
+    void testReportPagesAreStrictCspSafe(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("csp.feature");
+        Files.writeString(feature, """
+            Feature: CSP
+
+            Scenario: embeds and logs
+            * karate.embed('<p>hi</p>', 'text/html')
+            * print 'hello'
+            * match 1 == 2
+            """);
+        Path reportDir = tempDir.resolve("reports");
+        Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        Pattern alpineAttr = Pattern.compile("\\s(x-[\\w:.-]+|:[\\w.-]+|@[\\w.-]+)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')");
+        Pattern scriptTag = Pattern.compile("(?i)<script\\b[^>]*>");
+        Pattern inlineAttr = Pattern.compile("(?i)\\s(on[a-z]+|style)\\s*=");
+        // a smoke check, not a parser: syntax the CSP build rejects, and globals, which it
+        // can't see (identifiers resolve from the component only)
+        Pattern unsupported = Pattern.compile("\\?\\.|=>|`|(?<![\\w$.])(Math|JSON|window|document|console|Object|Array"
+                + "|String|Number|Boolean|Date|parseInt|parseFloat|localStorage|location|KarateReport"
+                + "|typeof|instanceof|new|function)(?![\\w$])");
+        Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
+        List<Path> pages = new ArrayList<>(List.of(reportDir.resolve("karate-summary.html"), reportDir.resolve("karate-timeline.html")));
+        try (var list = Files.list(featuresDir)) {
+            list.forEach(pages::add);
+        }
+        for (Path page : pages) {
+            String html = Files.readString(page);
+            String name = page.getFileName().toString();
+            // the whole page minus the inlined report data (inert JSON, never markup) and comments
+            String open = "<script id=\"karate-data\" type=\"application/json\">";
+            int dataAt = html.indexOf(open);
+            assertTrue(dataAt > 0, name);
+            String shell = (html.substring(0, dataAt) + html.substring(html.indexOf("</script>", dataAt) + "</script>".length()))
+                    .replaceAll("(?s)<!--.*?-->", "");
+            var scripts = scriptTag.matcher(shell);
+            while (scripts.find()) {
+                assertTrue(scripts.group().contains(" src="), name + " has an inline script: " + scripts.group());
+            }
+            assertTrue(shell.contains("res/alpine-csp.min.js\" defer"), name);
+            assertFalse(shell.contains("res/alpine.min.js"), name);
+            assertFalse(shell.toLowerCase().contains("<style"), name);
+            var inline = inlineAttr.matcher(shell);
+            assertFalse(inline.find(), name + " has an inline handler or style attribute: " + (inline.hitEnd() ? "" : inline.group()));
+            var attrs = alpineAttr.matcher(shell);
+            int count = 0;
+            while (attrs.find()) {
+                count++;
+                String attr = attrs.group(1);
+                String expr = attrs.group(2) != null ? attrs.group(2) : attrs.group(3);
+                assertNotEquals("x-html", attr, name + ": the CSP build refuses x-html");
+                // string literals are text, not code: 'Show new results' isn't a `new`
+                var bad = unsupported.matcher(expr.replaceAll("'(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\"", "''"));
+                assertFalse(bad.find(), name + ": " + attr + "=\"" + expr + "\" uses " + (bad.hitEnd() ? "" : bad.group())
+                        + ", which the CSP build can't evaluate");
+            }
+            assertTrue(count > 10, name + " should carry Alpine bindings: " + count);
+        }
+        // the checks above must actually bite
+        assertTrue(inlineAttr.matcher("<a onClick = 'x()'>").find());
+        assertTrue(inlineAttr.matcher("<div style='a:b'>").find());
+        assertTrue(unsupported.matcher("Math.round(1)").find());
+        assertTrue(unsupported.matcher("a?.b").find());
+        assertFalse(unsupported.matcher("data.summary.newCount + f.typeofThing").find());
+
+        // markup built client-side as HTML strings: delegated actions, no inline handlers or styles
+        Engine engine = summaryPageEngine("{}");
+        String rendered = (String) engine.eval("""
+                KarateReport.renderSteps([{ line: 1, prefix: '*', keyword: 'print', text: 'x', status: 'failed', error: 'boom',
+                    durationMillis: 1, hasLogs: true, hasEmbeds: true, logSegments: [{ text: 'log' }],
+                    embeds: [{ name: 'shot', parts: [{ role: 'primary', mime: 'image/png', file: 'a.png' }] }],
+                    cachedFailureOrigin: { featureHtmlName: 'f', refId: '[1]', label: 'f', featureFileName: 'f' } }])
+                    + KarateReport._renderEmbedGeneric({ name: 'shot', parts: [{ role: 'primary', mime: 'image/png', file: 'a.png' }] })
+                """);
+        assertFalse(rendered.contains("onclick"), rendered);
+        assertFalse(rendered.contains("style="), rendered);
+        assertTrue(rendered.contains("data-k-action=\"toggle-step\""), rendered);
+        assertTrue(rendered.contains("data-k-action=\"embed-kind\""), rendered);
+        assertTrue(rendered.contains("data-k-action=\"follow\""), rendered);
+        assertTrue(rendered.contains("data-k-action=\"lightbox\""), rendered);
+        assertTrue(rendered.contains("<div class=\"k-step-detail\" hidden>"), rendered);
     }
 
     @Test
@@ -829,7 +925,7 @@ class HtmlReportWriterTest {
         assertTrue(featureHtml.contains("\"file\":\"001_level-zero.txt\""));
         assertTrue(featureHtml.contains("\"file\":\"002_level-one.txt\""));
         assertTrue(featureHtml.contains("\"file\":\"003_level-two.txt\""));
-        assertTrue(featureHtml.contains("x-data=\"KarateReport.featureData()\""));
+        assertTrue(featureHtml.contains("x-data=\"karateFeature\""));
     }
 
     @Test
@@ -888,7 +984,7 @@ class HtmlReportWriterTest {
         String rendered = (String) engine.eval("KarateReport.renderSteps(nestedSteps)");
         assertTrue(rendered.contains("<pre class=\"m-0 whitespace-pre-wrap\">function(value) {\n  return value * 2;\n}</pre>"), rendered);
         assertTrue(rendered.contains(">'Bob'</td>"), rendered);
-        assertFalse(rendered.contains("onclick=\"KarateReport.toggleStep(this)\""), rendered);
+        assertFalse(rendered.contains("data-k-action=\"toggle-step\""), rendered);
     }
 
     @Test
@@ -2198,8 +2294,8 @@ class HtmlReportWriterTest {
     // the `text` and `code` values WITHIN each logSegments array (scoped so the step's own
     // `text` source field isn't picked up), keeping the JSON-string escaping intact
     // (newlines as {@code \n}, quotes as {@code \"}) so tests match what's in the buffer.
-    private static final java.util.regex.Pattern SEGMENT_VALUE =
-            java.util.regex.Pattern.compile("\"(?:text|code)\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+    private static final Pattern SEGMENT_VALUE =
+            Pattern.compile("\"(?:text|code)\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
 
     /** The character span of the first {@code "logSegments": [ ... ]} array, or null if none. */
     private static String firstLogSegmentsBlock(String html, int from) {
