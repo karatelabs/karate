@@ -141,4 +141,16 @@ class CdpKeysTest {
         assertEquals(65, events.get(2).get("windowsVirtualKeyCode"));
     }
 
+    @Test
+    void aCharacterOutsideTheBmpIsOneKeyWithItsWholeText() {
+        keys.type("a🙂b");
+        assertEquals(List.of("a", "🙂", "b"), sent.stream().filter(m -> m.getMethod().equals("Input.insertText"))
+                .map(m -> m.getParams().get("text")).toList(), sent.toString());
+        assertEquals(List.of("a", "a", "🙂", "🙂", "b", "b"), keyEvents().stream().map(e -> e.get("key")).toList());
+        sent.clear();
+        keys.press("🙂");
+        assertEquals(List.of("🙂"), sent.stream().filter(m -> m.getMethod().equals("Input.insertText"))
+                .map(m -> m.getParams().get("text")).toList(), sent.toString());
+    }
+
 }

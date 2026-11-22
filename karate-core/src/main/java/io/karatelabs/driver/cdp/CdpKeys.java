@@ -54,17 +54,17 @@ public class CdpKeys implements Keys {
 
     @Override
     public Keys type(String text) {
-        for (char c : text.toCharArray()) {
-            String s = String.valueOf(c);
+        text.codePoints().forEach(cp -> {
+            String s = Character.toString(cp);
             if (isSpecialKey(s)) {
                 KeyInfo info = keyInfo(s);
                 if (info != null) {
                     pressKeyInfo(info);
                 }
             } else {
-                typeChar(c);
+                typeChar(s);
             }
-        }
+        });
         return this;
     }
 
@@ -82,9 +82,7 @@ public class CdpKeys implements Keys {
         if (info != null) {
             pressKeyInfo(info);
         } else if (!isSpecialKey(key)) {
-            for (char c : key.toCharArray()) {
-                typeChar(c);
-            }
+            key.codePoints().forEach(cp -> typeChar(Character.toString(cp)));
         }
         return this;
     }
@@ -158,7 +156,20 @@ public class CdpKeys implements Keys {
         return combo(new String[]{META}, key);
     }
 
-    private void typeChar(char c) {
+    /** One code point: a character outside the BMP is one key, its surrogate pair inserted whole. */
+    private void typeChar(String ch) {
+        if (ch.length() > 1) {
+            KeyInfo info = new KeyInfo();
+            info.key = ch;
+            info.text = ch;
+            dispatchRawKeyDown(info);
+            if ((modifiers & ~SHIFT_FLAG) == 0) {
+                sender.accept(cdp.method("Input.insertText").param("text", ch));
+            }
+            dispatchKeyUp(info);
+            return;
+        }
+        char c = ch.charAt(0);
         // Apply Shift modifier to character if Shift is held
         boolean shiftHeld = (modifiers & SHIFT_FLAG) != 0;
         char effectiveChar = shiftHeld ? applyShift(c) : c;
