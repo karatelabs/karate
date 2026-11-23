@@ -106,23 +106,18 @@ public class KarateJsUtils {
         };
     }
 
-    @SuppressWarnings("unchecked")
-    static JavaInvokable appendTo() {
-        return args -> {
-            if (args.length < 2) {
-                throw new RuntimeException("appendTo() needs at least two arguments: list and item(s)");
+    /**
+     * Appends the items to the list in place, flattening any item that is itself a list.
+     */
+    static void appendItems(List<Object> list, Object[] args, int from) {
+        for (int i = from; i < args.length; i++) {
+            Object item = args[i];
+            if (item instanceof List) {
+                list.addAll((List<?>) item);
+            } else {
+                list.add(item);
             }
-            List<Object> list = (List<Object>) args[0];
-            for (int i = 1; i < args.length; i++) {
-                Object item = args[i];
-                if (item instanceof List) {
-                    list.addAll((List<?>) item);
-                } else {
-                    list.add(item);
-                }
-            }
-            return list;
-        };
+        }
     }
 
     /**

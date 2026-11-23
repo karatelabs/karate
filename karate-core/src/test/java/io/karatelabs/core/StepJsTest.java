@@ -842,6 +842,33 @@ class StepJsTest {
     }
 
     @Test
+    void testKarateAppendToByVariableName() {
+        ScenarioRuntime sr = run("""
+            * def list = [1, 2]
+            * karate.appendTo('list', 3, 4)
+            * match list == [1, 2, 3, 4]
+            * def result = karate.appendTo('list', [5, 6])
+            * match list == [1, 2, 3, 4, 5, 6]
+            * match result == [1, 2, 3, 4, 5, 6]
+            * def fun = function(x){ karate.appendTo('list', x) }
+            * fun(7)
+            * match list == [1, 2, 3, 4, 5, 6, 7]
+            * karate.appendTo('fresh', 'a', 'b')
+            * match fresh == ['a', 'b']
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateAppendToNonListStartsNewList() {
+        ScenarioRuntime sr = run("""
+            * def result = karate.appendTo(null, 1, [2, 3])
+            * match result == [1, 2, 3]
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testKarateMapRepeatWithArrays() {
         ScenarioRuntime sr = run("""
             * def foo = [1, 2]

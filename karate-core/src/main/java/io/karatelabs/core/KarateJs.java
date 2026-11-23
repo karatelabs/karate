@@ -775,6 +775,33 @@ public class KarateJs extends KarateJsBase implements PerfContext {
         };
     }
 
+    /**
+     * karate.appendTo(list, ...items) appends to the list in place.
+     * karate.appendTo('name', ...items) appends to the variable of that name, so the
+     * change is visible even from a function that has no reference to the list. A name
+     * that is undefined (or not a list) starts a new list, as does a first argument
+     * that is neither a name nor a list.
+     */
+    @SuppressWarnings("unchecked")
+    private JavaInvokable appendTo() {
+        return args -> {
+            if (args.length < 2) {
+                throw new RuntimeException("appendTo() needs at least two arguments: list (or variable name) and item(s)");
+            }
+            if (args[0] instanceof String name) {
+                List<Object> list = engine.get(name) instanceof List<?> existing
+                        ? (List<Object>) existing : new ArrayList<>();
+                KarateJsUtils.appendItems(list, args, 1);
+                engine.put(name, list);
+                return list;
+            }
+            List<Object> list = args[0] instanceof List<?> existing
+                    ? (List<Object>) existing : new ArrayList<>();
+            KarateJsUtils.appendItems(list, args, 1);
+            return list;
+        };
+    }
+
     private JavaInvokable remove() {
         return args -> {
             if (args.length < 2) {
@@ -1340,7 +1367,6 @@ public class KarateJs extends KarateJsBase implements PerfContext {
         return switch (key) {
             // Stateless utility methods (KarateJsApi)
             case "append" -> KarateJsUtils.append();
-            case "appendTo" -> KarateJsUtils.appendTo();
             case "distinct" -> KarateJsUtils.distinct();
             case "extract" -> KarateJsUtils.extract();
             case "extractAll" -> KarateJsUtils.extractAll();
@@ -1392,6 +1418,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             case "faker" -> FAKER;
             case "feature" -> getFeatureData();
             case "fork" -> fork();
+            case "appendTo" -> appendTo();
             case "get" -> get();
             case "http" -> http();
             case "info" -> getInfo();
