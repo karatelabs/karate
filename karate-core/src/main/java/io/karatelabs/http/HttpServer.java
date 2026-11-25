@@ -39,6 +39,7 @@ import io.karatelabs.common.KarateLifecycle;
 import io.karatelabs.common.Stoppable;
 import io.karatelabs.common.ThreadUtils;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -368,6 +369,7 @@ public class HttpServer implements Stoppable {
                             p.addLast(new DecoderFailureHandler());
                             p.addLast(new HttpObjectAggregator(maxContentLength));
                             p.addLast(new CorsHandler(corsConfig));
+                            p.addLast(new ChunkedWriteHandler());
                             p.addLast(new HttpServerHandler(HttpServer.this));
                         }
                     });

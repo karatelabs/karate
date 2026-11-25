@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -47,6 +48,7 @@ public class HttpResponse implements ObjectLike {
     private String statusText;
     private Map<String, List<String>> headers;
     private byte[] body;
+    private InputStream bodyStream;
     private ResourceType resourceType;
     private long startTime;
     private long responseTime;
@@ -242,6 +244,7 @@ public class HttpResponse implements ObjectLike {
      * static factories ({@link #text}, {@link #json}, {@link #html}, ...).
      */
     public void setBody(byte[] body, ResourceType type) {
+        closeBodyStream();
         this.body = body;
         this.resourceType = type;
         invalidateBodyConverted();
@@ -327,6 +330,41 @@ public class HttpResponse implements ObjectLike {
 
     public void setResetConnection(boolean resetConnection) {
         this.resetConnection = resetConnection;
+    }
+
+    /**
+     * A body the server writes as it reads {@code stream}, never holding it whole: under
+     * {@code Content-Length} when {@code length >= 0}, else under a {@code Content-Length} header the
+     * handler already set, else chunked. The server closes the stream when the response is written,
+     * fails or is abandoned; a body set after this one closes it. Server-side only.
+     */
+    public void setBodyStream(InputStream stream, long length) {
+        if (stream != bodyStream) {
+            closeBodyStream();
+        }
+        this.body = null;
+        this.resourceType = null;
+        invalidateBodyConverted();
+        this.bodyStream = stream;
+        if (length >= 0) {
+            setHeader(HttpUtils.Header.CONTENT_LENGTH.key, String.valueOf(length));
+        }
+    }
+
+    public InputStream getBodyStream() {
+        return bodyStream;
+    }
+
+    void closeBodyStream() {
+        InputStream stream = bodyStream;
+        bodyStream = null;
+        if (stream != null) {
+            try {
+                stream.close();
+            } catch (Exception e) {
+                logger.warn("closing a response body stream failed: {}", e.toString());
+            }
+        }
     }
 
     /**
@@ -509,7 +547,8 @@ public class HttpResponse implements ObjectLike {
      * Type-dispatched body assignment for dynamic call sites — mock dispatch
      * and the JS-mock {@code response.body = ...} path. Map/List → JSON,
      * Node → XML, String → TEXT, byte[] → null-type (caller controls
-     * Content-Type for raw bytes — historical behaviour for raw bytes).
+     * Content-Type for raw bytes — historical behaviour for raw bytes),
+     * InputStream → {@link #setBodyStream} of unknown length.
      * Production code that knows the body type should prefer one of the
      * static factories ({@link #json(Object)}, {@link #text(String)}, etc.).
      */
@@ -522,6 +561,8 @@ public class HttpResponse implements ObjectLike {
             r.setBody((byte[]) null, null);
         } else if (value instanceof byte[] bytes) {
             r.setBody(bytes, null);
+        } else if (value instanceof InputStream stream) {
+            r.setBodyStream(stream, -1);
         } else if (value instanceof String s) {
             r.setBody(s, ResourceType.TEXT);
         } else if (value instanceof Node xml) {

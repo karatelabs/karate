@@ -32,9 +32,14 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
+import io.netty.handler.stream.ChunkedStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.EOFException;
+import java.io.FilterInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -116,10 +121,12 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
     }
 
     private void handle(ChannelHandlerContext ctx, HttpRequest request, ChannelFutureListener done) {
+        HttpResponse response = null;
         try {
-            HttpResponse response = server.handler.apply(request);
+            response = server.handler.apply(request);
             int delay = response.getDelay();
             if (response.isResetConnection()) {
+                response.closeBodyStream();
                 // the transport-fault seam (HttpResponse#setResetConnection): drop the connection with a
                 // TCP RST instead of answering — SO_LINGER=0 makes close() send RST rather than FIN, so
                 // the client sees "connection reset", exactly what a dying dependency looks like on the
@@ -135,6 +142,16 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
                 }
                 return;
             }
+            if (response.getBodyStream() != null) {
+                HttpResponse streamed = response;
+                Runnable write = () -> writeStream(ctx, request, streamed, done);
+                if (delay > 0) {
+                    ctx.executor().schedule(write, delay, TimeUnit.MILLISECONDS);
+                } else {
+                    write.run();
+                }
+                return;
+            }
             FullHttpResponse res = toResponse(response);
             if (delay > 0) {
                 // Use Netty's non-blocking scheduler for delay
@@ -143,13 +160,109 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
                 ctx.writeAndFlush(res).addListener(done);
             }
         } catch (Exception e) {
+            if (response != null) {
+                response.closeBodyStream();
+            }
             String message = e.getMessage();
             logger.error("http server error: {}", message);
             ctx.writeAndFlush(error(message)).addListener(done);
         } catch (Throwable e) {
+            if (response != null) {
+                response.closeBodyStream();
+            }
             // off the loop, so exceptionCaught never sees this: the same answer it would give
             logger.error("http server error: {}", e.toString());
             ctx.writeAndFlush(error(e.getMessage())).addListener(done).addListener(ChannelFutureListener.CLOSE);
+        }
+    }
+
+    /**
+     * The headers, then the body read from the response's stream a chunk at a time on the event loop
+     * (ChunkedWriteHandler): framed by its Content-Length when it has one, else chunked. Once the headers
+     * are out the status cannot change, so a read error, or a stream shorter than its length, ends the
+     * response by closing the connection — the missing bytes or terminal chunk tell the client.
+     */
+    private static void writeStream(ChannelHandlerContext ctx, HttpRequest request, HttpResponse response,
+                                    ChannelFutureListener done) {
+        io.netty.handler.codec.http.HttpResponse res = new DefaultHttpResponse(HttpVersion.HTTP_1_1, status(response));
+        long length;
+        try {
+            copyHeaders(response, res);
+            length = HttpUtil.getContentLength(res, -1L);
+        } catch (Exception e) {
+            response.closeBodyStream();
+            logger.error("http server error: {}", e.getMessage());
+            ctx.writeAndFlush(error(e.getMessage())).addListener(done);
+            return;
+        }
+        if (length < 0) {
+            HttpUtil.setTransferEncodingChunked(res, true);
+        }
+        if ("HEAD".equalsIgnoreCase(request.getMethod())) {
+            response.closeBodyStream();
+            ctx.write(res);
+            ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListener(done);
+            return;
+        }
+        BodyStream body = new BodyStream(response.getBodyStream(), length);
+        ctx.write(res);
+        ctx.writeAndFlush(new HttpChunkedInput(new ChunkedStream(body))).addListener((ChannelFutureListener) f -> {
+            body.close();
+            if (!f.isSuccess()) {
+                logger.warn("streamed response to {} ended early: {}", request.getPath(), String.valueOf(f.cause()));
+                // what was written before the failure goes out first: close() alone drops unflushed writes
+                ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+            }
+        }).addListener(done);
+    }
+
+    /** At most {@code length} bytes, and an error if the stream ends first; closes the stream once. */
+    static final class BodyStream extends FilterInputStream {
+
+        private long remaining; // < 0: no declared length
+        private boolean closed;
+
+        BodyStream(InputStream in, long length) {
+            super(in);
+            this.remaining = length;
+        }
+
+        @Override
+        public int read() throws IOException {
+            byte[] one = new byte[1];
+            return read(one, 0, 1) < 0 ? -1 : one[0] & 0xff;
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            if (remaining == 0) {
+                return -1;
+            }
+            int n = super.read(b, off, remaining < 0 ? len : (int) Math.min(len, remaining));
+            if (n < 0) {
+                if (remaining > 0) {
+                    throw new EOFException("the stream ended " + remaining + " bytes short of its Content-Length");
+                }
+                return -1;
+            }
+            if (remaining > 0) {
+                remaining -= n;
+            }
+            return n;
+        }
+
+        @Override
+        public int available() throws IOException {
+            int available = super.available();
+            return remaining < 0 ? available : (int) Math.min(available, remaining);
+        }
+
+        @Override
+        public synchronized void close() throws IOException {
+            if (!closed) {
+                closed = true;
+                super.close();
+            }
         }
     }
 
@@ -200,11 +313,25 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
     }
 
     static FullHttpResponse toResponse(HttpResponse response) {
+        FullHttpResponse res = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status(response));
+        copyHeaders(response, res);
+        byte[] bytes = response.getBodyBytes();
+        if (bytes != null) {
+            ByteBuf content = Unpooled.copiedBuffer(bytes);
+            res.content().writeBytes(content);
+        }
+        res.headers().set(HttpHeaderNames.CONTENT_LENGTH, bytes == null ? 0 : bytes.length);
+        return res;
+    }
+
+    private static HttpResponseStatus status(HttpResponse response) {
         String statusText = response.getStatusText();
-        HttpResponseStatus status = statusText == null
+        return statusText == null
                 ? HttpResponseStatus.valueOf(response.getStatus())
                 : HttpResponseStatus.valueOf(response.getStatus(), statusText);
-        FullHttpResponse res = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
+    }
+
+    private static void copyHeaders(HttpResponse response, io.netty.handler.codec.http.HttpResponse res) {
         Map<String, List<String>> headers = response.getHeaders();
         if (headers != null) {
             headers.forEach((k, list) -> {
@@ -213,13 +340,6 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
                 }
             });
         }
-        byte[] bytes = response.getBodyBytes();
-        if (bytes != null) {
-            ByteBuf content = Unpooled.copiedBuffer(bytes);
-            res.content().writeBytes(content);
-        }
-        res.headers().set(HttpHeaderNames.CONTENT_LENGTH, bytes == null ? 0 : bytes.length);
-        return res;
     }
 
     static FullHttpResponse error(String message) {

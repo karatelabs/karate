@@ -88,6 +88,8 @@ Methods: `param(name)`, `param(name, default)`, `paramInt(name)`, `paramJson(nam
 
 Properties: `status`, `body` (auto-serialized to JSON for Map/List), `headers`.
 
+A Java `InputStream` assigned to `response.body` is streamed to the client, never held whole: under `Content-Length` when the handler set that header, chunked otherwise (Java: `HttpResponse.setBodyStream(stream, length)`, `-1` for unknown). The server closes the stream when the response is written, fails, or the client disconnects. A read error after the headers are sent closes the connection, so the client sees a short body or a missing final chunk rather than a wrong status. HEAD sends the headers and never reads the stream.
+
 ### `session`
 
 `null` until `context.init()`. Read/write arbitrary keys. `delete session.user` to remove.
