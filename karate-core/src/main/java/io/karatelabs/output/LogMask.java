@@ -40,12 +40,12 @@ import java.util.regex.PatternSyntaxException;
  * Declarative HTTP log masking. Applied by {@link HttpLogger} when formatting
  * request / response payloads for the report buffer and the console.
  * <p>
- * {@link #DEFAULT_HEADERS} are masked in the report only, unless {@code defaults: false};
+ * {@link #DEFAULT_HEADERS} are masked in the report and on the console unless {@code defaults: false};
  * {@code configure logging = { mask: false }} turns masking off (no LogMask at all).
  * Constructed from the map shape stored under {@code configure logging = { mask: {...} }}:
  * <pre>
  * mask: {
- *   defaults:    true,                            // also mask DEFAULT_HEADERS in the report
+ *   defaults:    true,                            // also mask DEFAULT_HEADERS
  *   headers:     ['X-Api-Key'],                   // matched case-insensitively, report and console
  *   jsonPaths:   ['$.password', '$.token'],       // simple "$.x.y" / "$..x" paths
  *   patterns:    [{ regex: '\\bBearer ...', replacement: 'Bearer ***' }],
@@ -66,24 +66,21 @@ public class LogMask {
             "Authorization", "Cookie", "Set-Cookie", "Proxy-Authorization");
 
     /** The mask in effect when {@code logging.mask} is unset. */
-    public static final LogMask DEFAULT = new LogMask(Set.of(), withDefaults(Set.of()),
+    public static final LogMask DEFAULT = new LogMask(withDefaults(Set.of()),
             List.of(), List.of(), DEFAULT_REPLACEMENT, null);
 
     private final Set<String> maskedHeadersLower;
-    private final Set<String> reportHeadersLower;
     private final List<String> jsonPaths;
     private final List<PatternRule> patternRules;
     private final String replacement;
     private final JavaCallable enableForUri;
 
     private LogMask(Set<String> maskedHeadersLower,
-                    Set<String> reportHeadersLower,
                     List<String> jsonPaths,
                     List<PatternRule> patternRules,
                     String replacement,
                     JavaCallable enableForUri) {
         this.maskedHeadersLower = maskedHeadersLower;
-        this.reportHeadersLower = reportHeadersLower;
         this.jsonPaths = jsonPaths;
         this.patternRules = patternRules;
         this.replacement = replacement;
@@ -159,21 +156,20 @@ public class LogMask {
                     + "headers / jsonPaths / patterns. mask is OFF.");
             return null;
         }
-        return new LogMask(headers, defaults ? withDefaults(headers) : headers,
+        return new LogMask(defaults ? withDefaults(headers) : headers,
                 jsonPaths, patternRules, replacement, enableForUri);
     }
 
     /**
      * One-line description of mask rule counts, e.g.
-     * {@code "3 headers (+4 in report), 2 jsonPaths, 1 pattern"}. Used by the per-scenario
+     * {@code "5 headers, 2 jsonPaths, 1 pattern"}. Used by the per-scenario
      * "mask active" debug log so users can verify their config compiled.
      */
     public String describe() {
         int h = maskedHeadersLower.size();
-        int r = reportHeadersLower.size() - h;
         int j = jsonPaths.size();
         int p = patternRules.size();
-        return h + (h == 1 ? " header" : " headers") + (r == 0 ? ", " : " (+" + r + " in report), ")
+        return h + (h == 1 ? " header" : " headers") + ", "
                 + j + (j == 1 ? " jsonPath, " : " jsonPaths, ")
                 + p + (p == 1 ? " pattern" : " patterns");
     }
@@ -196,30 +192,17 @@ public class LogMask {
         }
     }
 
-    /** Whether the header's value is masked in the report (and so in anything built from HTTP for one). */
+    /** Whether the header's value is masked, on the console, in the report and in anything built from HTTP for one. */
     public boolean isHeaderMasked(String headerName) {
-        return headerName != null && reportHeadersLower.contains(headerName.toLowerCase());
+        return headerName != null && maskedHeadersLower.contains(headerName.toLowerCase());
     }
 
-    /** A header value as the report, or an embed built from the exchange, should carry it. */
+    /** A header value as the console, the report, or an embed built from the exchange should carry it. */
     public String maskHeader(String name, String value) {
         if (isHeaderMasked(name)) {
             return replacement;
         }
         return applyPatterns(value);
-    }
-
-    /** A header value as the console carries it: the defaults are report-only. */
-    public String maskConsoleHeader(String name, String value) {
-        if (name != null && maskedHeadersLower.contains(name.toLowerCase())) {
-            return replacement;
-        }
-        return applyPatterns(value);
-    }
-
-    /** Whether the console's header lines can differ from the report's. */
-    public boolean hasReportOnlyHeaders() {
-        return reportHeadersLower.size() > maskedHeadersLower.size();
     }
 
     public String maskBody(String body) {

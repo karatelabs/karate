@@ -59,7 +59,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Without any {@code configure logging.mask}, the values of Authorization, Cookie, Set-Cookie and
- * Proxy-Authorization are masked in every report format and left as sent on the console;
+ * Proxy-Authorization are masked in every report format and on the console;
  * {@code mask: false} turns the default off, and a user's mask adds to it unless {@code defaults: false}.
  */
 class DefaultReportMaskTest {
@@ -150,10 +150,11 @@ class DefaultReportMaskTest {
     }
 
     @Test
-    void consoleIsUnmaskedByDefault() {
+    void consoleMasksTheDefaultsByDefault() {
         String console = logExchange(null, Level.DEBUG);
-        assertTrue(console.contains("Authorization: Bearer " + AUTH), console);
-        assertTrue(console.contains("Set-Cookie: session=" + SET_COOKIE), console);
+        assertTrue(console.contains("Authorization: ***"), console);
+        assertTrue(console.contains("Set-Cookie: ***"), console);
+        assertFalse(console.contains(AUTH) || console.contains(SET_COOKIE), console);
         String report = Console.stripAnsi(LogContext.get().peek());
         assertTrue(report.contains("Authorization: ***"), report);
         assertTrue(report.contains("Set-Cookie: ***"), report);
@@ -161,13 +162,21 @@ class DefaultReportMaskTest {
     }
 
     @Test
-    void consoleMasksOnlyTheUsersHeaders() {
+    void consoleMasksTheUsersHeadersAndTheDefaults() {
         String console = logExchange(Map.of("headers", List.of("X-Api-Key")), Level.TRACE);
-        assertTrue(console.contains("Authorization: Bearer " + AUTH), console);
+        assertTrue(console.contains("Authorization: ***"), console);
         assertTrue(console.contains("X-Api-Key: ***"), console);
+        assertFalse(console.contains(AUTH) || console.contains(API_KEY), console);
         assertTrue(console.contains("buy milk"), "TRACE keeps the body after the console's header lines: " + console);
         String report = Console.stripAnsi(LogContext.get().peek());
         assertTrue(report.contains("Authorization: ***") && report.contains("X-Api-Key: ***"), report);
+    }
+
+    @Test
+    void defaultsFalseLeavesTheConsoleRawToo() {
+        String console = logExchange(Map.of("defaults", false, "headers", List.of("X-Api-Key")), Level.TRACE);
+        assertTrue(console.contains("Authorization: Bearer " + AUTH), console);
+        assertTrue(console.contains("X-Api-Key: ***"), console);
     }
 
     private List<String> runAndReadReports(String configureStep) throws Exception {

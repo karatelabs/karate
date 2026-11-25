@@ -263,9 +263,9 @@ configure logging = {
 
 See [DESIGN.md § Logging](./DESIGN.md#logging) for the full shape and semantics.
 
-### Credential headers are masked in reports by default
+### Credential headers are masked by default
 
-The values of `Authorization`, `Cookie`, `Set-Cookie` and `Proxy-Authorization` are replaced with `***` in the HTML report, the JSONL stream, Cucumber JSON and JUnit XML, with no configuration. The console is unchanged — DEBUG/TRACE still print them as sent. A `mask: { headers: [...] }` you already have adds to these four. To see the raw values in reports again:
+The values of `Authorization`, `Cookie`, `Set-Cookie` and `Proxy-Authorization` are replaced with `***` on the console (DEBUG/TRACE) and in the HTML report, the JSONL stream, Cucumber JSON and JUnit XML, with no configuration. A `mask: { headers: [...] }` you already have adds to these four. To see the raw values again:
 
 ```javascript
 configure logging = { mask: false }                                   // no masking at all

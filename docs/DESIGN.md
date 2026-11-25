@@ -545,8 +545,8 @@ configure logging = {
   report:  'debug',         // threshold for report-buffer capture (default DEBUG)
   console: 'info',          // Logback level override for the built-in karate.* categories; unset = logback.xml governs
   pretty:  true,            // pretty-print HTTP req/res JSON bodies (default true)
-  mask: {                   // HTTP-only redaction; unset = the report-only defaults, false = off
-    defaults:   true,       // also mask Authorization, Cookie, Set-Cookie, Proxy-Authorization in reports
+  mask: {                   // HTTP-only redaction; unset = the defaults, false = off
+    defaults:   true,       // also mask Authorization, Cookie, Set-Cookie, Proxy-Authorization (console and reports)
     headers:    ['X-Api-Key'],
     jsonPaths:  ['$.password', '$..token'],
     patterns:   [{ regex: '\\bBearer [A-Za-z0-9._-]+\\b', replacement: 'Bearer ***' }],
@@ -626,13 +626,13 @@ The HTML report applies client-side **Prism.js** syntax highlighting to HTTP req
 
 The `mask` object replaces v1's `HttpLogModifier` Java interface. Compiled once per `configure logging` call into a `LogMask` instance stored on the thread-local `LogContext`. Each `HttpLogger.logRequest/logResponse` reads the current mask and applies:
 
-0. **Defaults** — `Authorization`, `Cookie`, `Set-Cookie` and `Proxy-Authorization` (`LogMask.DEFAULT_HEADERS`) are masked in the **report buffer only**; the console (DEBUG headers, TRACE body) shows them as sent, since it is the developer's own terminal while reports are shared artifacts. With `mask` unset the mask is `LogMask.DEFAULT` (these four, nothing else).
-1. `headers` — case-insensitive header-name set; matching headers' values become `replacement` in the report **and** on the console. The list **adds to** the defaults — naming a credential header should never unmask the other three — and a default header named here is masked on the console too.
+0. **Defaults** — `Authorization`, `Cookie`, `Set-Cookie` and `Proxy-Authorization` (`LogMask.DEFAULT_HEADERS`) are masked in the report and on the console (DEBUG headers, TRACE body) alike, since console output lands in CI logs too. With `mask` unset the mask is `LogMask.DEFAULT` (these four, nothing else).
+1. `headers` — case-insensitive header-name set; matching headers' values become `replacement` in the report and on the console. The list **adds to** the defaults — naming a credential header should never unmask the other three.
 2. `jsonPaths` — `$.x.y` (descend) and `$..x` (recursive) keys; matched values become `replacement`.
 3. `patterns` — regex/replacement pairs applied last, so they catch anything header / JSON-path didn't.
 4. `enableForUri(uri)` — optional JS predicate; when it returns falsy, no masking applies for that URL (useful for excluding `/health` so debugging stays easy) — the defaults included.
 
-Opting out: `mask: { defaults: false, ... }` keeps only the user's rules (a map with `defaults: false` and no rule is OFF, with a warn); `mask: false` turns masking off entirely, reports carry the raw values. `mask: null` (or `true`) returns to the defaults. Each `configure logging = { mask }` replaces the previous mask whole — it is the one key the deep-merge does not reach into. For an ext, `LogMask.maskHeader`/`isHeaderMasked` answer for the report (defaults included) and `maskConsoleHeader` for the console; `LogContext.get().getMask()` is null only under `mask: false`. Source: `DefaultReportMaskTest`.
+Opting out: `mask: { defaults: false, ... }` keeps only the user's rules on both sinks (a map with `defaults: false` and no rule is OFF, with a warn); `mask: false` turns masking off entirely, the console and reports carry the raw values. `mask: null` (or `true`) returns to the defaults. Each `configure logging = { mask }` replaces the previous mask whole — it is the one key the deep-merge does not reach into. For an ext, `LogMask.maskHeader`/`isHeaderMasked` answer for every sink (defaults included); `LogContext.get().getMask()` is null only under `mask: false`. Source: `DefaultReportMaskTest`.
 
 ```javascript
 configure logging = {
