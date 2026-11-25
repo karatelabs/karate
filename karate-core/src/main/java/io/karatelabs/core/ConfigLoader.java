@@ -30,7 +30,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -90,8 +93,23 @@ public final class ConfigLoader {
      */
     public static Map<String, Object> configOnly(Path workingDir, String env, Map<String, String> systemProperties,
                                                  Map<String, String> systemEnv) {
+        return evaluate(workingDir, env, systemProperties, systemEnv).vars();
+    }
+
+    /**
+     * The config variables, and the auth the config configured ({@code configure auth}) as
+     * {@code {type, fields, refs}}: its type, the sorted names of the fields it set, and for each string field
+     * whose value a {@code systemEnv} name holds, that name (the lowest when several do). Never a value; empty
+     * when none is configured.
+     */
+    public record Evaluated(Map<String, Object> vars, Map<String, Object> auth) {
+    }
+
+    /** {@link #configOnly(Path, String, Map, Map)}, answering the configured auth beside the variables. */
+    public static Evaluated evaluate(Path workingDir, String env, Map<String, String> systemProperties,
+                                     Map<String, String> systemEnv) {
         if (workingDir == null) {
-            return new LinkedHashMap<>();
+            return new Evaluated(new LinkedHashMap<>(), new LinkedHashMap<>());
         }
         Runner.Builder builder = Runner.builder()
                 .configDir(workingDir.toString())
@@ -120,10 +138,39 @@ public final class ConfigLoader {
             }
             Map<String, Object> config = sr.getConfigVars();
             logger.debug("configOnly({}, env={}) -> {} variables", workingDir, env, config.size());
-            return config;
+            return new Evaluated(config, authShape(sr.getConfig().getAuth(), systemEnv));
         } finally {
             // Synthetic runtime, no call() — same reason as the dynamic-outline template above.
             sr.releaseHttpClient();
         }
+    }
+
+    private static Map<String, Object> authShape(Map<String, Object> auth, Map<String, String> systemEnv) {
+        Map<String, Object> shape = new LinkedHashMap<>();
+        Object type = auth.get("type");
+        if (type == null) {
+            return shape;
+        }
+        List<String> fields = new ArrayList<>();
+        auth.forEach((k, v) -> {
+            if (v != null && !"type".equals(k)) {
+                fields.add(k);
+            }
+        });
+        Collections.sort(fields);
+        Map<String, String> refs = new LinkedHashMap<>();
+        for (String field : fields) {
+            if (auth.get(field) instanceof String value && !value.isEmpty() && systemEnv != null) {
+                systemEnv.entrySet().stream()
+                        .filter(e -> value.equals(e.getValue()))
+                        .map(Map.Entry::getKey)
+                        .min(String::compareTo)
+                        .ifPresent(name -> refs.put(field, name));
+            }
+        }
+        shape.put("type", String.valueOf(type));
+        shape.put("fields", fields);
+        shape.put("refs", refs);
+        return shape;
     }
 }
