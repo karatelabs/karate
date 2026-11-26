@@ -714,7 +714,12 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 });
             }
             if (request.getHeaders() != null) {
-                request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
+                boolean hostFromUri = request.isHostFromUri();
+                request.getHeaders().forEach((k, vals) -> {
+                    if (!hostFromUri || !HttpHeaders.HOST.equalsIgnoreCase(k)) {
+                        vals.forEach(v -> requestBuilder.addHeader(k, v));
+                    }
+                });
             }
             // A rebuild after release has no owner to hand it back to, so this request owns it
             // and closes it on the way out. That costs a connection setup per post-release
@@ -744,7 +749,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             if (!request.isDefaultUserAgent() && request.getHeader(HttpHeaders.USER_AGENT) == null) {
                 context.setAttribute(NO_USER_AGENT, true);
             }
-            if (!request.isDefaultHost() && request.getHeader(HttpHeaders.HOST) == null) {
+            if (!request.isDefaultHost() && !request.isHostFromUri() && request.getHeader(HttpHeaders.HOST) == null) {
                 context.setAttribute(NO_HOST, true);
             }
             if (ntlmUsername != null || digestUsername != null) {

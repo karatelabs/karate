@@ -1,11 +1,11 @@
 package io.karatelabs.http;
 
-import io.karatelabs.common.Json;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * The OAuth2 resource owner password grant: {@code url} (the token endpoint), {@code username}, {@code password},
@@ -19,6 +19,8 @@ public class PasswordAuthHandler implements OAuth2AuthHandler {
 
     private final Map<String, Object> config;
     private final OAuth2TokenCache cache = new OAuth2TokenCache();
+    Consumer<String> onCredential; // set by AuthHandlers.of
+    boolean confidential; // set by AuthHandlers.of
 
     public PasswordAuthHandler(Map<String, Object> config) {
         this.config = config;
@@ -47,7 +49,11 @@ public class PasswordAuthHandler implements OAuth2AuthHandler {
                 return next.hasRefreshToken() ? next
                         : new OAuth2Token(next.getAccessToken(), next.getTokenType(), expired.getRefreshToken(), next.getExpiresAt(), next.getScope());
             } catch (OAuth2Exception e) {
-                logger.warn("token refresh failed, requesting a new token: {}", e.getMessage());
+                if (confidential) {
+                    logger.warn("token refresh failed, requesting a new token");
+                } else {
+                    logger.warn("token refresh failed, requesting a new token: {}", e.getMessage());
+                }
             }
         }
         Map<String, Object> form = form("password", "username", config.get("username"));
@@ -79,30 +85,9 @@ public class PasswordAuthHandler implements OAuth2AuthHandler {
         if (ClientCredentialsAuthHandler.basicClientAuthentication(config)) {
             ClientCredentialsAuthHandler.basicClientAuthentication(http, config);
         }
-        http.header("Accept", "application/json");
         String failed = "OAuth2 " + form.get("grant_type") + " token request failed: ";
-        HttpResponse response;
-        try {
-            response = http.invoke("post");
-        } catch (Exception e) {
-            throw new OAuth2Exception(failed + e.getMessage(), e);
-        }
-        String body = response.getBodyString();
-        Map<String, Object> data = null;
-        try {
-            Json json = Json.of(body);
-            data = json.isObject() ? json.asMap() : null;
-        } catch (Exception e) {
-            // not JSON: reported below with the raw body
-        }
-        int status = response.getStatus();
-        if (status < 200 || status >= 300 || data == null || data.get("access_token") == null) {
-            String reason = data != null && data.get("error") != null
-                    ? data.get("error") + (data.get("error_description") == null ? "" : " - " + data.get("error_description"))
-                    : body == null || body.length() <= 200 ? body : body.substring(0, 200) + "...";
-            throw new OAuth2Exception(failed + "HTTP " + status + ": " + reason);
-        }
-        return OAuth2Token.fromMap(data);
+        return ClientCredentialsAuthHandler.postTokenRequest(http, failed, e -> new OAuth2Exception(failed + e.getMessage(), e),
+                onCredential, confidential);
     }
 
 }

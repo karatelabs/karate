@@ -25,9 +25,13 @@ package io.karatelabs.http;
 
 import io.karatelabs.common.Json;
 import io.karatelabs.core.KarateConfig;
+import io.karatelabs.output.LogContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -41,7 +45,7 @@ import java.util.Map;
  *     .get();
  * </pre>
  */
-public class Http {
+public class Http implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(Http.class);
 
@@ -50,6 +54,7 @@ public class Http {
     private final HttpRequestBuilder builder;
     private final KarateConfig config = new KarateConfig();
     private boolean quiet;
+    private Map<String, Object> challenge; // the client config's auth the armed handler answers a challenge with
 
     public static Http to(String url) {
         return new Http(url);
@@ -104,6 +109,52 @@ public class Http {
         return this;
     }
 
+    /**
+     * Signs the next request only: {@code handler} is applied to it, and the client writes its {@code Host} from the
+     * URI, dropping any {@code Host} header set on it. A {@link DigestAuthHandler} or {@link NtlmAuthHandler} adds no
+     * header: for that request its credentials replace the client config's {@code auth}, whether set before or after
+     * this call, for the transport to answer the server's challenge, scoped to the request's host. When the request
+     * returns or throws, the handler is dropped and the config's {@code auth} is back to what it was when the request
+     * started, which rebuilds the client and so closes any connection the challenge authenticated. Null disarms a
+     * handler not yet used.
+     */
+    public Http auth(AuthHandler handler) {
+        disarm();
+        builder.auth(handler);
+        builder.hostFromUri(handler != null);
+        challenge = challengeAuth(handler);
+        return this;
+    }
+
+    private static Map<String, Object> challengeAuth(AuthHandler handler) {
+        Map<String, Object> auth = new LinkedHashMap<>();
+        if (handler instanceof DigestAuthHandler digest) {
+            auth.put("type", "digest");
+            auth.put("username", digest.getUsername());
+            auth.put("password", digest.getPassword());
+        } else if (handler instanceof NtlmAuthHandler ntlm) {
+            auth.put("type", "ntlm");
+            auth.put("username", ntlm.getUsername());
+            auth.put("password", ntlm.getPassword());
+            auth.put("domain", ntlm.getDomain());
+            auth.put("workstation", ntlm.getWorkstation());
+        } else {
+            return null;
+        }
+        return auth;
+    }
+
+    private void disarm() {
+        builder.auth(null);
+        builder.hostFromUri(false);
+        challenge = null;
+    }
+
+    /** The URI the next request goes to: the URL with the paths and params set so far, as the client sends it. */
+    public String getUri() {
+        return builder.getUri();
+    }
+
     /** Callers that treat a 4xx/5xx as a normal outcome and do their own logging. */
     public Http quiet() {
         quiet = true;
@@ -115,14 +166,31 @@ public class Http {
             builder.body(body instanceof Json ? ((Json) body).value() : body);
         }
         builder.method(method);
-        HttpResponse response = builder.invoke();
-        if (response.getStatus() >= 400) {
-            if (quiet) {
-                logger.debug("http response code: {}, response: {}, url: {}",
-                        response.getStatus(), response.getBodyString(), builder.getUri());
-            } else {
-                logger.warn("http response code: {}, response: {}, url: {}",
-                        response.getStatus(), response.getBodyString(), builder.getUri());
+        Map<String, Object> restore = null;
+        HttpResponse response;
+        try {
+            if (challenge != null) {
+                restore = new LinkedHashMap<>(config.getAuth());
+                config.configure("auth", challenge);
+                client.apply(config);
+            }
+            response = builder.invoke();
+        } finally {
+            disarm();
+            if (restore != null) {
+                config.configure("auth", restore.isEmpty() ? null : restore);
+                client.apply(config);
+            }
+        }
+        if (response.getStatus() >= 400 && (quiet ? logger.isDebugEnabled() : logger.isWarnEnabled())) {
+            String line = LogContext.get().filterHttpLog("http response code: " + response.getStatus()
+                    + ", response: " + response.getBodyString() + ", url: " + builder.getUri());
+            if (line != null) {
+                if (quiet) {
+                    logger.debug(line);
+                } else {
+                    logger.warn(line);
+                }
             }
         }
         return response;
@@ -170,6 +238,17 @@ public class Http {
 
     public HttpResponse delete(Object body) {
         return method("DELETE", body);
+    }
+
+    /** Releases this facade's client: its connections and the credentials its config holds. */
+    @Override
+    public void close() {
+        disarm();
+        try {
+            client.close();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
 }

@@ -1,6 +1,5 @@
 package io.karatelabs.http;
 
-import io.karatelabs.common.Json;
 import io.karatelabs.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -189,25 +188,9 @@ public class AuthorizationCodeAuthHandler implements OAuth2AuthHandler {
 
         try {
             HttpResponse response = builder.invoke("post");
-            String bodyString = response.getBodyString();
-            Json json;
-            try {
-                json = Json.of(bodyString);
-            } catch (Exception e) {
-                throw new OAuth2Exception("Token endpoint returned invalid response: " + truncate(bodyString));
-            }
-            if (!json.isObject()) {
-                throw new OAuth2Exception("Token endpoint returned unexpected response: " + truncate(bodyString));
-            }
-            Map<String, Object> data = json.asMap();
-            if (data.containsKey("error")) {
-                String error = String.valueOf(data.get("error"));
-                String desc = data.containsKey("error_description") ? String.valueOf(data.get("error_description")) : null;
-                throw new OAuth2Exception("Token request failed: " + error + (desc != null ? " - " + desc : ""));
-            }
-
+            OAuth2Token token = OAuth2Token.fromResponse(response, "Token request failed: ", false);
             logger.debug("Token exchange successful");
-            return OAuth2Token.fromMap(data);
+            return token;
 
         } catch (OAuth2Exception e) {
             logger.error("Token exchange failed: {}", e.getMessage());
@@ -328,16 +311,6 @@ public class AuthorizationCodeAuthHandler implements OAuth2AuthHandler {
         } catch (UnsupportedEncodingException e) {
             throw new OAuth2Exception("URL encoding failed", e);
         }
-    }
-
-    private String truncate(String value) {
-        if (value == null) {
-            return "(empty)";
-        }
-        if (value.length() <= 100) {
-            return value;
-        }
-        return value.substring(0, 100) + "...";
     }
 
     @Override

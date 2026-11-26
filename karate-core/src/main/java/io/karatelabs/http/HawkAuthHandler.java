@@ -33,6 +33,7 @@ import java.time.Clock;
 import java.util.Base64;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Hawk request signing (hapijs/hawk's {@code Authorization: Hawk id="…", ts="…", nonce="…", mac="…"}) as
@@ -50,6 +51,7 @@ public class HawkAuthHandler implements AuthHandler {
 
     private final Map<String, Object> config;
     private final Clock clock;
+    Consumer<String> onCredential; // set by AuthHandlers.of
 
     public HawkAuthHandler(Map<String, Object> config) {
         this(config, Clock.systemUTC());
@@ -125,6 +127,7 @@ public class HawkAuthHandler implements AuthHandler {
         }
         String mac = Base64.getEncoder().encodeToString(JwtAuthHandler.hmac("HS" + bits(algorithm),
                 text("authKey").getBytes(StandardCharsets.UTF_8), normalized.toString().getBytes(StandardCharsets.UTF_8)));
+        AuthHandlers.report(onCredential, mac);
         StringBuilder header = new StringBuilder("Hawk id=\"").append(text("authId")).append("\", ts=\"").append(timestamp)
                 .append("\", nonce=\"").append(nonce);
         if (hash != null) {

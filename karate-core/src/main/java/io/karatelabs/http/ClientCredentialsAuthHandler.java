@@ -1,6 +1,5 @@
 package io.karatelabs.http;
 
-import io.karatelabs.common.Json;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,6 +9,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
 
@@ -17,6 +18,8 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
 
     private final Map<String, Object> config;
     private final OAuth2TokenCache cache = new OAuth2TokenCache();
+    Consumer<String> onCredential; // set by AuthHandlers.of
+    boolean confidential; // set by AuthHandlers.of
 
     public ClientCredentialsAuthHandler(Map<String, Object> config) {
         this.config = config;
@@ -72,7 +75,8 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
         return value == null ? "" : URLEncoder.encode(value.toString(), StandardCharsets.UTF_8);
     }
 
-    static Map<String, Object> requestToken(HttpRequestBuilder builder, Map<String, Object> config, String mainRequestUrl) {
+    static OAuth2Token requestToken(HttpRequestBuilder builder, Map<String, Object> config, String mainRequestUrl,
+                                    Consumer<String> onCredential, boolean confidential) {
         String tokenUrl = tokenUrl(config, mainRequestUrl);
         builder.url(tokenUrl);
         builder.formField("grant_type", "client_credentials");
@@ -85,24 +89,54 @@ public class ClientCredentialsAuthHandler implements OAuth2AuthHandler {
         if (config.containsKey("scope")) {
             builder.formField("scope", config.get("scope"));
         }
-        builder.header("Accept", "application/json");
-        try {
-            HttpResponse response = builder.invoke("post");
-            return Json.of(response.getBodyString()).asMap();
-        } catch (Exception e) {
+        return postTokenRequest(builder, "OAuth2 client_credentials token request failed: ", e -> {
             logger.error("client credentials auth request failed: {}", e.getMessage());
-            throw new RuntimeException("client credentials auth request failed: " + e.getMessage(), e);
+            return new OAuth2Exception("client credentials auth request failed: " + e.getMessage(), e);
+        }, onCredential, confidential);
+    }
+
+    /**
+     * Posts the token request {@code http} holds and answers its token, as {@link OAuth2Token#fromResponse} reads it,
+     * which {@code onCredential} receives, with the form-encoded refresh token, before it is returned.
+     * {@code confidential} follows no redirect, whatever the client follows, logs the exchange without its headers or
+     * body, and fails with the status alone and no cause; otherwise the request follows the client's redirect setting,
+     * logs as any other, and a request that is not answered fails as {@code transportFailure} makes it.
+     */
+    static OAuth2Token postTokenRequest(HttpRequestBuilder http, String failed, Function<Exception, OAuth2Exception> transportFailure,
+                                        Consumer<String> onCredential, boolean confidential) {
+        http.header("Accept", "application/json");
+        http.method("post");
+        HttpResponse response;
+        try {
+            HttpRequest request = http.build();
+            if (confidential) {
+                request.setFollowRedirects(false);
+                request.setLogDetails(false);
+            }
+            response = http.getClient().invoke(request);
+        } catch (Exception e) {
+            if (confidential) {
+                throw new OAuth2Exception(failed + "the request was not answered");
+            }
+            throw transportFailure.apply(e);
         }
+        OAuth2Token token = OAuth2Token.fromResponse(response, failed, confidential);
+        String refresh = token.getRefreshToken();
+        AuthHandlers.report(onCredential, token.getAccessToken(), refresh);
+        if (refresh != null && !formEncode(refresh).equals(refresh)) {
+            AuthHandlers.report(onCredential, formEncode(refresh));
+        }
+        return token;
     }
 
     @Override
     public OAuth2Token getToken(HttpRequestBuilder builder) {
-        return cache.get(expired -> OAuth2Token.fromMap(requestToken(builder.forkNewBuilder(), config, builder.getUrl())));
+        return cache.get(expired -> requestToken(builder.forkNewBuilder(), config, builder.getUrl(), onCredential, confidential));
     }
 
     @Override
     public String getAccessToken(HttpRequestBuilder builder) {
-        return String.valueOf(getToken(builder).getAccessToken());
+        return getToken(builder).getAccessToken();
     }
 
     @Override

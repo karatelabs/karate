@@ -1,5 +1,7 @@
 package io.karatelabs.http;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -126,6 +128,42 @@ class PasswordAuthHandlerTest {
         assertEquals(List.of(basic, basic), authorizations);
         assertEquals(Map.of("grant_type", "password", "username", "alice", "password", "pw", "scope", "read"), forms.get(0));
         assertEquals(Map.of("grant_type", "refresh_token", "refresh_token", "r1"), forms.get(1));
+    }
+
+
+    @Test
+    void aConfidentialRefreshRefusalLogsNoTextFromTheServer() throws Exception {
+        ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(PasswordAuthHandler.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        ch.qos.logback.classic.Level level = logger.getLevel();
+        logger.setLevel(ch.qos.logback.classic.Level.WARN);
+        try {
+            String base = start();
+            answers.add(HttpResponse.json("{\"access_token\":\"a1\",\"refresh_token\":\"r1\",\"expires_in\":0}"));
+            answers.add(HttpResponse.json(400, "{\"error\":\"invalid_grant\",\"error_description\":\"SERVER-TEXT\"}"));
+            answers.add(HttpResponse.json("{\"access_token\":\"a2\",\"expires_in\":3600}"));
+            Map<String, Object> auth = new HashMap<>();
+            auth.put("type", "oauth2");
+            auth.put("grantType", "password");
+            auth.put("accessTokenUrl", base + "/token");
+            auth.put("clientId", "app");
+            auth.put("clientSecret", "s3c");
+            auth.put("username", "alice");
+            auth.put("password", "pw");
+            OAuth2AuthHandler handler = (OAuth2AuthHandler) AuthHandlers.of(auth, base, null, true);
+            try (HttpClient client = new ApacheHttpClient()) {
+                HttpRequestBuilder http = new HttpRequestBuilder(client).url(base + "/me");
+                assertEquals("a1", handler.getAccessToken(http));
+                assertEquals("a2", handler.getAccessToken(http));
+            }
+            assertTrue(appender.list.stream().noneMatch(e -> e.getFormattedMessage().contains("SERVER-TEXT")), appender.list::toString);
+            assertEquals(1, appender.list.size(), appender.list::toString);
+        } finally {
+            logger.detachAppender(appender);
+            logger.setLevel(level);
+        }
     }
 
 }

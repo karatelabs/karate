@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -261,6 +262,30 @@ class AuthorizationCodeAuthHandlerTest {
             assertTrue(exception.getMessage().contains("Authorization flow failed"));
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void aCodeExchangeAnswerCountsOnlyAsA2xxWithANonBlankToken() {
+        for (HttpResponse answer : List.of(HttpResponse.json(400, "{\"access_token\":\"from-an-error\"}"),
+                HttpResponse.json("{\"access_token\":\" \"}"))) {
+            mockHandler.set(request -> request.pathMatches("/token") ? answer : HttpResponse.json("{}"));
+            try (HttpClient client = new ApacheHttpClient()) {
+                Map<String, Object> config = new HashMap<>();
+                config.put("authorizationUrl", "http://localhost:" + port + "/authorize");
+                config.put("url", "http://localhost:" + port + "/token");
+                config.put("client_id", "test-client");
+                config.put("callbackPort", 9878);
+                AuthorizationCodeAuthHandler handler = new AuthorizationCodeAuthHandler(config,
+                        (authUrl, redirectUri) -> CompletableFuture.completedFuture("a-code"));
+                HttpRequestBuilder http = new HttpRequestBuilder(client);
+                http.auth(handler);
+                http.url("http://localhost:" + port + "/api/test");
+                OAuth2Exception exception = assertThrows(OAuth2Exception.class, http::invoke);
+                assertTrue(exception.getMessage().contains("Token exchange failed"), exception.getMessage());
+            } catch (java.io.IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

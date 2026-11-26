@@ -43,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * A JSON Web Token (JWS compact form) signed per request config and sent as postman-runtime's jwt authorizer sends it:
@@ -66,6 +67,7 @@ public class JwtAuthHandler implements AuthHandler {
     private final String headerPrefix;
     private final String queryParamKey;
     private String token;
+    Consumer<String> onCredential; // set by AuthHandlers.of
 
     public JwtAuthHandler(Map<String, Object> config) {
         this.config = config;
@@ -93,6 +95,7 @@ public class JwtAuthHandler implements AuthHandler {
     public synchronized String token() {
         if (token == null) {
             token = sign();
+            AuthHandlers.report(onCredential, token);
         }
         return token;
     }

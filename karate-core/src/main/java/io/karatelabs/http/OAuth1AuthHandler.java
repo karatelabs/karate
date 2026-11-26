@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * OAuth 1.0 (RFC 5849) request signing, signed at send time over the final method, URL, form body and body, as
@@ -70,6 +71,7 @@ public class OAuth1AuthHandler implements AuthHandler {
     private final boolean query;
     private final PrivateKey privateKey;
     private final Clock clock;
+    Consumer<String> onCredential; // set by AuthHandlers.of
 
     public OAuth1AuthHandler(Map<String, Object> config) {
         this(config, Clock.systemUTC());
@@ -230,7 +232,9 @@ public class OAuth1AuthHandler implements AuthHandler {
         normalized.sort(Comparator.comparing(s -> s.replaceFirst("=", " ")));
         String baseString = encode(method.toUpperCase(Locale.ROOT)) + "&" + encode(baseUri(parsed)) + "&"
                 + encode(String.join("&", normalized));
-        params.add(new String[]{"oauth_signature", signature(baseString)});
+        String signature = signature(baseString);
+        AuthHandlers.report(onCredential, signature, encode(signature));
+        params.add(new String[]{"oauth_signature", signature});
         return new Signed(baseString, params, authorization(params));
     }
 

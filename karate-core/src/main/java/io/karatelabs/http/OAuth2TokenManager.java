@@ -1,6 +1,5 @@
 package io.karatelabs.http;
 
-import io.karatelabs.common.Json;
 import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.http.HttpResponse;
 import org.slf4j.Logger;
@@ -62,36 +61,14 @@ public class OAuth2TokenManager {
 
         try {
             HttpResponse response = builder.invoke("post");
-            String body = response.getBodyString();
-            int status = response.getStatus();
-
-            if (status < 200 || status >= 300) {
-                String errorMessage = parseOAuthError(body, status);
-                logger.error("Token refresh failed: {}", errorMessage);
-                currentToken = null;
-                throw new OAuth2Exception(errorMessage);
-            }
-
-            Json json;
+            OAuth2Token newToken;
             try {
-                json = Json.of(body);
-            } catch (Exception e) {
-                String errorMessage = "Token refresh failed: server returned invalid JSON response";
-                logger.error(errorMessage);
+                newToken = OAuth2Token.fromResponse(response, "Token refresh failed: ", false);
+            } catch (OAuth2Exception e) {
+                logger.error(e.getMessage());
                 currentToken = null;
-                throw new OAuth2Exception(errorMessage);
+                throw e;
             }
-
-            if (!json.isObject()) {
-                String errorMessage = "Token refresh failed: expected JSON object but received " +
-                    (json.isArray() ? "array" : "primitive value");
-                logger.error(errorMessage);
-                currentToken = null;
-                throw new OAuth2Exception(errorMessage);
-            }
-
-            Map<String, Object> data = json.asMap();
-            OAuth2Token newToken = OAuth2Token.fromMap(data);
             storeToken(newToken);
             logger.debug("Token refreshed successfully");
             return newToken;
@@ -111,33 +88,5 @@ public class OAuth2TokenManager {
     public void clearToken() {
         currentToken = null;
         logger.debug("Token cleared");
-    }
-
-    /**
-     * Parse OAuth error response and return a user-friendly message
-     */
-    private String parseOAuthError(String body, int status) {
-        if (body == null || body.isBlank()) {
-            return "Token refresh failed: server returned HTTP " + status + " with empty response";
-        }
-        try {
-            Json json = Json.of(body);
-            if (json.isObject()) {
-                Map<String, Object> data = json.asMap();
-                String error = (String) data.get("error");
-                String errorDescription = (String) data.get("error_description");
-                if (error != null) {
-                    if (errorDescription != null) {
-                        return "Token refresh failed: " + error + " - " + errorDescription;
-                    }
-                    return "Token refresh failed: " + error;
-                }
-            }
-        } catch (Exception ignored) {
-            // Body is not valid JSON, use raw body in message
-        }
-        // Truncate long responses for readability
-        String preview = body.length() > 200 ? body.substring(0, 200) + "..." : body;
-        return "Token refresh failed: server returned HTTP " + status + ": " + preview;
     }
 }

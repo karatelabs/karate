@@ -72,6 +72,8 @@ public class HttpRequest implements SimpleObject {
     private boolean followRedirects = true;
     private boolean defaultUserAgent = true;
     private boolean defaultHost = true;
+    private boolean hostFromUri;
+    private boolean logDetails = true;
 
     /**
      * Set the {@link HttpClient} used by {@link #proceed(String)} to forward this request.
@@ -255,6 +257,24 @@ public class HttpRequest implements SimpleObject {
     /** false sends no Host unless this request carries one, where the client would send the target's. */
     public void setDefaultHost(boolean defaultHost) {
         this.defaultHost = defaultHost;
+    }
+
+    public boolean isHostFromUri() {
+        return hostFromUri;
+    }
+
+    /** true sends the Host the client writes from the URI, on every hop, dropping any Host this request carries. */
+    public void setHostFromUri(boolean hostFromUri) {
+        this.hostFromUri = hostFromUri;
+    }
+
+    public boolean isLogDetails() {
+        return logDetails;
+    }
+
+    /** false logs this exchange as its request line and its status line only: no header, no body. */
+    public void setLogDetails(boolean logDetails) {
+        this.logDetails = logDetails;
     }
 
     public String getBodyDisplay() {

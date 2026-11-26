@@ -53,6 +53,7 @@ public class HttpRequestBuilder implements SimpleObject {
     private AuthHandler authHandler;
     private OAuth2Token signedWith; // the OAuth2 token generation the last build signed with
     private String retryUntil;
+    private boolean hostFromUri;
 
     private final HttpClient client;
 
@@ -73,6 +74,7 @@ public class HttpRequestBuilder implements SimpleObject {
         authHandler = null;
         signedWith = null;
         retryUntil = null;
+        hostFromUri = false;
     }
 
     void signedWith(OAuth2Token token) {
@@ -107,6 +109,7 @@ public class HttpRequestBuilder implements SimpleObject {
         hrb.charset = charset;
         hrb.authHandler = authHandler;
         hrb.retryUntil = retryUntil;
+        hrb.hostFromUri = hostFromUri;
         return hrb;
     }
 
@@ -122,6 +125,7 @@ public class HttpRequestBuilder implements SimpleObject {
         this.charset = source.charset;
         this.authHandler = source.authHandler;
         this.retryUntil = source.retryUntil;
+        this.hostFromUri = source.hostFromUri;
     }
 
     public HttpRequest build() {
@@ -139,6 +143,7 @@ public class HttpRequestBuilder implements SimpleObject {
         if (authHandler != null && !authHandler.followRedirects()) {
             request.setFollowRedirects(false);
         }
+        request.setHostFromUri(hostFromUri);
         // Also set params on request so InMemoryHttpClient and others can access them
         if (params != null) {
             request.setParams(params);
@@ -147,7 +152,13 @@ public class HttpRequestBuilder implements SimpleObject {
     }
 
     public HttpResponse invoke() {
-        HttpRequest request = build();
+        HttpRequest request;
+        try {
+            request = build();
+        } catch (RuntimeException e) {
+            reset();
+            throw e;
+        }
         if (client == null) {
             throw new RuntimeException("http client not set");
         }
@@ -407,6 +418,12 @@ public class HttpRequestBuilder implements SimpleObject {
 
     public HttpRequestBuilder auth(AuthHandler authHandler) {
         this.authHandler = authHandler;
+        return this;
+    }
+
+    /** For the next request only: the client writes its Host from the URI, dropping any Host header set here. */
+    public HttpRequestBuilder hostFromUri(boolean hostFromUri) {
+        this.hostFromUri = hostFromUri;
         return this;
     }
 

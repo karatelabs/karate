@@ -34,19 +34,11 @@ import io.karatelabs.gherkin.MatchExpression;
 import io.karatelabs.gherkin.Step;
 import io.karatelabs.gherkin.Table;
 import io.karatelabs.http.AuthHandler;
-import io.karatelabs.http.AwsSigV4AuthHandler;
-import io.karatelabs.http.BasicAuthHandler;
-import io.karatelabs.http.BearerAuthHandler;
-import io.karatelabs.http.ClientCredentialsAuthHandler;
-import io.karatelabs.http.DigestAuthHandler;
-import io.karatelabs.http.HawkAuthHandler;
+import io.karatelabs.http.AuthHandlers;
 import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.http.HttpResponse;
-import io.karatelabs.http.JwtAuthHandler;
-import io.karatelabs.http.OAuth1AuthHandler;
 import io.karatelabs.http.OAuth2AuthHandler;
-import io.karatelabs.http.PasswordAuthHandler;
 import io.karatelabs.gherkin.GherkinParser;
 import io.karatelabs.js.EngineException;
 import io.karatelabs.js.JavaCallable;
@@ -2041,66 +2033,33 @@ public class StepExecutor {
         if (auth == null || auth.isEmpty()) {
             return null;
         }
-        String type = (String) auth.get("type");
-        if (type == null) {
+        Object type = auth.get("type");
+        if ("ntlm".equals(type)) {
+            // the transport answers NTLM from the config's auth
             return null;
         }
-        return switch (type) {
-            case "basic" -> new BasicAuthHandler(
-                    (String) auth.get("username"),
-                    (String) auth.get("password")
-            );
-            case "bearer" -> new BearerAuthHandler(
-                    (String) auth.get("token")
-            );
-            case "digest" -> new DigestAuthHandler(
-                    (String) auth.get("username"),
-                    (String) auth.get("password")
-            );
-            case "oauth2" -> {
-                Map<String, Object> oauth2Config = new HashMap<>();
-                oauth2Config.put("url", auth.get("accessTokenUrl"));
-                oauth2Config.put("client_id", auth.get("clientId"));
-                oauth2Config.put("client_secret", auth.get("clientSecret"));
-                if (auth.containsKey("scope")) {
-                    oauth2Config.put("scope", auth.get("scope"));
-                }
-                if (auth.containsKey("clientAuthentication")) {
-                    oauth2Config.put("client_authentication", auth.get("clientAuthentication"));
-                }
-                boolean password = "password".equals(auth.get("grantType"));
-                if (password) {
-                    oauth2Config.put("username", auth.get("username"));
-                    oauth2Config.put("password", auth.get("password"));
-                }
-                oauth2Config.put("grant_type", password ? "password" : "client_credentials");
-                // keyed on the absolute token URL: a relative one names a different endpoint per request host
-                oauth2Config.put("url", ClientCredentialsAuthHandler.tokenUrl(oauth2Config, http().getUrl()));
-                yield oauth2Handler(oauth2Config);
-            }
-            case "aws" -> new AwsSigV4AuthHandler(auth);
-            case "jwt" -> new JwtAuthHandler(auth);
-            case "oauth1" -> new OAuth1AuthHandler(auth);
-            case "hawk" -> new HawkAuthHandler(auth);
-            default -> null;
-        };
+        if ("oauth2".equals(type)) {
+            return oauth2Handler(auth, http().getUrl());
+        }
+        return AuthHandlers.of(auth, http().getUrl(), null);
     }
 
-    // without a Suite, the last OAuth2 handler this scenario built, reused while its config is unchanged
+    // without a Suite, the last OAuth2 handler this scenario built, reused while its settings are unchanged
     private Map<String, Object> oauth2Config;
     private OAuth2AuthHandler oauth2Handler;
 
-    /** The OAuth2 handler for this config, shared suite-wide so its token is fetched once and reused until it expires. */
-    private OAuth2AuthHandler oauth2Handler(Map<String, Object> config) {
-        java.util.function.Function<Map<String, Object>, OAuth2AuthHandler> create = c -> "password".equals(c.get("grant_type"))
-                ? new PasswordAuthHandler(c) : new ClientCredentialsAuthHandler(c);
+    /** The OAuth2 handler for this auth, shared suite-wide so its token is fetched once and reused until it expires. */
+    private OAuth2AuthHandler oauth2Handler(Map<String, Object> auth, String url) {
+        Map<String, Object> settings = AuthHandlers.oauth2Settings(auth, url);
+        java.util.function.Function<Map<String, Object>, OAuth2AuthHandler> create =
+                c -> (OAuth2AuthHandler) AuthHandlers.of(auth, url, null);
         Suite suite = getSuite();
         if (suite != null) {
-            return suite.oauth2Handler(config, create);
+            return suite.oauth2Handler(settings, create);
         }
-        if (!config.equals(oauth2Config)) {
-            oauth2Config = config;
-            oauth2Handler = create.apply(config);
+        if (!settings.equals(oauth2Config)) {
+            oauth2Config = settings;
+            oauth2Handler = create.apply(settings);
         }
         return oauth2Handler;
     }

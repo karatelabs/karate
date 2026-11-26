@@ -26,6 +26,7 @@ package io.karatelabs.core;
 import io.karatelabs.common.Resource;
 import io.karatelabs.gherkin.Feature;
 import io.karatelabs.gherkin.Scenario;
+import io.karatelabs.output.LogContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,9 +106,77 @@ public final class ConfigLoader {
     public record Evaluated(Map<String, Object> vars, Map<String, Object> auth) {
     }
 
+    /**
+     * The auth {@code evaluated}'s config configured, with its values, for Java code that signs requests with it;
+     * null when none is configured, and null for an {@code Evaluated} built other than by {@link #evaluate}. Nothing
+     * the {@code Evaluated} itself offers yields a value, neither its components, nor its printing, nor a method,
+     * so a script handed one cannot reach them; code that can call a Java static method, a script with Java interop
+     * included, can call this one.
+     */
+    public static ResolvedAuth resolvedAuth(Evaluated evaluated) {
+        return evaluated.auth() instanceof AuthShape shape ? shape.resolved : null;
+    }
+
+    /**
+     * The auth map a config configured, values included, as {@code configure auth} holds it. Its {@code toString}
+     * names the type alone.
+     */
+    public static final class ResolvedAuth {
+
+        private final Map<String, Object> map;
+
+        private ResolvedAuth(Map<String, Object> map) {
+            this.map = Collections.unmodifiableMap(map);
+        }
+
+        public String type() {
+            return String.valueOf(map.get("type"));
+        }
+
+        /** The auth map, unmodifiable: the shape {@link io.karatelabs.http.AuthHandlers#of} takes. */
+        public Map<String, Object> map() {
+            return map;
+        }
+
+        @Override
+        public String toString() {
+            return "ResolvedAuth[" + type() + "]";
+        }
+    }
+
+    // the auth shape, carrying the resolved auth beside its entries so the record's components stay as they are
+    private static final class AuthShape extends LinkedHashMap<String, Object> {
+
+        private final transient ResolvedAuth resolved;
+
+        AuthShape(ResolvedAuth resolved) {
+            this.resolved = resolved;
+        }
+    }
+
     /** {@link #configOnly(Path, String, Map, Map)}, answering the configured auth beside the variables. */
     public static Evaluated evaluate(Path workingDir, String env, Map<String, String> systemProperties,
                                      Map<String, String> systemEnv) {
+        return evaluate(workingDir, env, systemProperties, systemEnv, false);
+    }
+
+    /**
+     * {@link #evaluate(Path, String, Map, Map)}, with {@code quiet} discarding every line the evaluation logs on
+     * this thread — its HTTP exchanges, a called feature's {@code print} and {@code karate.log}, a step failure —
+     * as {@link LogContext#quiet()} does. A failure is still thrown.
+     */
+    public static Evaluated evaluate(Path workingDir, String env, Map<String, String> systemProperties,
+                                     Map<String, String> systemEnv, boolean quiet) {
+        if (!quiet) {
+            return evaluateConfig(workingDir, env, systemProperties, systemEnv);
+        }
+        try (LogContext.Quiet ignored = LogContext.quiet()) {
+            return evaluateConfig(workingDir, env, systemProperties, systemEnv);
+        }
+    }
+
+    private static Evaluated evaluateConfig(Path workingDir, String env, Map<String, String> systemProperties,
+                                            Map<String, String> systemEnv) {
         if (workingDir == null) {
             return new Evaluated(new LinkedHashMap<>(), new LinkedHashMap<>());
         }
@@ -146,11 +215,11 @@ public final class ConfigLoader {
     }
 
     private static Map<String, Object> authShape(Map<String, Object> auth, Map<String, String> systemEnv) {
-        Map<String, Object> shape = new LinkedHashMap<>();
         Object type = auth.get("type");
         if (type == null) {
-            return shape;
+            return new LinkedHashMap<>();
         }
+        Map<String, Object> shape = new AuthShape(new ResolvedAuth(new LinkedHashMap<>(auth)));
         List<String> fields = new ArrayList<>();
         auth.forEach((k, v) -> {
             if (v != null && !"type".equals(k)) {

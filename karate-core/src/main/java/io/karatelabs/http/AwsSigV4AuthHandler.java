@@ -46,6 +46,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 
 /**
  * AWS Signature Version 4: signs the request as it will go on the wire, so it runs after
@@ -68,6 +69,7 @@ public class AwsSigV4AuthHandler implements AuthHandler {
     private final String region;
     private final String service;
     private final Clock clock;
+    Consumer<String> onCredential; // set by AuthHandlers.of
 
     public AwsSigV4AuthHandler(Map<String, Object> config) {
         this(config, Clock.systemUTC());
@@ -168,6 +170,7 @@ public class AwsSigV4AuthHandler implements AuthHandler {
         key = hmac(key, service);
         key = hmac(key, "aws4_request");
         String signature = hex(hmac(key, stringToSign));
+        AuthHandlers.report(onCredential, signature);
         added.put("Authorization", ALGORITHM + " Credential=" + accessKey + "/" + scope
                 + ", SignedHeaders=" + signedHeaders + ", Signature=" + signature);
         return new Signed(added, canonicalRequest, stringToSign);

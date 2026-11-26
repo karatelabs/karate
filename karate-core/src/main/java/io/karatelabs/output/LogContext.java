@@ -42,6 +42,8 @@ public class LogContext {
 
     private static final ThreadLocal<LogContext> CURRENT = new ThreadLocal<>();
 
+    private static final ThreadLocal<Quiet> QUIET = new ThreadLocal<>();
+
     // ========== Category Loggers ==========
     // Use these for category-aware logging that cascades to SLF4J
 
@@ -96,9 +98,81 @@ public class LogContext {
     private boolean capture = true;
     // Receives each line as it lands in the buffer: the live STEP_LOG feed. Null when nothing streams.
     private java.util.function.Consumer<String> sink;
+    private java.util.function.UnaryOperator<String> httpLogFilter;
 
     public void setSink(java.util.function.Consumer<String> sink) {
         this.sink = sink;
+    }
+
+    /**
+     * Rewrites each HTTP log line logged under this context — the transport's request and response lines, at every
+     * level, and {@link io.karatelabs.http.Http}'s line for a 4xx or 5xx — before it reaches the report buffer or
+     * SLF4J; a null answer drops the line. Null (the default) logs every line as built.
+     */
+    public void setHttpLogFilter(java.util.function.UnaryOperator<String> httpLogFilter) {
+        this.httpLogFilter = httpLogFilter;
+    }
+
+    /** {@code line} as {@link #setHttpLogFilter the filter} rewrites it, or null to drop it. */
+    public String filterHttpLog(String line) {
+        return httpLogFilter == null ? line : httpLogFilter.apply(line);
+    }
+
+    // ========== Quiet Mode ==========
+
+    /**
+     * Discards every line logged on this thread until the returned handle is closed: the report buffer collects
+     * nothing, a {@link #setSink sink} receives nothing, and nothing reaches SLF4J. With Logback as the SLF4J
+     * backend every logger is silenced on this thread; with another backend, only the lines this class and
+     * {@link HttpLogger} write (HTTP, {@code print}, {@code karate.log}). Other threads log as before, since a log
+     * level is process-wide. The thread's context is set aside and restored on close. Handles nest.
+     */
+    public static Quiet quiet() {
+        Object logback = logbackContext();
+        if (logback != null) {
+            QuietTurboFilter.install(logback);
+        }
+        Quiet quiet = new Quiet(CURRENT.get(), QUIET.get());
+        QUIET.set(quiet);
+        LogContext ctx = new LogContext();
+        ctx.capture = false;
+        CURRENT.set(ctx);
+        return quiet;
+    }
+
+    /** Whether a {@link #quiet()} handle is open on this thread. */
+    public static boolean isQuiet() {
+        return QUIET.get() != null;
+    }
+
+    public static final class Quiet implements AutoCloseable {
+
+        private final LogContext context;
+        private final Quiet outer;
+        private boolean closed;
+
+        private Quiet(LogContext context, Quiet outer) {
+            this.context = context;
+            this.outer = outer;
+        }
+
+        @Override
+        public void close() {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            if (outer == null) {
+                QUIET.remove();
+            } else {
+                QUIET.set(outer);
+            }
+            if (context == null) {
+                CURRENT.remove();
+            } else {
+                CURRENT.set(context);
+            }
+        }
     }
 
     // ========== Thread-Local Access ==========
@@ -379,7 +453,7 @@ public class LogContext {
      * {@link #log} calls below to drop it once the cost has already been paid.
      */
     public boolean isCapturing(LogLevel level) {
-        return capture && level.isEnabled(threshold);
+        return capture && level.isEnabled(threshold) && !isQuiet();
     }
 
     // ========== Logging ==========
@@ -389,7 +463,7 @@ public class LogContext {
      * Message is filtered if level is below threshold.
      */
     public void log(LogLevel level, String message) {
-        if (!capture || !level.isEnabled(threshold)) {
+        if (!isCapturing(level)) {
             return; // Filtered
         }
         buffer.append(message).append('\n');
@@ -402,7 +476,7 @@ public class LogContext {
      * Log a message at the specified level with format arguments.
      */
     public void log(LogLevel level, String format, Object... args) {
-        if (!capture || !level.isEnabled(threshold)) {
+        if (!isCapturing(level)) {
             return; // Filtered
         }
         String message = format(format, args);
@@ -539,7 +613,7 @@ public class LogContext {
      * karate-config.js logs into the fresh per-scenario LogContext).
      */
     public void appendCaptured(String content) {
-        if (capture && content != null && !content.isEmpty()) {
+        if (capture && !isQuiet() && content != null && !content.isEmpty()) {
             buffer.append(content);
         }
     }
@@ -594,28 +668,33 @@ public class LogContext {
         }
 
         public void trace(String message) {
-            log(LogLevel.TRACE, message);
-            logger.trace(message);
+            if (log(LogLevel.TRACE, message)) {
+                logger.trace(message);
+            }
         }
 
         public void debug(String message) {
-            log(LogLevel.DEBUG, message);
-            logger.debug(message);
+            if (log(LogLevel.DEBUG, message)) {
+                logger.debug(message);
+            }
         }
 
         public void info(String message) {
-            log(LogLevel.INFO, message);
-            logger.info(message);
+            if (log(LogLevel.INFO, message)) {
+                logger.info(message);
+            }
         }
 
         public void warn(String message) {
-            log(LogLevel.WARN, message);
-            logger.warn(message);
+            if (log(LogLevel.WARN, message)) {
+                logger.warn(message);
+            }
         }
 
         public void error(String message) {
-            log(LogLevel.ERROR, message);
-            logger.error(message);
+            if (log(LogLevel.ERROR, message)) {
+                logger.error(message);
+            }
         }
 
         public boolean isDebugEnabled() {
@@ -626,10 +705,14 @@ public class LogContext {
             return logger.isTraceEnabled();
         }
 
-        private void log(LogLevel level, String message) {
-            // The SLF4J call in every method above is deliberately unconditional: this is the
+        /** Collects the message, and answers whether it goes on to SLF4J: always, unless this thread is quiet. */
+        private boolean log(LogLevel level, String message) {
+            // The SLF4J call in every method above does not depend on capture: this is the
             // path `print` and karate.log() take, and it must keep reaching the console at
             // whatever level Logback allows even when the report buffer is off.
+            if (isQuiet()) {
+                return false;
+            }
             LogContext ctx = get();
             if (ctx.capture && level.isEnabled(threshold)) {
                 ctx.buffer.append(message).append('\n');
@@ -637,6 +720,7 @@ public class LogContext {
                     ctx.sink.accept(message);
                 }
             }
+            return true;
         }
     }
 }

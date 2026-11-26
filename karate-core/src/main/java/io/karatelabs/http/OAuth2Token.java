@@ -28,6 +28,36 @@ public class OAuth2Token {
     }
 
     /**
+     * The token a token endpoint's answer carries. Only a 2xx whose {@code access_token} is a non-blank string is a
+     * token; any other answer throws {@link OAuth2Exception}, so a test run fails the step that needed it rather than
+     * send {@code Bearer null} or a token from an error answer. The message starts with {@code failed}, then names the
+     * status and, unless {@code confidential}, the server's {@code error} and {@code error_description} or the start of
+     * its answer.
+     */
+    public static OAuth2Token fromResponse(HttpResponse response, String failed, boolean confidential) {
+        String body = response.getBodyString();
+        Map<String, Object> data = null;
+        try {
+            io.karatelabs.common.Json json = io.karatelabs.common.Json.of(body);
+            data = json.isObject() ? json.asMap() : null;
+        } catch (Exception e) {
+            // not JSON: reported below with the raw body
+        }
+        int status = response.getStatus();
+        if (status >= 200 && status < 300 && data != null
+                && data.get("access_token") instanceof String accessToken && !accessToken.isBlank()) {
+            return fromMap(data);
+        }
+        if (confidential) {
+            throw new OAuth2Exception(failed + "HTTP " + status);
+        }
+        String reason = data != null && data.get("error") != null
+                ? data.get("error") + (data.get("error_description") == null ? "" : " - " + data.get("error_description"))
+                : body == null || body.length() <= 200 ? body : body.substring(0, 200) + "...";
+        throw new OAuth2Exception(failed + "HTTP " + status + ": " + reason);
+    }
+
+    /**
      * Create token from OAuth token response
      */
     public static OAuth2Token fromMap(Map<String, Object> data) {
