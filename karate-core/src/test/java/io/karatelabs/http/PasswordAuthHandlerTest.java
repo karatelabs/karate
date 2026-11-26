@@ -166,4 +166,19 @@ class PasswordAuthHandlerTest {
         }
     }
 
+
+    @Test
+    void aMalformedRefreshAnswerFallsBackToSigningInAgain() throws Exception {
+        String base = start();
+        answers.add(HttpResponse.json("{\"access_token\":\"a1\",\"refresh_token\":\"r1\",\"expires_in\":0}"));
+        answers.add(HttpResponse.json("{\"access_token\":\"x\",\"refresh_token\":5}"));
+        answers.add(HttpResponse.json("{\"access_token\":\"a2\",\"expires_in\":3600}"));
+        OAuth2AuthHandler handler = new PasswordAuthHandler(config(base));
+        try (HttpClient client = new ApacheHttpClient()) {
+            HttpRequestBuilder http = new HttpRequestBuilder(client).url(base + "/me");
+            assertEquals("a1", handler.getAccessToken(http));
+            assertEquals("a2", handler.getAccessToken(http));
+        }
+    }
+
 }

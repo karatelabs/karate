@@ -29,7 +29,8 @@ public class OAuth2Token {
 
     /**
      * The token a token endpoint's answer carries. Only a 2xx whose {@code access_token} is a non-blank string is a
-     * token; any other answer throws {@link OAuth2Exception}, so a test run fails the step that needed it rather than
+     * token, and its {@code token_type}, {@code refresh_token} and {@code scope} are strings or absent; any other
+     * answer throws {@link OAuth2Exception}, so a test run fails the step that needed it rather than
      * send {@code Bearer null} or a token from an error answer. The message starts with {@code failed}, then names the
      * status and, unless {@code confidential}, the server's {@code error} and {@code error_description} or the start of
      * its answer.
@@ -45,7 +46,8 @@ public class OAuth2Token {
         }
         int status = response.getStatus();
         if (status >= 200 && status < 300 && data != null
-                && data.get("access_token") instanceof String accessToken && !accessToken.isBlank()) {
+                && data.get("access_token") instanceof String accessToken && !accessToken.isBlank()
+                && textOrAbsent(data, "token_type") && textOrAbsent(data, "refresh_token") && textOrAbsent(data, "scope")) {
             return fromMap(data);
         }
         if (confidential) {
@@ -55,6 +57,11 @@ public class OAuth2Token {
                 ? data.get("error") + (data.get("error_description") == null ? "" : " - " + data.get("error_description"))
                 : body == null || body.length() <= 200 ? body : body.substring(0, 200) + "...";
         throw new OAuth2Exception(failed + "HTTP " + status + ": " + reason);
+    }
+
+    private static boolean textOrAbsent(Map<String, Object> data, String key) {
+        Object value = data.get(key);
+        return value == null || value instanceof String;
     }
 
     /**

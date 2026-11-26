@@ -62,6 +62,7 @@ public class OAuth1AuthHandler implements AuthHandler {
     private static final Set<String> PROTOCOL_PARAMS = Set.of("oauth_consumer_key", "oauth_token",
             "oauth_signature_method", "oauth_timestamp", "oauth_nonce", "oauth_version", "oauth_signature",
             "oauth_callback", "oauth_verifier", "oauth_body_hash");
+    private static final Set<String> CREDENTIAL_PARAMS = Set.of("oauth_token", "oauth_signature");
     private static final String NONCE_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -173,7 +174,11 @@ public class OAuth1AuthHandler implements AuthHandler {
         }
         List<String> encoded = new ArrayList<>();
         for (String[] param : signed.params()) {
-            encoded.add(encode(param[0]) + "=" + encode(param[1]));
+            String emitted = encode(param[1]);
+            if (CREDENTIAL_PARAMS.contains(param[0])) {
+                AuthHandlers.report(onCredential, emitted);
+            }
+            encoded.add(encode(param[0]) + "=" + emitted);
         }
         if (form && (method.contains("POST") || method.contains("PUT"))) {
             formPairs.addAll(encoded);
@@ -233,7 +238,7 @@ public class OAuth1AuthHandler implements AuthHandler {
         String baseString = encode(method.toUpperCase(Locale.ROOT)) + "&" + encode(baseUri(parsed)) + "&"
                 + encode(String.join("&", normalized));
         String signature = signature(baseString);
-        AuthHandlers.report(onCredential, signature, encode(signature));
+        AuthHandlers.report(onCredential, signature);
         params.add(new String[]{"oauth_signature", signature});
         return new Signed(baseString, params, authorization(params));
     }
@@ -262,7 +267,11 @@ public class OAuth1AuthHandler implements AuthHandler {
         for (String[] param : params) {
             if (!param[1].isEmpty()) {
                 String value = param[1].trim();
-                parts.add((raw ? param[0] : encode(param[0])) + "=\"" + (raw ? value : encode(value)) + "\"");
+                String emitted = raw ? value : encode(value);
+                if (CREDENTIAL_PARAMS.contains(param[0])) {
+                    AuthHandlers.report(onCredential, emitted);
+                }
+                parts.add((raw ? param[0] : encode(param[0])) + "=\"" + emitted + "\"");
             }
         }
         return "OAuth " + String.join(",", parts);

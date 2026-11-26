@@ -113,11 +113,8 @@ public final class AuthHandlers {
                 yield handler;
             }
             case "oauth1" -> {
-                Object token = auth.get("token");
-                report(onCredential, auth.get("consumerSecret"), token, auth.get("tokenSecret"), auth.get("privateKey"));
-                if (token != null && !OAuth1AuthHandler.encode(token.toString()).equals(token.toString())) {
-                    report(onCredential, OAuth1AuthHandler.encode(token.toString()));
-                }
+                report(onCredential, auth.get("consumerSecret"), auth.get("token"), auth.get("tokenSecret"),
+                        auth.get("privateKey"));
                 OAuth1AuthHandler handler = new OAuth1AuthHandler(auth);
                 handler.onCredential = onCredential;
                 yield handler;

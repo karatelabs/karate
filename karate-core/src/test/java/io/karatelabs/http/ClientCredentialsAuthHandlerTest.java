@@ -258,4 +258,16 @@ class ClientCredentialsAuthHandlerTest {
         }
     }
 
+
+    @Test
+    void aMistypedOptionalFieldFailsAsAMalformedAnswer() {
+        for (String body : List.of("{\"access_token\":\"t\",\"refresh_token\":5}", "{\"access_token\":\"t\",\"token_type\":1}",
+                "{\"access_token\":\"t\",\"scope\":[\"a\"]}")) {
+            Exchange exchange = acquire(HttpResponse.json(body), true);
+            assertNotNull(exchange.failure(), body);
+            assertEquals("OAuth2 client_credentials token request failed: HTTP 200", exchange.failure().getMessage());
+            assertNotNull(acquire(HttpResponse.json(body), false).failure(), body);
+        }
+    }
+
 }

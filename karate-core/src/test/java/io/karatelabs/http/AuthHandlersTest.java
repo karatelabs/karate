@@ -196,11 +196,26 @@ class AuthHandlersTest {
 
 
     @Test
-    void theEncodedFormsACredentialIsSentInAreHandedOver() {
-        List<String> seen = new ArrayList<>();
-        AuthHandlers.of(auth("type", "oauth1", "consumerKey", "k", "consumerSecret", "cs", "token", "a+b/c"),
-                "http://localhost", seen::add);
-        assertTrue(seen.contains("a%2Bb%2Fc"), seen::toString);
+    void anOAuth1TokenIsHandedOverInTheFormItsHeaderCarries() {
+        server = HttpServer.start(0, request -> {
+            events.add("request " + request.getHeader("Authorization"));
+            return HttpResponse.json("{}");
+        });
+        for (boolean raw : new boolean[]{false, true}) {
+            events.clear();
+            AuthHandler handler = AuthHandlers.of(auth("type", "oauth1", "consumerKey", "k", "consumerSecret", "cs",
+                    "token", " a+b ", "disableHeaderEncoding", raw), "http://localhost", events::add);
+            try (Http http = Http.to("http://localhost:" + server.getPort())) {
+                http.auth(handler).get();
+            }
+            String header = events.getLast();
+            java.util.regex.Matcher token = java.util.regex.Pattern.compile("oauth_token=\"([^\"]*)\"").matcher(header);
+            java.util.regex.Matcher signature = java.util.regex.Pattern.compile("oauth_signature=\"([^\"]*)\"").matcher(header);
+            assertTrue(token.find() && signature.find(), header);
+            assertEquals(raw ? "a+b" : "a%2Bb", token.group(1));
+            assertTrue(events.indexOf(token.group(1)) >= 0 && events.indexOf(token.group(1)) < events.size() - 1, events::toString);
+            assertTrue(events.indexOf(signature.group(1)) >= 0, events::toString);
+        }
     }
 
     @Test
