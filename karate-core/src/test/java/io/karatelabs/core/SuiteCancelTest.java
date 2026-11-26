@@ -17,6 +17,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -70,6 +71,7 @@ class SuiteCancelTest {
     static final class HoldingStub implements AutoCloseable {
         final ServerSocket server = new ServerSocket(0);
         final CountDownLatch held = new CountDownLatch(1);
+        private final AtomicBoolean holding = new AtomicBoolean();
 
         HoldingStub() throws IOException {
             Thread acceptor = new Thread(() -> {
@@ -83,7 +85,8 @@ class SuiteCancelTest {
                                 if (in.read(buf) <= 0) {
                                     return; // no request: holds nothing
                                 }
-                                if (held.getCount() == 0) {
+                                // connections are served concurrently: only the one that claims the hold is held
+                                if (!holding.compareAndSet(false, true)) {
                                     OutputStream out = socket.getOutputStream();
                                     out.write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
                                             .getBytes(StandardCharsets.US_ASCII));
