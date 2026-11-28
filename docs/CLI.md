@@ -2,7 +2,7 @@
 
 This document describes the CLI architecture for Karate v2, including subcommand design and integration with the Rust launcher.
 
-> See also: [DESIGN.md](./DESIGN.md) | [Rust Launcher Spec](https://github.com/karatelabs/karate-cli/blob/main/docs/spec.md)
+> See also: [DESIGN.md](./DESIGN.md) | [Rust Launcher Spec](https://github.com/karatelabs/karate-cli/blob/main/docs/spec.md) (`../karate-cli/docs/spec.md` when `karate-cli` is checked out beside this repo)
 
 ---
 
