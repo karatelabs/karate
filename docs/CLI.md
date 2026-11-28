@@ -2,7 +2,7 @@
 
 This document describes the CLI architecture for Karate v2, including subcommand design and integration with the Rust launcher.
 
-> See also: [DESIGN.md](./DESIGN.md) | [Rust Launcher Spec](../../karate-cli/docs/spec.md)
+> See also: [DESIGN.md](./DESIGN.md) | [Rust Launcher Spec](https://github.com/karatelabs/karate-cli/blob/main/docs/spec.md)
 
 ---
 
@@ -64,7 +64,7 @@ The Java CLI (`io.karatelabs.Main`) implements:
 > **MCP:** there is deliberately no `karate mcp` in core — the MCP server (LLM integration) is part of
 > **karate-agent**, the commercial layer in the open-core model (`karate serve` exposes `/api/mcp`).
 
-> **Note:** `init` is implemented in Rust (not Java) because it needs to scaffold different project types (Maven, Gradle, standalone) before Java/JVM is involved. See [Rust Launcher Spec](../../karate-cli/docs/spec.md).
+> **Note:** `init` is implemented in Rust (not Java) because it needs to scaffold different project types (Maven, Gradle, standalone) before Java/JVM is involved. See [Rust Launcher Spec](https://github.com/karatelabs/karate-cli/blob/main/docs/spec.md).
 
 ---
 
@@ -558,7 +558,7 @@ For backward compatibility, bare arguments (no subcommand) are treated as paths:
 
 ## Integration with Rust Launcher
 
-The Rust launcher (see [spec.md](../../karate-cli/docs/spec.md)) delegates runtime commands to the Java CLI:
+The Rust launcher (see [spec.md](https://github.com/karatelabs/karate-cli/blob/main/docs/spec.md)) delegates runtime commands to the Java CLI:
 
 ```
 karate run src/test/features -t @smoke
@@ -625,7 +625,7 @@ karate mock -m a.feature -m b.feature -p 8443 --ssl --cert cert.pem --key key.pe
 
 ## Future Commands (Java)
 
-> **Note:** `karate init` is implemented in Rust. See [Rust Launcher Spec](../../karate-cli/docs/spec.md) for details.
+> **Note:** `karate init` is implemented in Rust. See [Rust Launcher Spec](https://github.com/karatelabs/karate-cli/blob/main/docs/spec.md) for details.
 
 ### `karate perf`
 
@@ -823,6 +823,6 @@ rm -rf home/test-project/target
 
 ## References
 
-- [Rust Launcher Spec](../../karate-cli/docs/spec.md) - Full architecture for Rust-based CLI launcher
+- [Rust Launcher Spec](https://github.com/karatelabs/karate-cli/blob/main/docs/spec.md) - Full architecture for Rust-based CLI launcher
 - [DESIGN.md](./DESIGN.md) - Runtime architecture and design reference
 - [PicoCLI Subcommands](https://picocli.info/#_subcommands) - PicoCLI documentation
