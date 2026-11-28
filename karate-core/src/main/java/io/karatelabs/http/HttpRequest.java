@@ -509,11 +509,15 @@ public class HttpRequest implements SimpleObject {
     }
 
     public Object getBodyConverted() {
+        return getBodyConverted(false);
+    }
+
+    public Object getBodyConverted(boolean xmlNamespaceAware) {
         ResourceType rt = getResourceType(); // derive if needed
         if (rt != null && rt.isBinary()) {
             return body;
         }
-        return HttpUtils.fromBytes(body, false, rt);
+        return HttpUtils.fromBytes(body, false, rt, xmlNamespaceAware);
     }
 
     public Map<String, Object> toBlockData() {

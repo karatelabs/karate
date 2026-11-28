@@ -413,6 +413,53 @@ class StepConfigureTest {
     }
 
     @Test
+    void testConfigureXmlNamespaceAware() {
+        ScenarioRuntime sr = run("""
+            Feature:
+            Scenario:
+            * match karate.config.xmlNamespaceAware == false
+            * def plain = <s:a xmlns:s="urn:s"><s:b>1</s:b></s:a>
+            * configure xmlNamespaceAware = true
+            * match karate.config.xmlNamespaceAware == true
+            * def aware = <s:a xmlns:s="urn:s"><s:b>1</s:b></s:a>
+            * xml fromString = '<s:a xmlns:s="urn:s"><s:b>1</s:b></s:a>'
+            """);
+        assertPassed(sr);
+        assertNull(((org.w3c.dom.Document) get(sr, "plain")).getDocumentElement().getNamespaceURI());
+        org.w3c.dom.Element aware = ((org.w3c.dom.Document) get(sr, "aware")).getDocumentElement();
+        assertEquals("urn:s", aware.getNamespaceURI());
+        assertEquals("a", aware.getLocalName());
+        assertEquals("urn:s", ((org.w3c.dom.Document) get(sr, "fromString")).getDocumentElement().getNamespaceURI());
+    }
+
+    @Test
+    void testXmlNamespaceAwarePropagatesIntoCalledFeature() throws Exception {
+        Files.writeString(tempDir.resolve("called.feature"), """
+            Feature: Called
+            Scenario: parse
+            * def doc = read('doc.xml')
+            * match doc /s:a/s:b == '1'
+            """);
+        Files.writeString(tempDir.resolve("doc.xml"), "<s:a xmlns:s=\"urn:s\"><s:b>1</s:b></s:a>");
+        Files.writeString(tempDir.resolve("caller.feature"), """
+            Feature: Caller
+            Scenario: configure then call
+            * configure xmlNamespaceAware = true
+            * def res = call read('called.feature')
+            * def doc = res.doc
+            * match doc /s:a/s:b == '1'
+            """);
+        SuiteResult result = Runner.builder()
+                .path(tempDir.resolve("caller.feature").toString())
+                .workingDir(tempDir)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+        assertTrue(result.isPassed(), "suite should pass");
+    }
+
+    @Test
     void testConfigureProxyWithEmbeddedExpressions() {
         // Test that embedded expressions work with proxy configure
         ScenarioRuntime sr = run("""

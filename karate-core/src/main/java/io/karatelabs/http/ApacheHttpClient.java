@@ -128,6 +128,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private boolean redirectReferer;
     // conversion-side (stamped onto each response, never part of ClientKey) — see apply()
     private boolean strictResponseParsing;
+    private boolean xmlNamespaceAware;
     private long maxResponseSize = -1;
     private int maxHeaderSize = -1;
     // read per request, never part of ClientKey — see apply()
@@ -261,10 +262,11 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     @Override
     public void apply(KarateConfig config) {
         if (config == null) return;
-        // Conversion-side setting, deliberately NOT part of ClientKey: it changes how a response
+        // Conversion-side settings, deliberately NOT part of ClientKey: they change how a response
         // body is parsed (stamped per response below), never what reaches the wire, so flipping
-        // it must not tear down a live client. Captured before the unchanged-guard early return.
+        // one must not tear down a live client. Captured before the unchanged-guard early return.
         this.strictResponseParsing = config.isStrictResponseParsing();
+        this.xmlNamespaceAware = config.isXmlNamespaceAware();
         this.cookieJarEnabled = config.isCookieJarEnabled();
         // read as the response is, never by the built client
         this.maxResponseSize = config.getMaxResponseSize();
@@ -774,6 +776,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             mergeCookies(finalResponse, recorder.added);
             finalResponse.setRequest(request);
             finalResponse.setStrictParsing(strictResponseParsing);
+            finalResponse.setXmlNamespaceAware(xmlNamespaceAware);
             logger.logResponse(finalResponse);
             return finalResponse;
         } catch (MessageConstraintException e) {

@@ -23,17 +23,21 @@
  */
 package io.karatelabs.core;
 
+import io.karatelabs.common.Xml;
 import io.karatelabs.js.SimpleObject;
 import org.slf4j.Logger;
 import io.karatelabs.output.LogContext;
 import io.karatelabs.output.LogLevel;
 import io.karatelabs.output.LogMask;
+import org.w3c.dom.Document;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -68,6 +72,7 @@ public class KarateConfig implements SimpleObject {
             // HTTP client settings
             "url", "readTimeout", "connectTimeout", "followRedirects", "maxRedirects", "redirectReferer", "localAddress",
             "charset", "strictResponseParsing", "cookieJarEnabled", "maxResponseSize", "maxHeaderSize",
+            "xmlNamespaceAware", "xmlNamespaces",
             // Grouped settings (Maps)
             "ssl", "proxy", "auth", "retry", "report", "logging", "callSingleCache",
             // Headers/Cookies
@@ -101,6 +106,11 @@ public class KarateConfig implements SimpleObject {
     // the largest response body and header section, in bytes, a request accepts; -1 is no limit
     private long maxResponseSize = -1;
     private int maxHeaderSize = -1;
+    // XML parsed from response bodies, XML literals, the xml keyword and read() of .xml files
+    // is namespace-aware; XPath on such a document must use the prefixes the document declares
+    private boolean xmlNamespaceAware;
+    // prefix -> URI bindings XPath resolves before a namespace-aware document's own prefixes
+    private Map<String, String> xmlNamespaces = Map.of();
 
     // ===== Grouped Settings (Maps) =====
 
@@ -215,6 +225,8 @@ public class KarateConfig implements SimpleObject {
         this.cookieJarEnabled = other.cookieJarEnabled;
         this.maxResponseSize = other.maxResponseSize;
         this.maxHeaderSize = other.maxHeaderSize;
+        this.xmlNamespaceAware = other.xmlNamespaceAware;
+        this.xmlNamespaces = other.xmlNamespaces;
         // Grouped settings (deep copy Maps)
         this.ssl = new HashMap<>(other.ssl);
         this.proxy = new HashMap<>(other.proxy);
@@ -292,6 +304,8 @@ public class KarateConfig implements SimpleObject {
         if (before.cookieJarEnabled != after.cookieJarEnabled) this.cookieJarEnabled = after.cookieJarEnabled;
         if (before.maxResponseSize != after.maxResponseSize) this.maxResponseSize = after.maxResponseSize;
         if (before.maxHeaderSize != after.maxHeaderSize) this.maxHeaderSize = after.maxHeaderSize;
+        if (before.xmlNamespaceAware != after.xmlNamespaceAware) this.xmlNamespaceAware = after.xmlNamespaceAware;
+        if (!Objects.equals(before.xmlNamespaces, after.xmlNamespaces)) this.xmlNamespaces = after.xmlNamespaces;
         // Grouped settings (deep copy Maps)
         if (!before.ssl.equals(after.ssl)) this.ssl = new HashMap<>(after.ssl);
         if (!before.proxy.equals(after.proxy)) {
@@ -387,6 +401,10 @@ public class KarateConfig implements SimpleObject {
             case "cookieJarEnabled" -> {
                 this.cookieJarEnabled = toBoolean(value);
             }
+            case "xmlNamespaceAware" -> {
+                this.xmlNamespaceAware = toBoolean(value);
+            }
+            case "xmlNamespaces" -> configureXmlNamespaces(value);
             case "localAddress" -> {
                 this.localAddress = toString(value);
             }
@@ -496,6 +514,30 @@ public class KarateConfig implements SimpleObject {
             // 'configure <type>'. 'configure' stays strict so key typos fail loudly.
             default -> throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
+    }
+
+    private void configureXmlNamespaces(Object value) {
+        if (value == null) {
+            this.xmlNamespaces = Map.of();
+            return;
+        }
+        if (!(value instanceof Map<?, ?> map)) {
+            throw new RuntimeException("configure 'xmlNamespaces' expects a map of prefix to namespace URI, got: "
+                    + value.getClass().getName());
+        }
+        Map<String, String> bindings = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> e : map.entrySet()) {
+            if (!(e.getValue() instanceof String uri) || uri.isEmpty()) {
+                throw new RuntimeException("configure 'xmlNamespaces' expects a namespace URI string for prefix '"
+                        + e.getKey() + "', got: " + e.getValue());
+            }
+            String prefix = String.valueOf(e.getKey());
+            if (prefix.isEmpty() || prefix.contains(":") || prefix.equals("xml") || prefix.equals("xmlns")) {
+                throw new RuntimeException("configure 'xmlNamespaces' has an invalid prefix: '" + prefix + "'");
+            }
+            bindings.put(prefix, uri);
+        }
+        this.xmlNamespaces = Collections.unmodifiableMap(bindings);
     }
 
     private void configureSsl(Object value) {
@@ -821,6 +863,8 @@ public class KarateConfig implements SimpleObject {
             case "cookieJarEnabled" -> cookieJarEnabled;
             case "maxResponseSize" -> maxResponseSize < 0 ? null : maxResponseSize;
             case "maxHeaderSize" -> maxHeaderSize < 0 ? null : maxHeaderSize;
+            case "xmlNamespaceAware" -> xmlNamespaceAware;
+            case "xmlNamespaces" -> xmlNamespaces;
             // Grouped settings
             case "ssl" -> ssl;
             case "proxy" -> proxy;
@@ -924,6 +968,20 @@ public class KarateConfig implements SimpleObject {
 
     public boolean isCookieJarEnabled() {
         return cookieJarEnabled;
+    }
+
+    public boolean isXmlNamespaceAware() {
+        return xmlNamespaceAware;
+    }
+
+    /** The configured prefix bindings, empty when none are configured. */
+    public Map<String, String> getXmlNamespaces() {
+        return xmlNamespaces;
+    }
+
+    /** Parses XML text namespace-aware when {@code xmlNamespaceAware} is on; the one parse seam for configured lanes. */
+    public Document toXmlDoc(String xml) {
+        return Xml.toXmlDoc(xml, xmlNamespaceAware);
     }
 
     public String getLocalAddress() {

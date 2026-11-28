@@ -84,7 +84,7 @@ public class HttpRequestBuilder implements SimpleObject {
     /**
      * Lazily supplies the owning context's {@link io.karatelabs.core.KarateConfig} so every
      * response this builder produces is stamped with conversion-side settings
-     * (strictResponseParsing) — including the {@code karate.http()} JS lane, which reaches
+     * (strictResponseParsing, xmlNamespaceAware) — including the {@code karate.http()} JS lane, which reaches
      * {@link #invoke()} without passing through the step executor. Null = no stamping (server
      * side / bare builders), which leaves the lenient default.
      */
@@ -176,6 +176,7 @@ public class HttpRequestBuilder implements SimpleObject {
             io.karatelabs.core.KarateConfig config = configSupplier.get();
             if (config != null) {
                 response.setStrictParsing(config.isStrictResponseParsing());
+                response.setXmlNamespaceAware(config.isXmlNamespaceAware());
             }
         }
         return response;
@@ -190,6 +191,10 @@ public class HttpRequestBuilder implements SimpleObject {
         this.method = method;
         this.body = body;
         return invoke();
+    }
+
+    public String getCharset() {
+        return charset;
     }
 
     public HttpRequestBuilder charset(String charset) {

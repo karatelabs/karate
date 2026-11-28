@@ -229,13 +229,14 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         });
         engine.put("bodyPath", (JavaInvokable) a -> {
             if (currentRequest == null) return null;
-            Object body = currentRequest.getBodyConverted();
+            KarateConfig config = runtime.getConfig();
+            Object body = currentRequest.getBodyConverted(config.isXmlNamespaceAware());
             if (body == null) return null;
             String path = a[0] + "";
             if (path.startsWith("/")) {
                 // XPath for XML
                 if (body instanceof Node) {
-                    return markRequestDerived(runtime, Xml.getTextValueByPath((Node) body, path));
+                    return markRequestDerived(runtime, Xml.getTextValueByPath((Node) body, path, config.getXmlNamespaces()));
                 }
                 return null;
             } else {
@@ -252,7 +253,8 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         // Register lazy request variables (resolved via JsLazy when accessed)
         // These read from currentRequest field which is set per-request
         engine.put("request", (JsLazy) () ->
-            currentRequest != null ? markRequestDerived(runtime, currentRequest.getBodyConverted()) : null);
+            currentRequest != null ? markRequestDerived(runtime,
+                    currentRequest.getBodyConverted(runtime.getConfig().isXmlNamespaceAware())) : null);
         engine.put("requestBytes", (JsLazy) () ->
             currentRequest != null ? currentRequest.getBody() : null);
         engine.put("requestPath", (JsLazy) () ->

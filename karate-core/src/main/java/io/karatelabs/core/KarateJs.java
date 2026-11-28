@@ -244,7 +244,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                     yield tagSelector != null ? new FeatureCall(feature, tagSelector) : feature;
                 }
                 case "xml" -> {
-                    Document doc = Xml.toXmlDoc(authorText(resource.getText()));
+                    Document doc = getConfig().toXmlDoc(authorText(resource.getText()));
                     processXmlEmbeddedExpressions(doc);
                     yield doc;
                 }
@@ -631,15 +631,15 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                         engine.put(name, doc);
                     } else if (target instanceof String && StringUtils.isXml((String) target)) {
                         // Convert XML string to Document
-                        doc = Xml.toXmlDoc((String) target);
+                        doc = getConfig().toXmlDoc((String) target);
                         engine.put(name, doc);
                     } else {
                         throw new RuntimeException("cannot set xpath on non-XML variable: " + name);
                     }
                     if (value instanceof Node) {
-                        Xml.setByPath(doc, path, (Node) value);
+                        Xml.setByPath(doc, path, (Node) value, getConfig().getXmlNamespaces());
                     } else {
-                        Xml.setByPath(doc, path, value == null ? "" : value.toString());
+                        Xml.setByPath(doc, path, value == null ? "" : value.toString(), getConfig().getXmlNamespaces());
                     }
                 } else {
                     // Route through Json (Jayway) for full JSONPath semantics:
@@ -662,6 +662,10 @@ public class KarateJs extends KarateJsBase implements PerfContext {
      * Usage: karate.match(actual, expected) or karate.match("foo == expected")
      * Returns { pass: boolean, message: String|null }
      */
+    private Object parseIfXmlString(Object value) {
+        return value instanceof String s && StringUtils.isXml(s) ? getConfig().toXmlDoc(s) : value;
+    }
+
     private JavaInvokable karateMatch() {
         return args -> {
             if (args.length == 0) {
@@ -670,8 +674,8 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             if (args.length >= 2) {
                 // Two-argument form: karate.match(actual, expected)
                 // Do an equals comparison and return { pass, message }
-                Object actual = args[0];
-                Object expected = args[1];
+                Object actual = parseIfXmlString(args[0]);
+                Object expected = parseIfXmlString(args[1]);
                 // markers in expected ('##(schemas.foo)', '#[] schemas.foo') resolve against the
                 // currently executing scenario, as the one-arg form below does
                 ScenarioRuntime rt = liveRuntime();
@@ -813,7 +817,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             if (var instanceof Node && path != null && path.startsWith("/")) {
                 // XPath remove on XML
                 Document doc = var instanceof Document ? (Document) var : ((Node) var).getOwnerDocument();
-                Xml.removeByPath(doc, path);
+                Xml.removeByPath(doc, path, getConfig().getXmlNamespaces());
             } else if ((var instanceof Map || var instanceof List) && path != null) {
                 // Route through Json so nested paths (props.field3), JsonPath ($.props.field3)
                 // and bracketed keys all resolve - mirroring the `remove` keyword. A bare
@@ -833,7 +837,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             if (args.length == 2) {
                 // Simple form: setXml('name', '<xml/>')
                 String xml = args[1].toString();
-                engine.put(name, Xml.toXmlDoc(xml));
+                engine.put(name, getConfig().toXmlDoc(xml));
             } else {
                 // Path form: setXml('name', '/path', '<xml/>')
                 String path = args[1].toString();
@@ -844,7 +848,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                     if (doc.getNodeType() != Node.DOCUMENT_NODE) {
                         doc = doc.getOwnerDocument();
                     }
-                    Xml.setByPath((org.w3c.dom.Document) doc, path, Xml.toXmlDoc(xml));
+                    Xml.setByPath((org.w3c.dom.Document) doc, path, getConfig().toXmlDoc(xml), getConfig().getXmlNamespaces());
                 }
             }
             return null;
@@ -1374,17 +1378,17 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             case "filterKeys" -> KarateJsUtils.filterKeys();
             case "forEach" -> KarateJsUtils.forEach();
             case "fromJson" -> KarateJsUtils.fromJson();
-            case "fromString" -> KarateJsUtils.fromString();
+            case "fromString" -> KarateJsUtils.fromString(this::getConfig);
             case "jsonPath" -> KarateJsUtils.jsonPath();
             case "keysOf" -> KarateJsUtils.keysOf();
-            case "lowerCase" -> KarateJsUtils.lowerCase();
+            case "lowerCase" -> KarateJsUtils.lowerCase(this::getConfig);
             case "map" -> KarateJsUtils.map();
             case "mapWithKey" -> KarateJsUtils.mapWithKey();
             case "merge" -> KarateJsUtils.merge();
             case "os" -> KarateJsUtils.getOsInfo();
             case "pause" -> KarateJsUtils.pause();
             case "pretty" -> KarateJsUtils.pretty();
-            case "prettyXml" -> KarateJsUtils.prettyXml();
+            case "prettyXml" -> KarateJsUtils.prettyXml(this::getConfig);
             case "range" -> KarateJsUtils.range();
             case "repeat" -> KarateJsUtils.repeat();
             case "sizeOf" -> KarateJsUtils.sizeOf();
@@ -1455,7 +1459,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             case "waitForHttp" -> KarateJsUtils.waitForHttp();
             case "waitForPort" -> KarateJsUtils.waitForPort();
             case "write" -> write();
-            case "xmlPath" -> KarateJsUtils.xmlPath();
+            case "xmlPath" -> KarateJsUtils.xmlPath(this::getConfig);
             default -> null;
         };
     }

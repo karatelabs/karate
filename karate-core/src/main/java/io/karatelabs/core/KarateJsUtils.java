@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -294,7 +295,7 @@ public class KarateJsUtils {
         };
     }
 
-    static JavaInvokable lowerCase() {
+    static JavaInvokable lowerCase(Supplier<KarateConfig> config) {
         return args -> {
             if (args.length == 0) {
                 throw new RuntimeException("lowerCase() needs one argument");
@@ -311,7 +312,7 @@ public class KarateJsUtils {
                 return Json.of(json).value();
             } else if (obj instanceof Node) {
                 String xml = Xml.toString((Node) obj, false).toLowerCase();
-                return Xml.toXmlDoc(xml);
+                return config.get().toXmlDoc(xml);
             }
             return obj;
         };
@@ -425,7 +426,7 @@ public class KarateJsUtils {
         };
     }
 
-    static JavaInvokable prettyXml() {
+    static JavaInvokable prettyXml(Supplier<KarateConfig> config) {
         return args -> {
             if (args.length == 0) {
                 throw new RuntimeException("prettyXml() needs one argument");
@@ -434,7 +435,7 @@ public class KarateJsUtils {
             if (obj instanceof Node) {
                 return Xml.toString((Node) obj, true);
             } else if (obj instanceof String) {
-                return Xml.toString(Xml.toXmlDoc((String) obj), true);
+                return Xml.toString(config.get().toXmlDoc((String) obj), true);
             } else {
                 throw new RuntimeException("prettyXml() argument must be XML node or string");
             }
@@ -715,13 +716,13 @@ public class KarateJsUtils {
      * Evaluate an XPath expression on an XML node.
      * Returns the appropriate type: String, Number, Node, or List of nodes.
      */
-    static Object evalXmlPath(Node doc, String path) {
+    static Object evalXmlPath(Node doc, String path, Map<String, String> namespaces) {
         org.w3c.dom.NodeList nodeList;
         try {
-            nodeList = Xml.getNodeListByPath(doc, path);
+            nodeList = Xml.getNodeListByPath(doc, path, namespaces);
         } catch (Exception e) {
             // XPath functions like count() don't return nodes
-            String strValue = Xml.getTextValueByPath(doc, path);
+            String strValue = Xml.getTextValueByPath(doc, path, namespaces);
             if (path.startsWith("count")) {
                 try {
                     return Integer.parseInt(strValue);
@@ -771,7 +772,7 @@ public class KarateJsUtils {
      * - If the string looks like XML (starts with &lt;), parse as XML
      * - Otherwise, return the string unchanged
      */
-    static JavaInvokable fromString() {
+    static JavaInvokable fromString(Supplier<KarateConfig> config) {
         return args -> {
             if (args.length == 0 || args[0] == null) {
                 return null;
@@ -789,7 +790,7 @@ public class KarateJsUtils {
                 }
             } else if (StringUtils.isXml(text)) {
                 try {
-                    return Xml.toXmlDoc(text);
+                    return config.get().toXmlDoc(text);
                 } catch (Exception e) {
                     logger.warn("fromString XML parse failed: {}", e.getMessage());
                     return text;
@@ -953,7 +954,7 @@ public class KarateJsUtils {
      * karate.xmlPath(xml, path) - Evaluate XPath on XML.
      * First argument can be XML Node or String.
      */
-    static JavaInvokable xmlPath() {
+    static JavaInvokable xmlPath(Supplier<KarateConfig> config) {
         return args -> {
             if (args.length < 2) {
                 throw new RuntimeException("xmlPath() needs two arguments: xml and path");
@@ -964,12 +965,12 @@ public class KarateJsUtils {
             if (xmlObj instanceof Node) {
                 doc = (Node) xmlObj;
             } else if (xmlObj instanceof String) {
-                doc = Xml.toXmlDoc((String) xmlObj);
+                doc = config.get().toXmlDoc((String) xmlObj);
             } else {
                 throw new RuntimeException("xmlPath() first argument must be XML node or string, but was: " + (xmlObj == null ? "null" : xmlObj.getClass()));
             }
             try {
-                return evalXmlPath(doc, path);
+                return evalXmlPath(doc, path, config.get().getXmlNamespaces());
             } catch (Exception e) {
                 throw new RuntimeException("xmlPath failed for path: " + path + " - " + e.getMessage(), e);
             }

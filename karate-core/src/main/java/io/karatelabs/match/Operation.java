@@ -28,6 +28,7 @@ import io.karatelabs.common.StringUtils;
 import io.karatelabs.common.Xml;
 import io.karatelabs.js.Engine;
 import io.karatelabs.js.Terms;
+import org.w3c.dom.Node;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -515,10 +516,10 @@ public class Operation {
                 Map<String, Object> actMap = actual.getValue();
                 Map<String, Object> expMap = expected.getValue();
                 return matchMapValues(actMap, expMap);
-            case XML:
-                Map<String, Object> actXml = (Map<String, Object>) Xml.toObject(actual.getValue(), true);
-                Map<String, Object> expXml = (Map<String, Object>) Xml.toObject(expected.getValue(), true);
-                return matchMapValues(actXml, expXml);
+            case XML: {
+                Map<String, Object>[] maps = xmlMaps(actual.getValue(), expected.getValue(), true);
+                return matchMapValues(maps[0], maps[1]);
+            }
             case OTHER:
                 return actual.getValue().equals(expected.getValue());
             default:
@@ -712,10 +713,10 @@ public class Operation {
                 Map<String, Object> actMap = actual.getValue();
                 Map<String, Object> expMap = expected.getValue();
                 return matchMapValues(actMap, expMap);
-            case XML:
-                Map<String, Object> actXml = (Map<String, Object>) Xml.toObject(actual.getValue());
-                Map<String, Object> expXml = (Map<String, Object>) Xml.toObject(expected.getValue());
-                return matchMapValues(actXml, expXml);
+            case XML: {
+                Map<String, Object>[] maps = xmlMaps(actual.getValue(), expected.getValue(), false);
+                return matchMapValues(maps[0], maps[1]);
+            }
             default:
                 throw new RuntimeException("unexpected type (match contains): " + actual.type);
         }
@@ -800,15 +801,36 @@ public class Operation {
                 }
                 return true;
             case XML:
-                Map<String, Object> actXml = (Map<String, Object>) Xml.toObject(actual.getValue());
-                Map<String, Object> expXml = (Map<String, Object>) Xml.toObject(expected.getValue());
+                Map<String, Object>[] maps = xmlMaps(actual.getValue(), expected.getValue(), false);
                 // Recursively check using WITHIN with the converted maps
-                Operation mo = new Operation(context, Match.Type.WITHIN, new Value(actXml), new Value(expXml), matchEachEmptyAllowed);
+                Operation mo = new Operation(context, Match.Type.WITHIN, new Value(maps[0]), new Value(maps[1]), matchEachEmptyAllowed);
                 mo.execute();
                 return mo.pass;
             default:
                 throw new RuntimeException("unexpected type (match within): " + actual.type);
         }
+    }
+
+    /**
+     * The two XML sides as the maps a match compares. When either side is namespace-aware, names
+     * compare by namespace URI and local name ({@link Xml#toExpandedObject}); the side that is not
+     * is re-parsed namespace-aware first, and if it cannot be (a prefix it never declares) both
+     * sides fall back to the prefix-based comparison a prefix-blind pair gets.
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object>[] xmlMaps(Node actual, Node expected, boolean removeNamespace) {
+        boolean actualAware = Xml.isNamespaceAware(actual);
+        boolean expectedAware = Xml.isNamespaceAware(expected);
+        if (actualAware || expectedAware) {
+            try {
+                Node act = actualAware ? actual : Xml.toXmlDoc(Xml.toString(actual), true);
+                Node exp = expectedAware ? expected : Xml.toXmlDoc(Xml.toString(expected), true);
+                return new Map[]{(Map<String, Object>) Xml.toExpandedObject(act), (Map<String, Object>) Xml.toExpandedObject(exp)};
+            } catch (RuntimeException notWellFormedWithNamespaces) {
+                // compared by prefixed names below
+            }
+        }
+        return new Map[]{(Map<String, Object>) Xml.toObject(actual, removeNamespace), (Map<String, Object>) Xml.toObject(expected, removeNamespace)};
     }
 
     private static BigDecimal toBigDecimal(Object o) {

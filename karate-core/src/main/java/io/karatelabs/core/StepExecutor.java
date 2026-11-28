@@ -28,6 +28,8 @@ import io.karatelabs.common.Json;
 import io.karatelabs.common.Resource;
 import io.karatelabs.common.StringUtils;
 import io.karatelabs.common.Xml;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import io.karatelabs.gherkin.Feature;
 import io.karatelabs.gherkin.MatchExpression;
@@ -675,9 +677,9 @@ public class StepExecutor {
                         ? (org.w3c.dom.Document) target
                         : ((Node) target).getOwnerDocument();
                 if (value instanceof Node) {
-                    Xml.setByPath(doc, xpath, (Node) value);
+                    Xml.setByPath(doc, xpath, (Node) value, xmlNamespaces());
                 } else {
-                    Xml.setByPath(doc, xpath, value == null ? "" : value.toString());
+                    Xml.setByPath(doc, xpath, value == null ? "" : value.toString(), xmlNamespaces());
                 }
                 return;
             }
@@ -869,7 +871,7 @@ public class StepExecutor {
         }
 
         // Ensure the base path root element exists
-        Xml.getNodeByPath(doc, basePath, true);
+        Xml.getNodeByPath(doc, basePath, true, xmlNamespaces());
 
         // Determine column indices for path and value
         int pathIdx = headers.indexOf("path");
@@ -914,9 +916,9 @@ public class StepExecutor {
 
                     // Set the value at the XPath
                     if (value instanceof org.w3c.dom.Node) {
-                        Xml.setByPath(doc, fullPath, (org.w3c.dom.Node) value);
+                        Xml.setByPath(doc, fullPath, (org.w3c.dom.Node) value, xmlNamespaces());
                     } else {
-                        Xml.setByPath(doc, fullPath, value == null ? "" : value.toString());
+                        Xml.setByPath(doc, fullPath, value == null ? "" : value.toString(), xmlNamespaces());
                     }
                 }
             }
@@ -940,9 +942,9 @@ public class StepExecutor {
 
                 // Set the value at the XPath
                 if (value instanceof org.w3c.dom.Node) {
-                    Xml.setByPath(doc, fullPath, (org.w3c.dom.Node) value);
+                    Xml.setByPath(doc, fullPath, (org.w3c.dom.Node) value, xmlNamespaces());
                 } else {
-                    Xml.setByPath(doc, fullPath, value == null ? "" : value.toString());
+                    Xml.setByPath(doc, fullPath, value == null ? "" : value.toString(), xmlNamespaces());
                 }
             }
         }
@@ -966,7 +968,7 @@ public class StepExecutor {
                 org.w3c.dom.Document doc = node instanceof org.w3c.dom.Document
                         ? (org.w3c.dom.Document) node
                         : node.getOwnerDocument();
-                Xml.removeByPath(doc, path);
+                Xml.removeByPath(doc, path, xmlNamespaces());
                 return;
             }
 
@@ -1077,7 +1079,7 @@ public class StepExecutor {
         // Evaluate expression using Karate expression evaluation (handles $var /xpath, etc.)
         Object value = evalKarateExpression(expr);
         if (value instanceof String) {
-            value = Xml.toXmlDoc((String) value);
+            value = toXmlDoc((String) value);
         } else if (value instanceof Node) {
             // Already XML, keep as is
         } else if (value instanceof Map) {
@@ -1089,6 +1091,18 @@ public class StepExecutor {
             value = Xml.fromObject("root", jsonValue);
         }
         runtime.setVariable(name, value);
+    }
+
+    private Document toXmlDoc(String xml) {
+        return runtime.getConfig().toXmlDoc(xml);
+    }
+
+    private Map<String, String> xmlNamespaces() {
+        return runtime.getConfig().getXmlNamespaces();
+    }
+
+    private Object evalXmlPath(Node node, String path) {
+        return KarateJsUtils.evalXmlPath(node, path, xmlNamespaces());
     }
 
     private void executeXmlString(Step step) {
@@ -1414,7 +1428,7 @@ public class StepExecutor {
 
         // Handle XML literal - expression starting with <
         if (expr.startsWith("<")) {
-            return Xml.toXmlDoc(expr);
+            return toXmlDoc(expr);
         }
 
         // Handle JSON literal - expression starting with { or [
@@ -1454,7 +1468,7 @@ public class StepExecutor {
         if (expr.startsWith("/")) {
             Object response = runtime.getVariable("response");
             if (response instanceof Node) {
-                return KarateJsUtils.evalXmlPath((Node) response, expr);
+                return evalXmlPath((Node) response, expr);
             }
         }
 
@@ -1635,7 +1649,7 @@ public class StepExecutor {
             if (StepUtils.isValidVariableName(varName)) {
                 Object target = runtime.getVariable(varName);
                 if (target instanceof Node) {
-                    Object result = KarateJsUtils.evalXmlPath((Node) target, xpath);
+                    Object result = evalXmlPath((Node) target, xpath);
                     return result == null ? XPATH_NOT_PRESENT : result;
                 }
             }
@@ -1652,7 +1666,7 @@ public class StepExecutor {
                     Object target = runtime.getVariable(varName);
                     if (target instanceof Node) {
                         String xpath = expr.substring(slashIdx);
-                        Object result = KarateJsUtils.evalXmlPath((Node) target, xpath);
+                        Object result = evalXmlPath((Node) target, xpath);
                         return result == null ? XPATH_NOT_PRESENT : result;
                     }
                 }
@@ -1677,7 +1691,7 @@ public class StepExecutor {
     private Object evalXmlPathWithFunction(Node node, String path) {
         // Try to evaluate as normal XPath returning nodes
         try {
-            Object result = KarateJsUtils.evalXmlPath(node, path);
+            Object result = evalXmlPath(node, path);
             if (result != null) {
                 return result;
             }
@@ -1687,7 +1701,7 @@ public class StepExecutor {
 
         // For XPath functions that don't return nodes (e.g., count, sum, string-length),
         // evaluate as text value
-        String textValue = Xml.getTextValueByPath(node, path);
+        String textValue = Xml.getTextValueByPath(node, path, xmlNamespaces());
         if (textValue != null && !textValue.isEmpty()) {
             // Special case: count() returns an integer
             if (path.startsWith("count(") || path.startsWith("count ")) {
@@ -1790,7 +1804,7 @@ public class StepExecutor {
 
         if (isXPath) {
             if (target instanceof Node) {
-                return KarateJsUtils.evalXmlPath((Node) target, path);
+                return evalXmlPath((Node) target, path);
             }
             // Fall back to jsonpath if not XML
             return JsonPath.read(toJsonForJsonPath(target), "$" + path);
@@ -1884,7 +1898,7 @@ public class StepExecutor {
 
         // Handle XML literal - expression starting with <
         if (expr.startsWith("<")) {
-            Object value = Xml.toXmlDoc(expr);
+            Object value = toXmlDoc(expr);
             return processEmbeddedExpressions(value);
         }
 
@@ -1892,7 +1906,7 @@ public class StepExecutor {
         if (expr.startsWith("/")) {
             Object response = runtime.getVariable("response");
             if (response instanceof Node) {
-                return KarateJsUtils.evalXmlPath((Node) response, expr);
+                return evalXmlPath((Node) response, expr);
             }
         }
 
@@ -2231,9 +2245,34 @@ public class StepExecutor {
             Object result = runtime.eval(text.trim());
             action = result != null ? result.toString() : "";
         }
-        http().header("SOAPAction", action);
-        http().contentType("text/xml");
-        doMethod("POST");
+        boolean soap12 = SOAP_12_NS.equals(soapEnvelopeNamespace(http().getBody()));
+        if (soap12) {
+            String charset = http().getCharset() == null ? "" : "; charset=" + http().getCharset();
+            String quoted = action.replace("\\", "\\\\").replace("\"", "\\\"");
+            http().contentType("application/soap+xml" + charset + (action.isEmpty() ? "" : "; action=\"" + quoted + "\""));
+        } else {
+            http().header("SOAPAction", action);
+            http().contentType("text/xml");
+        }
+        doMethod("POST", soap12);
+    }
+
+    private static final String SOAP_12_NS = "http://www.w3.org/2003/05/soap-envelope";
+
+    private static String soapEnvelopeNamespace(Object body) {
+        Element root = null;
+        if (body instanceof Document doc) {
+            root = doc.getDocumentElement();
+        } else if (body instanceof Element element) {
+            root = element;
+        } else if (body instanceof String s && s.strip().startsWith("<")) {
+            try {
+                root = Xml.toXmlDoc(s.strip()).getDocumentElement();
+            } catch (RuntimeException e) {
+                return null;
+            }
+        }
+        return root == null ? null : Xml.getNamespaceUri(root);
     }
 
     private static final Set<String> HTTP_METHODS = Set.of(
@@ -2270,6 +2309,10 @@ public class StepExecutor {
 
     @SuppressWarnings("unchecked")
     private void doMethod(String method) {
+        doMethod(method, false);
+    }
+
+    private void doMethod(String method, boolean soap12) {
         KarateConfig config = runtime.getConfig();
 
         // Set method on the builder up-front so any build() below sees the real method.
@@ -2308,6 +2351,10 @@ public class StepExecutor {
             }
         } else if (configHeaders instanceof Map<?, ?> headersMap) {
             http().headers(resolveConfigMap(headersMap));
+        }
+        if (soap12) {
+            // SOAP 1.2 carries the action in the Content-Type, whichever source set the header
+            http().removeHeader("SOAPAction");
         }
 
         // Apply configured auth handler
@@ -2350,6 +2397,7 @@ public class StepExecutor {
                 // BEFORE HTTP_EXIT fires — listeners capturing evidence and the response
                 // variable must convert the body identically
                 response.setStrictParsing(runtime.getConfig().isStrictResponseParsing());
+                response.setXmlNamespaceAware(runtime.getConfig().isXmlNamespaceAware());
             } else {
                 // Request skipped by listener
                 response = HttpResponse.skipped(request);
@@ -2463,6 +2511,7 @@ public class StepExecutor {
                 response = http().invoke(method);
                 // same client-independent stamp as the non-retry lane, per attempt
                 response.setStrictParsing(config.isStrictResponseParsing());
+                response.setXmlNamespaceAware(config.isXmlNamespaceAware());
             } else {
                 // Request skipped by listener
                 response = HttpResponse.skipped(request);
@@ -3283,7 +3332,7 @@ public class StepExecutor {
 
         // Handle XPath for XML nodes
         if (target instanceof Node && path != null && path.startsWith("/")) {
-            Object result = KarateJsUtils.evalXmlPath((Node) target, path);
+            Object result = evalXmlPath((Node) target, path);
             return applyGetIndex(result, index);
         }
 

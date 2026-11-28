@@ -35,6 +35,7 @@ import io.netty.handler.codec.http.QueryStringEncoder;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -96,6 +97,34 @@ public class HttpUtils {
 
     }
 
+    // splits on ';' outside double quotes, so a quoted parameter value (a SOAP 1.2 action) may hold one
+    private static List<String> splitParams(String mimeType) {
+        List<String> items = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        boolean quoted = false;
+        for (int i = 0; i < mimeType.length(); i++) {
+            char c = mimeType.charAt(i);
+            if (quoted && c == '\\' && i + 1 < mimeType.length()) {
+                sb.append(c).append(mimeType.charAt(++i));
+                continue;
+            }
+            if (c == '"') {
+                quoted = !quoted;
+            } else if (c == ';' && !quoted) {
+                if (!sb.isEmpty()) {
+                    items.add(sb.toString());
+                }
+                sb.setLength(0);
+                continue;
+            }
+            sb.append(c);
+        }
+        if (!sb.isEmpty()) {
+            items.add(sb.toString());
+        }
+        return items;
+    }
+
     public static Charset parseContentTypeCharset(String mimeType) {
         Map<String, String> map = parseContentTypeParams(mimeType);
         if (map == null) {
@@ -109,7 +138,7 @@ public class HttpUtils {
     }
 
     public static Map<String, String> parseContentTypeParams(String mimeType) {
-        List<String> items = StringUtils.split(mimeType, ';', false);
+        List<String> items = splitParams(mimeType);
         int count = items.size();
         if (count <= 1) {
             return null;
@@ -258,6 +287,10 @@ public class HttpUtils {
     }
 
     public static Object fromBytes(byte[] bytes, boolean strict, ResourceType resourceType) {
+        return fromBytes(bytes, strict, resourceType, false);
+    }
+
+    public static Object fromBytes(byte[] bytes, boolean strict, ResourceType resourceType, boolean xmlNamespaceAware) {
         if (bytes == null) {
             return null;
         }
@@ -266,10 +299,14 @@ public class HttpUtils {
             return bytes;
         }
         String raw = FileUtils.toString(bytes);
-        return fromString(raw, strict, resourceType);
+        return fromString(raw, strict, resourceType, xmlNamespaceAware);
     }
 
     public static Object fromString(String raw, boolean strict, ResourceType resourceType) {
+        return fromString(raw, strict, resourceType, false);
+    }
+
+    public static Object fromString(String raw, boolean strict, ResourceType resourceType, boolean xmlNamespaceAware) {
         String trimmed = raw.trim();
         if (trimmed.isEmpty()) {
             return raw;
@@ -309,7 +346,7 @@ public class HttpUtils {
                 // TEXT is included because servers may return XML with text/plain content-type
                 if (resourceType == null || resourceType.isXml() || resourceType.isText()) {
                     try {
-                        return Xml.toXmlDoc(raw);
+                        return Xml.toXmlDoc(raw, xmlNamespaceAware);
                     } catch (Exception e) {
                         logger.trace("failed to parse xml: {}", e.getMessage());
                         if (strict) {
@@ -336,11 +373,15 @@ public class HttpUtils {
      * there is nothing to be strict about.
      */
     public static Object fromBytesDeclared(byte[] bytes, ResourceType resourceType) {
+        return fromBytesDeclared(bytes, resourceType, false);
+    }
+
+    public static Object fromBytesDeclared(byte[] bytes, ResourceType resourceType, boolean xmlNamespaceAware) {
         if (bytes == null) {
             return null;
         }
         if (resourceType == null) {
-            return fromBytes(bytes, false, null);
+            return fromBytes(bytes, false, null, xmlNamespaceAware);
         }
         if (resourceType.isBinary()) {
             return bytes;
@@ -370,7 +411,7 @@ public class HttpUtils {
         }
         if (resourceType.isXml()) {
             try {
-                return Xml.toXmlDoc(raw);
+                return Xml.toXmlDoc(raw, xmlNamespaceAware);
             } catch (Exception e) {
                 logger.trace("declared xml failed to parse, keeping raw string: {}", e.getMessage());
                 return raw;

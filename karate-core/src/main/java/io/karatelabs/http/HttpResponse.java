@@ -66,6 +66,8 @@ public class HttpResponse implements ObjectLike {
     // this response — the `response` variable, JS member access, evidence toMap() — converts
     // identically. Default false = the V1-compatible lenient sniff.
     private boolean strictParsing;
+    // stamped alongside strictParsing from `configure xmlNamespaceAware`
+    private boolean xmlNamespaceAware;
     // the converted body, cached on first read so that `response.body` is a LIVE view: an in-place
     // mutation in a handler (response.body.x = 1) is seen by every later read AND by the bytes served.
     // Only a mutable shape (Map / List / XML Node) is cached — a String or a number cannot be changed
@@ -285,8 +287,8 @@ public class HttpResponse implements ObjectLike {
             return bodyConverted;
         }
         Object converted = strictParsing
-                ? HttpUtils.fromBytesDeclared(body, rt)
-                : HttpUtils.fromBytes(body, false, rt);
+                ? HttpUtils.fromBytesDeclared(body, rt, xmlNamespaceAware)
+                : HttpUtils.fromBytes(body, false, rt, xmlNamespaceAware);
         if (converted instanceof Map || converted instanceof List || converted instanceof Node) {
             bodyConverted = converted;
             bodyConvertedBytes = Json.toBytes(converted);
@@ -301,6 +303,17 @@ public class HttpResponse implements ObjectLike {
     public void setStrictParsing(boolean strictParsing) {
         this.strictParsing = strictParsing;
         invalidateBodyConverted();
+    }
+
+    public boolean isXmlNamespaceAware() {
+        return xmlNamespaceAware;
+    }
+
+    public void setXmlNamespaceAware(boolean xmlNamespaceAware) {
+        if (this.xmlNamespaceAware != xmlNamespaceAware) {
+            this.xmlNamespaceAware = xmlNamespaceAware;
+            invalidateBodyConverted();
+        }
     }
 
     public long getResponseTime() {

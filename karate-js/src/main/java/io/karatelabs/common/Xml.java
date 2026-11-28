@@ -27,6 +27,8 @@ import org.w3c.dom.*;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 
+import javax.xml.XMLConstants;
+import javax.xml.namespace.NamespaceContext;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
@@ -46,6 +48,21 @@ import java.util.*;
 
 public class Xml {
 
+    // the JDK's own implementations: a JAXP provider on the classpath (Saxon, Xalan, Xerces)
+    // would otherwise be picked up and change how documents parse, serialize and evaluate
+
+    static TransformerFactory transformerFactory() {
+        return TransformerFactory.newDefaultInstance();
+    }
+
+    static DocumentBuilderFactory documentBuilderFactory() {
+        return DocumentBuilderFactory.newDefaultInstance();
+    }
+
+    static XPathFactory xpathFactory() {
+        return XPathFactory.newDefaultInstance();
+    }
+
     public static String toString(Node node) {
         return toString(node, false);
     }
@@ -61,7 +78,7 @@ public class Xml {
         DOMSource domSource = new DOMSource(source);
         StringWriter writer = new StringWriter();
         StreamResult result = new StreamResult(writer);
-        TransformerFactory tf = TransformerFactory.newInstance();
+        TransformerFactory tf = transformerFactory();
         try {
             Transformer transformer = tf.newTransformer();
             transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
@@ -96,7 +113,7 @@ public class Xml {
         Element imported = (Element) newDoc.importNode(target, true);
         newDoc.appendChild(imported);
         for (Map.Entry<String, String> e : inherited.entrySet()) {
-            imported.setAttribute(e.getKey(), e.getValue());
+            declareNamespace(imported, e.getKey(), e.getValue());
         }
         return imported;
     }
@@ -106,7 +123,7 @@ public class Xml {
     }
 
     public static Document toXmlDoc(String xml, boolean namespaceAware) {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilderFactory factory = documentBuilderFactory();
         factory.setNamespaceAware(namespaceAware);
         factory.setIgnoringElementContentWhitespace(false);
         try {
@@ -145,7 +162,7 @@ public class Xml {
     }
 
     public static Document newDocument() {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilderFactory factory = documentBuilderFactory();
         DocumentBuilder builder;
         try {
             builder = factory.newDocumentBuilder();
@@ -256,6 +273,110 @@ public class Xml {
         }
     }
 
+    /**
+     * The {@link #toObject(Node)} shape keyed by expanded name: {@code {uri}local} for a name in a
+     * namespace, the bare local name otherwise, so prefixes and the placement of xmlns declarations
+     * (which are dropped) never matter. Attributes sit under {@code "@"} beside the value under
+     * {@code "_"}, repeated elements become a list, and {@code xsi:nil} stays an ordinary attribute
+     * ({@code {http://www.w3.org/2001/XMLSchema-instance}nil}). Meant for namespace-aware nodes.
+     */
+    public static Object toExpandedObject(Node node) {
+        if (node.getNodeType() == Node.DOCUMENT_NODE) {
+            Map<String, Object> map = new LinkedHashMap<>(1);
+            node = node.getFirstChild();
+            if (node == null) {
+                return map;
+            }
+            while (node.getNodeType() != Node.ELEMENT_NODE) {
+                node = node.getNextSibling();
+            }
+            map.put(expandedName(node), toExpandedObject(node));
+            return map;
+        }
+        Object value;
+        if (getChildElementCount(node) == 0) {
+            String textContent = node.getTextContent();
+            value = StringUtils.isBlank(textContent) ? null : textContent;
+        } else {
+            value = childrenAsObject(node, Xml::expandedName, Xml::toExpandedObject);
+        }
+        Map<String, Object> attribs = new LinkedHashMap<>();
+        NamedNodeMap nodeAttribs = node.getAttributes();
+        for (int i = 0; nodeAttribs != null && i < nodeAttribs.getLength(); i++) {
+            Node attr = nodeAttribs.item(i);
+            String name = attr.getNodeName();
+            if (!"xmlns".equals(name) && !name.startsWith("xmlns:")) {
+                attribs.put(expandedName(attr), attr.getNodeValue());
+            }
+        }
+        if (attribs.isEmpty()) {
+            return value;
+        }
+        Map<String, Object> wrapper = new LinkedHashMap<>(2);
+        wrapper.put("_", value);
+        wrapper.put("@", attribs);
+        return wrapper;
+    }
+
+    private static String expandedName(Node node) {
+        String local = node.getLocalName();
+        if (local == null) {
+            return node.getNodeName();
+        }
+        String uri = node.getNamespaceURI();
+        return uri == null ? local : "{" + uri + "}" + local;
+    }
+
+    /**
+     * The namespace URI of an element whether or not its document is namespace-aware: on a
+     * prefix-blind DOM the prefix is resolved against the xmlns declarations in scope.
+     */
+    public static String getNamespaceUri(Element element) {
+        if (element.getLocalName() != null) {
+            return element.getNamespaceURI();
+        }
+        String name = element.getNodeName();
+        int pos = name.indexOf(':');
+        String declaration = pos == -1 ? "xmlns" : "xmlns:" + name.substring(0, pos);
+        for (Node node = element; node != null && node.getNodeType() == Node.ELEMENT_NODE; node = node.getParentNode()) {
+            Attr attr = ((Element) node).getAttributeNode(declaration);
+            if (attr != null) {
+                return attr.getValue().isEmpty() ? null : attr.getValue();
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> childrenAsObject(Node node, java.util.function.Function<Node, String> naming,
+                                                        java.util.function.Function<Node, Object> converter) {
+        NodeList nodes = node.getChildNodes();
+        int childCount = nodes.getLength();
+        Map<String, Object> map = new LinkedHashMap<>(childCount);
+        for (int i = 0; i < childCount; i++) {
+            Node child = nodes.item(i);
+            if (child.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+            String childName = naming.apply(child);
+            Object childValue = converter.apply(child);
+            if (map.containsKey(childName)) {
+                Object temp = map.get(childName);
+                if (temp instanceof List) {
+                    ((List<Object>) temp).add(childValue);
+                } else {
+                    List<Object> list = new ArrayList<>(childCount);
+                    map.put(childName, list);
+                    list.add(temp);
+                    list.add(childValue);
+                }
+            } else {
+                map.put(childName, childValue);
+            }
+        }
+        return map;
+    }
+
     @SuppressWarnings("unchecked")
     private static Object getElementAsObject(Node node, boolean removeNamespace) {
         int childElementCount = getChildElementCount(node);
@@ -320,9 +441,106 @@ public class Xml {
 
     // ========== XPath utilities ==========
 
-    private static XPathExpression compile(String path) {
-        XPathFactory xPathfactory = XPathFactory.newInstance();
+    /**
+     * True when the node's document was parsed (or built) namespace-aware, so element and
+     * attribute names carry a namespace URI and XPath steps must use prefixes the document binds.
+     */
+    public static boolean isNamespaceAware(Node node) {
+        Document doc = documentOf(node);
+        Element root = doc == null ? null : doc.getDocumentElement();
+        return root != null && root.getLocalName() != null;
+    }
+
+    // every prefix bound anywhere in the document, the first binding in document order winning
+    private static Map<String, String> collectPrefixes(Document doc) {
+        Map<String, String> prefixes = new HashMap<>();
+        NodeList elements = doc.getElementsByTagName("*");
+        for (int i = 0; i < elements.getLength(); i++) {
+            Element element = (Element) elements.item(i);
+            if (element.getPrefix() != null && element.getNamespaceURI() != null) {
+                prefixes.putIfAbsent(element.getPrefix(), element.getNamespaceURI());
+            }
+            NamedNodeMap attribs = element.getAttributes();
+            for (int j = 0; j < attribs.getLength(); j++) {
+                Node attr = attribs.item(j);
+                String name = attr.getNodeName();
+                if (name.startsWith("xmlns:")) {
+                    prefixes.putIfAbsent(name.substring(6), attr.getNodeValue());
+                } else if (attr.getPrefix() != null && attr.getNamespaceURI() != null) {
+                    prefixes.putIfAbsent(attr.getPrefix(), attr.getNamespaceURI());
+                }
+            }
+        }
+        return prefixes;
+    }
+
+    private static Document documentOf(Node node) {
+        return node.getNodeType() == Node.DOCUMENT_NODE ? (Document) node : node.getOwnerDocument();
+    }
+
+    private static String namespaceOf(Document doc, String qualifiedName, Map<String, String> namespaces) {
+        int pos = qualifiedName.indexOf(':');
+        if (pos == -1) {
+            return null;
+        }
+        String prefix = qualifiedName.substring(0, pos);
+        if (XMLConstants.XML_NS_PREFIX.equals(prefix)) {
+            return XMLConstants.XML_NS_URI;
+        }
+        String uri = namespaces == null ? null : namespaces.get(prefix);
+        if (uri == null) {
+            uri = collectPrefixes(doc).get(prefix);
+        }
+        if (uri == null) {
+            throw new RuntimeException("namespace prefix '" + prefix + "' is neither configured nor declared in the document: " + qualifiedName);
+        }
+        return uri;
+    }
+
+    private static void declareNamespace(Element element, String name, String uri) {
+        if (isNamespaceAware(element)) {
+            element.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, name, uri);
+        } else {
+            element.setAttribute(name, uri);
+        }
+    }
+
+    private static NamespaceContext namespaceContext(Map<String, String> prefixes) {
+        return new NamespaceContext() {
+            @Override
+            public String getNamespaceURI(String prefix) {
+                if (XMLConstants.XML_NS_PREFIX.equals(prefix)) {
+                    return XMLConstants.XML_NS_URI;
+                }
+                return prefixes.getOrDefault(prefix, XMLConstants.NULL_NS_URI);
+            }
+
+            @Override
+            public String getPrefix(String uri) {
+                Iterator<String> it = getPrefixes(uri);
+                return it.hasNext() ? it.next() : null;
+            }
+
+            @Override
+            public Iterator<String> getPrefixes(String uri) {
+                return prefixes.entrySet().stream()
+                        .filter(e -> e.getValue().equals(uri)).map(Map.Entry::getKey).iterator();
+            }
+        };
+    }
+
+    // on a namespace-aware document a step's prefix resolves through the given bindings
+    // first, then through the prefixes the document itself declares
+    private static XPathExpression compile(Node node, String path, Map<String, String> namespaces) {
+        XPathFactory xPathfactory = xpathFactory();
         XPath xpath = xPathfactory.newXPath();
+        if (isNamespaceAware(node)) {
+            Map<String, String> prefixes = collectPrefixes(documentOf(node));
+            if (namespaces != null) {
+                prefixes.putAll(namespaces);
+            }
+            xpath.setNamespaceContext(namespaceContext(prefixes));
+        }
         try {
             return xpath.compile(path);
         } catch (Exception e) {
@@ -331,7 +549,11 @@ public class Xml {
     }
 
     public static NodeList getNodeListByPath(Node node, String path) {
-        XPathExpression expr = compile(path);
+        return getNodeListByPath(node, path, null);
+    }
+
+    public static NodeList getNodeListByPath(Node node, String path, Map<String, String> namespaces) {
+        XPathExpression expr = compile(node, path, namespaces);
         try {
             return (NodeList) expr.evaluate(node, XPathConstants.NODESET);
         } catch (Exception e) {
@@ -340,7 +562,11 @@ public class Xml {
     }
 
     public static String getTextValueByPath(Node node, String path) {
-        XPathExpression expr = compile(path);
+        return getTextValueByPath(node, path, null);
+    }
+
+    public static String getTextValueByPath(Node node, String path, Map<String, String> namespaces) {
+        XPathExpression expr = compile(node, path, namespaces);
         try {
             return expr.evaluate(node);
         } catch (Exception e) {
@@ -349,8 +575,12 @@ public class Xml {
     }
 
     public static Node getNodeByPath(Node node, String path, boolean create) {
-        String searchPath = create ? stripNameSpacePrefixes(path) : path;
-        XPathExpression expr = compile(searchPath);
+        return getNodeByPath(node, path, create, null);
+    }
+
+    public static Node getNodeByPath(Node node, String path, boolean create, Map<String, String> namespaces) {
+        String searchPath = create && !isNamespaceAware(node) ? stripNameSpacePrefixes(path) : path;
+        XPathExpression expr = compile(node, searchPath, namespaces);
         Node result;
         try {
             result = (Node) expr.evaluate(node, XPathConstants.NODE);
@@ -359,7 +589,7 @@ public class Xml {
         }
         if (result == null && create) {
             Document doc = node.getNodeType() == Node.DOCUMENT_NODE ? (Document) node : node.getOwnerDocument();
-            return createNodeByPath(doc, path);
+            return createNodeByPath(doc, path, namespaces);
         } else {
             return result;
         }
@@ -385,36 +615,123 @@ public class Xml {
     }
 
     public static Node createNodeByPath(Document doc, String path) {
+        return createNodeByPath(doc, path, null);
+    }
+
+    public static Node createNodeByPath(Document doc, String path, Map<String, String> namespaces) {
         int pos = path.lastIndexOf('/');
         if (pos == 0) { // root
             Node root = doc.getDocumentElement();
             if (root == null) {
                 root = createElement(doc, path.substring(1), null, null);
                 doc.appendChild(root);
+            } else if (isNamespaceAware(doc)) {
+                String step = path.substring(1);
+                int bracketPos = step.indexOf('[');
+                if (bracketPos != -1) {
+                    step = step.substring(0, bracketPos);
+                }
+                String uri = namespaceOf(doc, step, namespaces);
+                String local = step.substring(step.indexOf(':') + 1);
+                if (!local.equals(root.getLocalName()) || !Objects.equals(uri, root.getNamespaceURI())) {
+                    throw new RuntimeException("xpath root step '" + step + "' does not match the document root '"
+                            + expandedName(root) + "'");
+                }
             }
             return root;
         }
         String left = path.substring(0, pos);
-        Node parent = getNodeByPath(doc, left, true);
+        Node parent = getNodeByPath(doc, left, true, namespaces);
         String right = path.substring(pos + 1);
         if (right.startsWith("@")) { // attribute
             Element parentElement = (Element) parent;
             right = right.substring(1);
-            parentElement.setAttribute(right, "");
+            if (isNamespaceAware(doc)) {
+                String uri = namespaceOf(doc, right, namespaces);
+                if (uri == null) {
+                    parentElement.setAttributeNS(null, right, "");
+                    return parentElement.getAttributeNodeNS(null, right);
+                }
+                String local = right.substring(right.indexOf(':') + 1);
+                String prefix = bindPrefix(parentElement, parentElement, right.substring(0, right.indexOf(':')), uri, namespaces);
+                parentElement.setAttributeNS(uri, prefix + ":" + local, "");
+                return parentElement.getAttributeNodeNS(uri, local);
+            } else {
+                parentElement.setAttribute(right, "");
+            }
             return parentElement.getAttributeNode(right);
         } else {
             int bracketPos = right.indexOf('[');
             if (bracketPos != -1) { // index, we assume it is 1 and still append
                 right = right.substring(0, bracketPos);
             }
-            Element element = createElement(parent, right, null, null);
+            Element element = isNamespaceAware(doc)
+                    ? createElementNS(parent, right, namespaces) : createElement(parent, right, null, null);
             parent.appendChild(element);
             return element;
         }
     }
 
+    private static Element createElementNS(Node parent, String name, Map<String, String> namespaces) {
+        Document doc = documentOf(parent);
+        String uri = namespaceOf(doc, name, namespaces);
+        if (uri == null) {
+            return doc.createElementNS(null, name);
+        }
+        String requested = name.substring(0, name.indexOf(':'));
+        String local = name.substring(requested.length() + 1);
+        Element element = doc.createElementNS(uri, requested + ":" + local);
+        String prefix = bindPrefix(parent, element, requested, uri, namespaces);
+        element.setPrefix(prefix);
+        return element;
+    }
+
+    /**
+     * The prefix a new name in {@code uri} takes under {@code scope}: one already bound there to
+     * {@code uri}, else {@code requested} declared on {@code target} when that rebinds nothing in
+     * scope, else a generated one used nowhere in the document nor in {@code namespaces}, since
+     * XPath resolves a document prefix by its first declaration anywhere. A prefix is never
+     * rebound, so names already using it keep their namespace.
+     */
+    private static String bindPrefix(Node scope, Element target, String requested, String uri, Map<String, String> namespaces) {
+        if (XMLConstants.XML_NS_URI.equals(uri)) {
+            return XMLConstants.XML_NS_PREFIX;
+        }
+        String inScope = scope.lookupPrefix(uri);
+        if (inScope != null && uri.equals(scope.lookupNamespaceURI(inScope))) {
+            return inScope;
+        }
+        String prefix = requested;
+        if (isPrefixTaken(scope, prefix)) {
+            Map<String, String> used = collectPrefixes(documentOf(scope));
+            int i = 0;
+            do {
+                prefix = "ns" + i++;
+            } while (used.containsKey(prefix) || (namespaces != null && namespaces.containsKey(prefix)) || isPrefixTaken(scope, prefix));
+        }
+        declareNamespace(target, "xmlns:" + prefix, uri);
+        return prefix;
+    }
+
+    private static boolean isPrefixTaken(Node scope, String prefix) {
+        if (scope.lookupNamespaceURI(prefix) != null) {
+            return true;
+        }
+        NamedNodeMap attribs = scope.getAttributes();
+        for (int i = 0; attribs != null && i < attribs.getLength(); i++) {
+            if (prefix.equals(attribs.item(i).getPrefix())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static void setByPath(Node doc, String path, String value) {
-        Node node = getNodeByPath(doc, path, true);
+        setByPath(doc, path, value, null);
+    }
+
+    public static void setByPath(Node doc, String path, String value, Map<String, String> namespaces) {
+        Node node = getNodeByPath(doc, path, true, namespaces);
         if (node.getNodeType() == Node.ATTRIBUTE_NODE) {
             node.setNodeValue(value);
         } else if (node.hasChildNodes() && node.getFirstChild().getNodeType() == Node.TEXT_NODE) {
@@ -425,12 +742,23 @@ public class Xml {
     }
 
     public static void setByPath(Document doc, String path, Node in) {
+        setByPath(doc, path, in, null);
+    }
+
+    public static void setByPath(Document doc, String path, Node in, Map<String, String> namespaces) {
         if (in.getNodeType() == Node.DOCUMENT_NODE) {
             in = in.getFirstChild();
         }
-        Node node = getNodeByPath(doc, path, true);
+        Node node = getNodeByPath(doc, path, true, namespaces);
         if (node == null) {
             throw new RuntimeException("no results for xpath: " + path);
+        }
+        if (isNamespaceAware(doc) && !isNamespaceAware(in) && in.getNodeType() == Node.ELEMENT_NODE) {
+            try {
+                in = toXmlDoc(toString(in), true).getDocumentElement();
+            } catch (RuntimeException undeclaredPrefix) {
+                // imported as it is, by prefixed name
+            }
         }
         Node newNode = doc.importNode(in, true);
         if (node.hasChildNodes() && node.getFirstChild().getNodeType() == Node.TEXT_NODE) {
@@ -441,7 +769,11 @@ public class Xml {
     }
 
     public static void removeByPath(Document doc, String path) {
-        Node node = getNodeByPath(doc, path, false);
+        removeByPath(doc, path, null);
+    }
+
+    public static void removeByPath(Document doc, String path, Map<String, String> namespaces) {
+        Node node = getNodeByPath(doc, path, false, namespaces);
         if (node == null) {
             return;
         }
@@ -468,7 +800,7 @@ public class Xml {
             Map<String, String> inherited = collectAncestorNamespaces(in);
             for (Map.Entry<String, String> e : inherited.entrySet()) {
                 if (target.getAttributeNode(e.getKey()) == null) {
-                    target.setAttribute(e.getKey(), e.getValue());
+                    declareNamespace(target, e.getKey(), e.getValue());
                 }
             }
         }
